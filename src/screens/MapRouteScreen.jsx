@@ -66,18 +66,20 @@ export function MapRouteScreen() {
             총 {data.durationMinutes}분 · 환승 {data.transferCount}회 · {data.totalFare}원
           </p>
           <ul className="flex flex-col gap-2">
-            {data.steps.map((step, index) => (
+            {data.steps.map((routeStep, index) => (
               <li
-                key={`${step.type}-${index}`}
+                key={`${routeStep.type}-${index}`}
                 className="border rounded p-3"
                 style={{ borderColor: 'var(--color-border)' }}
               >
-                <span className="font-bold">{step.type}</span>
-                <p>{step.desc}</p>
-                {step.type === 'BUS' && step.boardingStop && <p>탑승: {step.boardingStop}</p>}
-                {step.type === 'SUBWAY' && (
+                <span className="font-bold">{routeStep.type}</span>
+                <p>{routeStep.desc}</p>
+                {routeStep.type === 'BUS' && routeStep.boardingStop && (
+                  <p>탑승: {routeStep.boardingStop}</p>
+                )}
+                {routeStep.type === 'SUBWAY' && (
                   <p>
-                    {step.line} · 탑승: {step.boardingStation}
+                    {routeStep.line} · 탑승: {routeStep.boardingStation}
                   </p>
                 )}
               </li>
