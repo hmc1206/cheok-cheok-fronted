@@ -60,11 +60,22 @@ export function useVoiceAssistant({ onResult } = {}) {
       try {
         const response = await voiceApi.process({ userId, ...payload })
         applyResponse(response)
+      } catch (error) {
+        // 공통 에러 응답({ errorCode, message, ttsText })도 정상 응답과 동일하게 캡션+TTS로
+        // 안내한다 (청각+시각 이중 안내 원칙). apiClient 인터셉터가 SESSION_EXPIRED/401은
+        // 이미 별도 처리하지만, 여기서 다시 캡션을 채워줘야 화면에도 문구가 보인다.
+        // catch 없이 두면 sendText를 그냥 호출만 하고 await하지 않는 화면들에서
+        // unhandled promise rejection이 발생하므로 반드시 여기서 흡수한다.
+        const ttsText = error.response?.data?.ttsText
+        if (ttsText) {
+          setTtsCaption(ttsText)
+          speak(ttsText)
+        }
       } finally {
         setStatus('idle')
       }
     },
-    [applyResponse, userId],
+    [applyResponse, speak, userId],
   )
 
   const startListening = useCallback(async () => {
