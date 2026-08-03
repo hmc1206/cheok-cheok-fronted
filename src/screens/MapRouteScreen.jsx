@@ -9,30 +9,34 @@ import { useVoiceSessionStore } from '../store/voiceSessionStore'
 // 길찾기 화면 (기획서 4-2장).
 export function MapRouteScreen() {
   const routerLocation = useLocation()
-  const { coords, status: geoStatus, requestLocation } = useGeolocation()
+  const { status: geoStatus, requestLocation } = useGeolocation()
   const { status, sttCaption, ttsCaption, startListening, sendText } = useVoiceAssistant()
+  const step = useVoiceSessionStore((state) => state.step)
   const screen = useVoiceSessionStore((state) => state.screen)
   const data = useVoiceSessionStore((state) => state.data) ?? routerLocation.state?.data
 
   const [destinationInput, setDestinationInput] = useState('')
-  const [originAutoAsked, setOriginAutoAsked] = useState(false)
+  const [originAutoAnswered, setOriginAutoAnswered] = useState(false)
 
   useEffect(() => {
     requestLocation()
   }, [requestLocation])
 
   useEffect(() => {
-    // 권한 허용됨 → origin: 현재위치로 바로 호출해 ASK_ORIGIN 질문을 스킵한다.
-    // 권한 거부/실패 시에는 아무것도 보내지 않아 기존 명세대로 ASK_ORIGIN 질문 흐름이 유지된다.
-    if (geoStatus === 'granted' && coords && !originAutoAsked) {
-      setOriginAutoAsked(true)
-      sendText('내 위치에서 출발', { originCoords: coords })
+    // API 명세서 3장: /voice/process는 origin 좌표를 받는 파라미터가 따로 없다.
+    // 목적지를 먼저 말한 뒤 서버가 step: ASK_ORIGIN으로 "지금 계신 곳에서 출발할까요?"를
+    // 물어오면, 위치 권한이 이미 있으니 사용자가 대답할 필요 없이 "네"로 자동 응답해
+    // 질문을 건너뛴 것처럼 만든다. 권한 거부/실패 시에는 그대로 두어 사용자가 직접 답한다.
+    if (geoStatus === 'granted' && step === 'ASK_ORIGIN' && !originAutoAnswered) {
+      setOriginAutoAnswered(true)
+      sendText('네')
     }
-  }, [coords, geoStatus, originAutoAsked, sendText])
+  }, [geoStatus, step, originAutoAnswered, sendText])
 
   const handleSubmitDestination = (event) => {
     event.preventDefault()
     if (!destinationInput.trim()) return
+    setOriginAutoAnswered(false) // 새 목적지 검색 시 ASK_ORIGIN 자동응답을 다시 허용
     sendText(destinationInput.trim())
     setDestinationInput('')
   }
@@ -56,21 +60,30 @@ export function MapRouteScreen() {
 
       {screen === 'MAP_NOT_FOUND' && <p>경로를 찾지 못했어요. 다시 말씀해주세요.</p>}
 
-      {/* ASSUMPTION: 백엔드가 ODsay/TMAP 대중교통 API를 연동해 이 포맷(steps: [{type, description}])으로
-          응답을 준다는 전제. 프론트는 결과를 WALK/BUS/SUBWAY 타입별 카드로 렌더링만 한다. */}
       {screen === 'MAP_RESULT' && Array.isArray(data?.steps) && (
-        <ul className="flex flex-col gap-2">
-          {data.steps.map((step, index) => (
-            <li
-              key={`${step.type}-${index}`}
-              className="border rounded p-3"
-              style={{ borderColor: 'var(--color-border)' }}
-            >
-              <span className="font-bold">{step.type}</span>
-              <p>{step.description}</p>
-            </li>
-          ))}
-        </ul>
+        <>
+          <p style={{ color: 'var(--color-text-muted)' }}>
+            총 {data.durationMinutes}분 · 환승 {data.transferCount}회 · {data.totalFare}원
+          </p>
+          <ul className="flex flex-col gap-2">
+            {data.steps.map((step, index) => (
+              <li
+                key={`${step.type}-${index}`}
+                className="border rounded p-3"
+                style={{ borderColor: 'var(--color-border)' }}
+              >
+                <span className="font-bold">{step.type}</span>
+                <p>{step.desc}</p>
+                {step.type === 'BUS' && step.boardingStop && <p>탑승: {step.boardingStop}</p>}
+                {step.type === 'SUBWAY' && (
+                  <p>
+                    {step.line} · 탑승: {step.boardingStation}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
+        </>
       )}
 
       <div className="flex justify-center">
