@@ -3,7 +3,6 @@ import { ThemeProvider } from './components/common/ThemeProvider'
 import { AuthCallbackScreen } from './screens/AuthCallbackScreen'
 import { HomeScreen } from './screens/HomeScreen'
 import { KioskLiveScreen } from './screens/KioskLiveScreen'
-import { KioskTrainingScreen } from './screens/KioskTrainingScreen'
 import { MapRouteScreen } from './screens/MapRouteScreen'
 import { TrainBookingScreen } from './screens/TrainBookingScreen'
 import { YoutubePlayerScreen } from './screens/YoutubePlayerScreen'
@@ -18,7 +17,6 @@ function App() {
           <Route path="/map" element={<MapRouteScreen />} />
           <Route path="/train" element={<TrainBookingScreen />} />
           <Route path="/kiosk" element={<KioskLiveScreen />} />
-          <Route path="/kiosk/training" element={<KioskTrainingScreen />} />
           <Route path="/youtube" element={<YoutubePlayerScreen />} />
           <Route path="/auth/callback" element={<AuthCallbackScreen />} />
         </Routes>

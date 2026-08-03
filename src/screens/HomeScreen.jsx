@@ -26,14 +26,6 @@ export function HomeScreen() {
         <button type="button" className="quick-action-button" onClick={() => navigate('/kiosk')}>
           키오스크 도움
         </button>
-        {/* 실전 도움(/kiosk)과 헷갈리지 않도록 문구를 명확히 분리 */}
-        <button
-          type="button"
-          className="quick-action-button"
-          onClick={() => navigate('/kiosk/training')}
-        >
-          키오스크 연습하기
-        </button>
       </nav>
 
       <CaptionOverlay sttCaption={sttCaption} ttsCaption={ttsCaption} />
