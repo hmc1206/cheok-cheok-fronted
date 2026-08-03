@@ -40,19 +40,21 @@ export function TrainBookingScreen() {
         </button>
       </form>
 
-      {/* ASSUMPTION: 후보 열차 카드에 표시할 필드명(trainName/departureTime/arrivalTime)은
-          명세서에 정확히 없어 임의로 지정했다. 실제 응답 스키마 확정 시 맞춰야 한다. */}
+      {/* API 명세서 4장: candidates[]는 trainNo/departTime/arriveTime/price/seatAvailable를 준다. */}
       {step === 'CONFIRM' && Array.isArray(data?.candidates) && (
         <ul className="flex flex-col gap-2">
-          {data.candidates.map((train, index) => (
+          {data.candidates.map((train) => (
             <li
-              key={train.trainId ?? index}
+              key={train.trainNo}
               className="border rounded p-3"
               style={{ borderColor: 'var(--color-border)' }}
             >
-              <p>{train.trainName ?? '열차'}</p>
+              <p>{train.trainNo}</p>
               <p>
-                {train.departureTime} → {train.arrivalTime}
+                {train.departTime} → {train.arriveTime}
+              </p>
+              <p>
+                {train.price?.toLocaleString()}원 · {train.seatAvailable ? '예약 가능' : '매진'}
               </p>
             </li>
           ))}
@@ -70,10 +72,19 @@ export function TrainBookingScreen() {
         </ul>
       )}
 
-      {step === 'DONE' && (
+      {step === 'DONE' && data && (
         // ASSUMPTION: DONE 응답은 데모/mock 화면 전환 확인용으로만 쓴다.
         // 실서비스 전환 시 위 코레일톡 딥링크 방식으로 완전히 대체할 예정.
-        <p>(데모) 예매가 완료되었습니다.</p>
+        <div className="border rounded p-3" style={{ borderColor: 'var(--color-border)' }}>
+          <p>(데모) 예매가 완료되었습니다.</p>
+          <p>
+            {data.departStation} → {data.arriveStation} · {data.trainNo}
+          </p>
+          <p>
+            {data.departTime} → {data.arriveTime} · {data.seat}
+          </p>
+          <p>예약번호: {data.reservationId}</p>
+        </div>
       )}
 
       <div className="flex justify-center">
