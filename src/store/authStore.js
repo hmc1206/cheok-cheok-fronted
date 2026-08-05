@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-// 가이드북 5장 OAuth2 흐름: AuthCallbackScreen이 쿼리스트링을 파싱해 여기에 저장하고,
+// 구글 로그인(팝업) 성공 시 LoginPage가 여기에 토큰을 저장하고,
 // 이후 apiClient의 요청 인터셉터가 token을 Authorization 헤더에 자동 첨부한다.
 export const useAuthStore = create((set) => ({
   token: null,
