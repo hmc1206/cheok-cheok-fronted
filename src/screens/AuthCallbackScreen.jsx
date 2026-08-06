@@ -1,12 +1,14 @@
 import { useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { authApi } from '../api/authApi'
 import { useAuthStore } from '../store/authStore'
-import apiClient from '../api/apiClient'
 
-export default function AuthCallbackScreen() {
+// 백엔드 구글 로그인 완료 후 리다이렉트를 받는 화면 (서버사이드 OAuth 리다이렉트 확정).
+// 백엔드가 /auth/callback?token=...&isNewUser=...로 보내주면, 쿼리스트링을 파싱해
+// authStore에 저장하고 /users/me로 실제 사용자 정보를 확정한 뒤 홈으로 이동한다.
+export function AuthCallbackScreen() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-
   const setAuth = useAuthStore((state) => state.setAuth)
 
   useEffect(() => {
@@ -20,53 +22,17 @@ export default function AuthCallbackScreen() {
         return
       }
 
+      // 1단계: 우선 토큰만으로 인증 상태를 채워둔다 — authApi.getMe()도 인증이 필요한
+      // 요청이라 apiClient가 Authorization 헤더를 붙이려면 token이 먼저 스토어에 있어야 한다.
+      setAuth({ token, userId: null, isNewUser })
+
       try {
-        // 1. JWT 저장
-        localStorage.setItem('accessToken', token)
-
-        // 2. Zustand 임시 인증 상태 저장
-        setAuth({
-          token,
-          userId: null,
-          isNewUser,
-        })
-
-        // 3. 백엔드에서 실제 로그인 사용자 확인
-        const response = await apiClient.get('/api/users/me')
-
-        const userData = response.data
-
-        console.log('[콜백] 로그인 사용자:', userData)
-
-        const userId = userData.userId ?? userData.id
-
-        if (!userId) {
-          throw new Error('사용자 ID를 확인할 수 없습니다.')
-        }
-
-        // 4. 실제 사용자 정보로 인증 상태 확정
-        setAuth({
-          token,
-          userId,
-          isNewUser,
-        })
-
-        // 5. 로그인 완료
+        const userData = await authApi.getMe()
+        setAuth({ token, userId: userData.userId, isNewUser })
         navigate('/', { replace: true })
-
       } catch (error) {
-        console.error('[콜백] 로그인 처리 실패:', error)
-
-        // 잘못 저장된 토큰 제거
-        localStorage.removeItem('accessToken')
-
-        // 인증 상태 초기화
-        setAuth({
-          token: null,
-          userId: null,
-          isNewUser: false,
-        })
-
+        console.error('[콜백] 로그인 사용자 정보 조회 실패:', error)
+        useAuthStore.getState().clearAuth()
         alert('로그인 처리에 실패했습니다.')
         navigate('/login', { replace: true })
       }
