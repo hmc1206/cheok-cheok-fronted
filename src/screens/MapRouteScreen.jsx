@@ -110,8 +110,10 @@ export function MapRouteScreen() {
                 className="border rounded p-3"
                 style={{ borderColor: 'var(--color-border)' }}
               >
+                {/* 백엔드 현재 구현 상태 확인 결과: 원래 API 명세서 예시엔 desc였지만
+                    실제 응답 필드는 description이라고 확인됨. */}
                 <span className="font-bold">{routeStep.type}</span>
-                <p>{routeStep.desc}</p>
+                <p>{routeStep.description}</p>
                 {routeStep.type === 'BUS' && routeStep.boardingStop && (
                   <p>탑승: {routeStep.boardingStop}</p>
                 )}
