@@ -16,9 +16,14 @@ export function HomeScreen() {
     // 계산돼 852px 프레임 안에서 넘치거나 어긋난다.
     <AppFrame>
       <main className="flex flex-col items-center justify-between h-full p-6">
-        <section className="flex flex-1 flex-col items-center justify-center gap-4">
+        {/* Toss 스타일 위계: 마이크 버튼이 화면의 시선을 받는 주인공이고, 안내 문구는
+            보조 정보라 var(--color-text-muted)로 톤을 낮춘다. 버튼과 문구는 한 묶음으로
+            읽히도록 간격을 좁게(gap-3), 아래 바로가기 목록과는 flex-1로 충분히 띄운다. */}
+        <section className="flex flex-1 flex-col items-center justify-center gap-3">
           <VoiceButton status={status} onPress={startListening} />
-          <p style={{ fontSize: 'var(--font-size-base)' }}>마이크를 눌러 말씀해주세요</p>
+          <p style={{ fontSize: 'var(--font-size-base)', color: 'var(--color-text-muted)' }}>
+            마이크를 눌러 말씀해주세요
+          </p>
         </section>
 
         <nav className="grid grid-cols-1 gap-3 w-full max-w-sm pb-24">
