@@ -59,9 +59,8 @@ apiClient.interceptors.response.use(
         return apiClient(originalRequest)
       } catch {
         useAuthStore.getState().clearAuth()
-        // ASSUMPTION: 로그인 화면 자체가 이번 스코프 밖이라, 갱신 실패 시 우선 홈으로
-        // 되돌리는 것으로 가정했다 (실제 재로그인 유도 화면은 로그인 구현 시점에 연결).
-        window.location.href = '/'
+        // 토큰 갱신마저 실패하면 재로그인을 유도한다 (구글 로그인 화면: /login).
+        window.location.href = '/login'
       }
     }
 
