@@ -97,8 +97,12 @@ export function TrainBookingScreen() {
           <input
             value={textInput}
             onChange={(event) => setTextInput(event.target.value)}
-            className="flex-1 border rounded p-2"
-            style={{ fontSize: 'var(--font-size-base)', borderColor: 'var(--color-border)' }}
+            className="flex-1 border p-2"
+            style={{
+              fontSize: 'var(--font-size-base)',
+              borderColor: 'var(--color-border)',
+              borderRadius: 'var(--radius-base)',
+            }}
           />
           <button type="submit" className="quick-action-button">
             전송
@@ -111,14 +115,16 @@ export function TrainBookingScreen() {
             {data.candidates.map((train) => (
               <li
                 key={train.trainNo}
-                className="border rounded p-3"
-                style={{ borderColor: 'var(--color-border)' }}
+                className="flex flex-col gap-1 border p-3"
+                style={{ borderColor: 'var(--color-border)', borderRadius: 'var(--radius-base)' }}
               >
-                <p>{train.trainNo}</p>
+                {/* 위계: 열차 번호가 이 카드의 주인공, 시간은 그다음, 가격/좌석 여부는
+                    참고 정보라 가장 흐리게 — 훑어볼 때 열차명부터 눈에 들어오게 한다. */}
+                <p style={{ fontSize: 'var(--font-size-lg)', fontWeight: 700 }}>{train.trainNo}</p>
                 <p>
                   {train.departTime} → {train.arriveTime}
                 </p>
-                <p>
+                <p style={{ color: 'var(--color-text-muted)' }}>
                   {train.price?.toLocaleString()}원 · {train.seatAvailable ? '예약 가능' : '매진'}
                 </p>
               </li>
@@ -148,15 +154,20 @@ export function TrainBookingScreen() {
         {step === 'DONE' && data && (
           // ASSUMPTION: DONE 응답은 데모/mock 화면 전환 확인용으로만 쓴다.
           // 실서비스 전환 시 위 네이버 지도 딥링크 방식으로 완전히 대체할 예정.
-          <div className="border rounded p-3" style={{ borderColor: 'var(--color-border)' }}>
-            <p>(데모) 예매가 완료되었습니다.</p>
-            <p>
+          <div
+            className="flex flex-col gap-1 border p-3"
+            style={{ borderColor: 'var(--color-border)', borderRadius: 'var(--radius-base)' }}
+          >
+            {/* 위계: 완료 안내는 작은 라벨, 실제 예매 내용(구간/열차)이 이 카드의 핵심이라
+                가장 크고 굵게 둔다. 예약번호는 참고용이라 가장 흐리게. */}
+            <p style={{ color: 'var(--color-text-muted)' }}>(데모) 예매가 완료되었습니다.</p>
+            <p style={{ fontSize: 'var(--font-size-lg)', fontWeight: 700 }}>
               {data.departStation} → {data.arriveStation} · {data.trainNo}
             </p>
             <p>
               {data.departTime} → {data.arriveTime} · {data.seat}
             </p>
-            <p>예약번호: {data.reservationId}</p>
+            <p style={{ color: 'var(--color-text-muted)' }}>예약번호: {data.reservationId}</p>
           </div>
         )}
 
