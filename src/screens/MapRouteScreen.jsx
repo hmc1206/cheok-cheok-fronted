@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
+import { AppFrame } from '../components/common/AppFrame'
 import { CaptionOverlay } from '../components/common/CaptionOverlay'
 import { VoiceButton } from '../components/common/VoiceButton'
 import { NaverMap } from '../components/map/NaverMap'
@@ -68,71 +69,76 @@ export function MapRouteScreen() {
   }
 
   return (
-    <main className="flex flex-col gap-4 p-6 pb-40">
-      <h1 style={{ fontSize: 'var(--font-size-xl)' }}>길 찾기</h1>
+    <AppFrame>
+      {/* AppFrame이 높이를 852px로 고정하므로, 지도+폼+결과 목록이 그 안에서
+          넘칠 수 있다. h-full로 프레임을 꽉 채우고 overflow-y-auto로 스크롤되게
+          해서(clip 아님) 내용이 잘려 안 보이는 일이 없게 한다. */}
+      <main className="flex h-full flex-col gap-4 overflow-y-auto p-6 pb-40">
+        <h1 style={{ fontSize: 'var(--font-size-xl)' }}>길 찾기</h1>
 
-      {/* 어르신 UX: 턴바이턴 안내는 화면 상단에 큰 글씨로 고정 배치.
-          TODO(4단계 완료 후): DUMMY_FIRST_GUIDE 대신 실제 guides[0] 문구로 교체. */}
-      <p style={{ fontSize: 'var(--font-size-lg)', fontWeight: 'bold' }}>{DUMMY_FIRST_GUIDE}</p>
+        {/* 어르신 UX: 턴바이턴 안내는 화면 상단에 큰 글씨로 고정 배치.
+            TODO(4단계 완료 후): DUMMY_FIRST_GUIDE 대신 실제 guides[0] 문구로 교체. */}
+        <p style={{ fontSize: 'var(--font-size-lg)', fontWeight: 'bold' }}>{DUMMY_FIRST_GUIDE}</p>
 
-      {/* 2~3단계 확인용: 실제 경로 데이터가 없어 더미 좌표로 지도/마커/경로선만 먼저 그린다. */}
-      <NaverMap
-        origin={DUMMY_ORIGIN}
-        destination={DUMMY_DESTINATION}
-        routePath={DUMMY_ROUTE_PATH}
-        onError={handleMapError}
-      />
-
-      <form onSubmit={handleSubmitDestination} className="flex gap-2">
-        <input
-          value={destinationInput}
-          onChange={(event) => setDestinationInput(event.target.value)}
-          placeholder="어디로 가시나요?"
-          className="flex-1 border rounded p-2"
-          style={{ fontSize: 'var(--font-size-base)', borderColor: 'var(--color-border)' }}
+        {/* 2~3단계 확인용: 실제 경로 데이터가 없어 더미 좌표로 지도/마커/경로선만 먼저 그린다. */}
+        <NaverMap
+          origin={DUMMY_ORIGIN}
+          destination={DUMMY_DESTINATION}
+          routePath={DUMMY_ROUTE_PATH}
+          onError={handleMapError}
         />
-        <button type="submit" className="quick-action-button">
-          전송
-        </button>
-      </form>
 
-      {screen === 'MAP_NOT_FOUND' && <p>경로를 찾지 못했어요. 다시 말씀해주세요.</p>}
+        <form onSubmit={handleSubmitDestination} className="flex gap-2">
+          <input
+            value={destinationInput}
+            onChange={(event) => setDestinationInput(event.target.value)}
+            placeholder="어디로 가시나요?"
+            className="flex-1 border rounded p-2"
+            style={{ fontSize: 'var(--font-size-base)', borderColor: 'var(--color-border)' }}
+          />
+          <button type="submit" className="quick-action-button">
+            전송
+          </button>
+        </form>
 
-      {screen === 'MAP_RESULT' && Array.isArray(data?.steps) && (
-        <>
-          <p style={{ color: 'var(--color-text-muted)' }}>
-            총 {data.durationMinutes}분 · 환승 {data.transferCount}회 · {data.totalFare}원
-          </p>
-          <ul className="flex flex-col gap-2">
-            {data.steps.map((routeStep, index) => (
-              <li
-                key={`${routeStep.type}-${index}`}
-                className="border rounded p-3"
-                style={{ borderColor: 'var(--color-border)' }}
-              >
-                {/* 백엔드 현재 구현 상태 확인 결과: 원래 API 명세서 예시엔 desc였지만
-                    실제 응답 필드는 description이라고 확인됨. */}
-                <span className="font-bold">{routeStep.type}</span>
-                <p>{routeStep.description}</p>
-                {routeStep.type === 'BUS' && routeStep.boardingStop && (
-                  <p>탑승: {routeStep.boardingStop}</p>
-                )}
-                {routeStep.type === 'SUBWAY' && (
-                  <p>
-                    {routeStep.line} · 탑승: {routeStep.boardingStation}
-                  </p>
-                )}
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
+        {screen === 'MAP_NOT_FOUND' && <p>경로를 찾지 못했어요. 다시 말씀해주세요.</p>}
 
-      <div className="flex justify-center">
-        <VoiceButton status={status} onPress={startListening} />
-      </div>
+        {screen === 'MAP_RESULT' && Array.isArray(data?.steps) && (
+          <>
+            <p style={{ color: 'var(--color-text-muted)' }}>
+              총 {data.durationMinutes}분 · 환승 {data.transferCount}회 · {data.totalFare}원
+            </p>
+            <ul className="flex flex-col gap-2">
+              {data.steps.map((routeStep, index) => (
+                <li
+                  key={`${routeStep.type}-${index}`}
+                  className="border rounded p-3"
+                  style={{ borderColor: 'var(--color-border)' }}
+                >
+                  {/* 백엔드 현재 구현 상태 확인 결과: 원래 API 명세서 예시엔 desc였지만
+                      실제 응답 필드는 description이라고 확인됨. */}
+                  <span className="font-bold">{routeStep.type}</span>
+                  <p>{routeStep.description}</p>
+                  {routeStep.type === 'BUS' && routeStep.boardingStop && (
+                    <p>탑승: {routeStep.boardingStop}</p>
+                  )}
+                  {routeStep.type === 'SUBWAY' && (
+                    <p>
+                      {routeStep.line} · 탑승: {routeStep.boardingStation}
+                    </p>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
 
-      <CaptionOverlay sttCaption={sttCaption} ttsCaption={ttsCaption} />
-    </main>
+        <div className="flex justify-center">
+          <VoiceButton status={status} onPress={startListening} />
+        </div>
+
+        <CaptionOverlay sttCaption={sttCaption} ttsCaption={ttsCaption} />
+      </main>
+    </AppFrame>
   )
 }
