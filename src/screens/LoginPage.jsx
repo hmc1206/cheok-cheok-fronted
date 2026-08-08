@@ -14,9 +14,10 @@ export function LoginPage() {
   const navigate = useNavigate()
   const token = useAuthStore((state) => state.token)
 
-  // 이미 로그인된 상태로 로그인 페이지에 들어오면 홈으로 되돌린다.
+  // 이미 로그인된 상태로 로그인 페이지("/" 또는 "/login")에 들어오면 실제 홈("/home")으로
+  // 보낸다. "/"가 이 화면 자신이라 navigate('/')로 하면 제자리 이동이라 아무 효과가 없다.
   useEffect(() => {
-    if (token) navigate('/')
+    if (token) navigate('/home')
   }, [token, navigate])
 
   const handleGoogleLogin = () => {
