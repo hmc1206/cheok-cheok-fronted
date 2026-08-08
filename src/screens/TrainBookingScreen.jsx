@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { geocodeAddress } from '../api/geocoding'
+import { AppFrame } from '../components/common/AppFrame'
 import { CaptionOverlay } from '../components/common/CaptionOverlay'
 import { VoiceButton } from '../components/common/VoiceButton'
 import trainStations from '../data/trainStations.json'
@@ -85,82 +86,86 @@ export function TrainBookingScreen() {
   }
 
   return (
-    <main className="flex flex-col gap-4 p-6 pb-40">
-      <h1 style={{ fontSize: 'var(--font-size-xl)' }}>기차 예매</h1>
-      <p style={{ color: 'var(--color-text-muted)' }}>현재 단계: {step ?? 'ASK_DEPARTURE'}</p>
+    <AppFrame>
+      {/* AppFrame이 높이를 852px로 고정하므로, 대화 내역+후보 목록이 넘칠 수 있다.
+          h-full + overflow-y-auto로 잘리지 않고 스크롤되게 한다. */}
+      <main className="flex h-full flex-col gap-4 overflow-y-auto p-6 pb-40">
+        <h1 style={{ fontSize: 'var(--font-size-xl)' }}>기차 예매</h1>
+        <p style={{ color: 'var(--color-text-muted)' }}>현재 단계: {step ?? 'ASK_DEPARTURE'}</p>
 
-      <form onSubmit={handleSubmit} className="flex gap-2">
-        <input
-          value={textInput}
-          onChange={(event) => setTextInput(event.target.value)}
-          className="flex-1 border rounded p-2"
-          style={{ fontSize: 'var(--font-size-base)', borderColor: 'var(--color-border)' }}
-        />
-        <button type="submit" className="quick-action-button">
-          전송
-        </button>
-      </form>
+        <form onSubmit={handleSubmit} className="flex gap-2">
+          <input
+            value={textInput}
+            onChange={(event) => setTextInput(event.target.value)}
+            className="flex-1 border rounded p-2"
+            style={{ fontSize: 'var(--font-size-base)', borderColor: 'var(--color-border)' }}
+          />
+          <button type="submit" className="quick-action-button">
+            전송
+          </button>
+        </form>
 
-      {/* API 명세서 4장: candidates[]는 trainNo/departTime/arriveTime/price/seatAvailable를 준다. */}
-      {step === 'CONFIRM' && Array.isArray(data?.candidates) && (
-        <ul className="flex flex-col gap-2">
-          {data.candidates.map((train) => (
-            <li
-              key={train.trainNo}
-              className="border rounded p-3"
-              style={{ borderColor: 'var(--color-border)' }}
-            >
-              <p>{train.trainNo}</p>
-              <p>
-                {train.departTime} → {train.arriveTime}
-              </p>
-              <p>
-                {train.price?.toLocaleString()}원 · {train.seatAvailable ? '예약 가능' : '매진'}
-              </p>
+        {/* API 명세서 4장: candidates[]는 trainNo/departTime/arriveTime/price/seatAvailable를 준다. */}
+        {step === 'CONFIRM' && Array.isArray(data?.candidates) && (
+          <ul className="flex flex-col gap-2">
+            {data.candidates.map((train) => (
+              <li
+                key={train.trainNo}
+                className="border rounded p-3"
+                style={{ borderColor: 'var(--color-border)' }}
+              >
+                <p>{train.trainNo}</p>
+                <p>
+                  {train.departTime} → {train.arriveTime}
+                </p>
+                <p>
+                  {train.price?.toLocaleString()}원 · {train.seatAvailable ? '예약 가능' : '매진'}
+                </p>
+              </li>
+            ))}
+            <li>
+              {/* ASSUMPTION: 하이브리드 예매 방식(지난 논의 반영) — mock DONE 응답을 최종 완료
+                  화면으로 쓰지 않고, 가까운 역을 찾아 네이버 지도 대중교통 경로로 연결하는
+                  버튼을 둔다. 실제 예매(결제)는 사용자가 네이버 지도 앱에서 진행한다. */}
+              <button
+                type="button"
+                className="quick-action-button w-full"
+                onClick={handleOpenNaverMapRoute}
+                disabled={isOpeningRoute}
+              >
+                네이버 지도에서 경로 보기
+              </button>
+              {/* 어르신 UX: 딥링크 실행 전 안내를 큰 글씨로 고정 배치 (동시에 TTS도 재생됨) */}
+              {routeAnnouncement && (
+                <p style={{ fontSize: 'var(--font-size-lg)', fontWeight: 'bold' }}>
+                  {routeAnnouncement}
+                </p>
+              )}
             </li>
-          ))}
-          <li>
-            {/* ASSUMPTION: 하이브리드 예매 방식(지난 논의 반영) — mock DONE 응답을 최종 완료
-                화면으로 쓰지 않고, 가까운 역을 찾아 네이버 지도 대중교통 경로로 연결하는
-                버튼을 둔다. 실제 예매(결제)는 사용자가 네이버 지도 앱에서 진행한다. */}
-            <button
-              type="button"
-              className="quick-action-button w-full"
-              onClick={handleOpenNaverMapRoute}
-              disabled={isOpeningRoute}
-            >
-              네이버 지도에서 경로 보기
-            </button>
-            {/* 어르신 UX: 딥링크 실행 전 안내를 큰 글씨로 고정 배치 (동시에 TTS도 재생됨) */}
-            {routeAnnouncement && (
-              <p style={{ fontSize: 'var(--font-size-lg)', fontWeight: 'bold' }}>
-                {routeAnnouncement}
-              </p>
-            )}
-          </li>
-        </ul>
-      )}
+          </ul>
+        )}
 
-      {step === 'DONE' && data && (
-        // ASSUMPTION: DONE 응답은 데모/mock 화면 전환 확인용으로만 쓴다.
-        // 실서비스 전환 시 위 네이버 지도 딥링크 방식으로 완전히 대체할 예정.
-        <div className="border rounded p-3" style={{ borderColor: 'var(--color-border)' }}>
-          <p>(데모) 예매가 완료되었습니다.</p>
-          <p>
-            {data.departStation} → {data.arriveStation} · {data.trainNo}
-          </p>
-          <p>
-            {data.departTime} → {data.arriveTime} · {data.seat}
-          </p>
-          <p>예약번호: {data.reservationId}</p>
+        {step === 'DONE' && data && (
+          // ASSUMPTION: DONE 응답은 데모/mock 화면 전환 확인용으로만 쓴다.
+          // 실서비스 전환 시 위 네이버 지도 딥링크 방식으로 완전히 대체할 예정.
+          <div className="border rounded p-3" style={{ borderColor: 'var(--color-border)' }}>
+            <p>(데모) 예매가 완료되었습니다.</p>
+            <p>
+              {data.departStation} → {data.arriveStation} · {data.trainNo}
+            </p>
+            <p>
+              {data.departTime} → {data.arriveTime} · {data.seat}
+            </p>
+            <p>예약번호: {data.reservationId}</p>
+          </div>
+        )}
+
+        <div className="flex justify-center">
+          <VoiceButton status={status} onPress={startListening} />
         </div>
-      )}
 
-      <div className="flex justify-center">
-        <VoiceButton status={status} onPress={startListening} />
-      </div>
-
-      <CaptionOverlay sttCaption={sttCaption} ttsCaption={ttsCaption} />
-    </main>
+        <CaptionOverlay sttCaption={sttCaption} ttsCaption={ttsCaption} />
+      </main>
+    </AppFrame>
   )
 }
