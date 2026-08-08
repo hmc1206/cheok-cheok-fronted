@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { authApi } from '../api/authApi'
+import { AppFrame } from '../components/common/AppFrame'
 import { useAuthStore } from '../store/authStore'
 
 // 백엔드 구글 로그인 완료 후 리다이렉트를 받는 화면 (서버사이드 OAuth 리다이렉트 확정).
@@ -41,5 +42,9 @@ export function AuthCallbackScreen() {
     initAuth()
   }, [searchParams, navigate, setAuth])
 
-  return <div>로그인 세션 확인 중...</div>
+  return (
+    <AppFrame>
+      <div className="flex h-full items-center justify-center">로그인 세션 확인 중...</div>
+    </AppFrame>
+  )
 }

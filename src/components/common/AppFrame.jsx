@@ -4,11 +4,15 @@ import { useEffect, useState } from 'react'
 // 크기와 무관하게 이 비율의 컨테이너를 화면 중앙에 고정한다.
 const APP_WIDTH = 393
 const APP_HEIGHT = 852
+// 실제 기기 베젤 느낌을 내기 위한 모서리 둥글기 (사용자 확인: 48px).
+const APP_BORDER_RADIUS = 48
 
 /**
- * 앱처럼 보이도록 393x852 크기의 컨테이너를 화면 중앙에 고정 배치하고,
- * 남는 바깥 영역은 검정으로 채우는 래퍼. 내부 콘텐츠는 이 컨테이너 크기에
- * 맞춰 고정 px 레이아웃으로 짤 수 있다(반응형으로 늘어나지 않음).
+ * 모든 화면 공통: 393x852 크기의 컨테이너를 화면 중앙에 고정 배치하고, 모서리를
+ * 둥글게 처리해 실제 기기 느낌을 낸다. 남는 바깥 영역은 검정으로 채운다.
+ * 내부 콘텐츠는 이 컨테이너 크기에 맞춰 고정 px 레이아웃으로 짤 수 있다
+ * (반응형으로 늘어나지 않음). flex 중앙 정렬 덕분에 뷰포트가 852px보다 크면
+ * 위아래로도 자연스럽게 검정 여백이 생겨 화면에 꽉 차 붙지 않는다.
  *
  * 브라우저 창(또는 실제 모바일 화면)이 393x852보다 작으면, 레이아웃이 잘리거나
  * 스크롤이 생기는 대신 비율을 유지한 채 scale transform으로 축소한다 — 항상
@@ -52,6 +56,7 @@ export function AppFrame({ children }) {
           flexShrink: 0,
           transform: `scale(${scale})`,
           background: '#ffffff',
+          borderRadius: APP_BORDER_RADIUS,
           overflow: 'hidden',
         }}
       >
