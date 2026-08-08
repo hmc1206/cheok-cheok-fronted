@@ -42,9 +42,11 @@ export function LoginPage() {
           <h1 className="chuck-title-animate" style={{ fontSize: '48px', fontWeight: 800, color: '#000000' }}>
             척척
           </h1>
+          {/* 타이포그래피 위계: 타이틀은 순검정, 서브타이틀은 --color-text-muted로 톤을
+              한 단계 낮춰 "제목이 주인공, 설명은 보조"라는 위계를 색으로도 드러낸다. */}
           <p
             className="chuck-subtitle-animate"
-            style={{ fontSize: '16px', fontWeight: 500, color: '#000000' }}
+            style={{ fontSize: '16px', fontWeight: 500, color: 'var(--color-text-muted)' }}
           >
             뭐든지 척척 알려주는 AI 비서
           </p>
