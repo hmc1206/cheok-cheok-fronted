@@ -6,6 +6,11 @@ const APP_WIDTH = 393
 const APP_HEIGHT = 852
 // 실제 기기 베젤 느낌을 내기 위한 모서리 둥글기 (사용자 확인: 48px).
 const APP_BORDER_RADIUS = 48
+// 컨테이너가 화면에 너무 꽉 차 보인다는 피드백으로 92%까지만 키우도록 상한을 낮췄다
+// (사용자 확인: 92% = 363x784). 내부 화면들은 여전히 393x852 논리 좌표계로 짜여
+// 있고, 이 컨테이너 전체를 transform: scale로 축소하는 방식이라 폰트/버튼 등 내부
+// 요소도 이 배율만큼 함께 작아진다 — 화면별로 크기를 따로 조정할 필요가 없다.
+const DISPLAY_SCALE = 0.92
 
 /**
  * 모든 화면 공통: 393x852 크기의 컨테이너를 화면 중앙에 고정 배치하고, 모서리를
@@ -14,22 +19,22 @@ const APP_BORDER_RADIUS = 48
  * (반응형으로 늘어나지 않음). flex 중앙 정렬 덕분에 뷰포트가 852px보다 크면
  * 위아래로도 자연스럽게 검정 여백이 생겨 화면에 꽉 차 붙지 않는다.
  *
- * 브라우저 창(또는 실제 모바일 화면)이 393x852보다 작으면, 레이아웃이 잘리거나
- * 스크롤이 생기는 대신 비율을 유지한 채 scale transform으로 축소한다 — 항상
+ * 브라우저 창(또는 실제 모바일 화면)이 DISPLAY_SCALE 기준 크기보다 작으면, 레이아웃이
+ * 잘리거나 스크롤이 생기는 대신 비율을 유지한 채 더 작게 scale transform한다 — 항상
  * 디자인 그대로의 비율을 유지하는 게 실기기 대응에 더 자연스럽기 때문이다
  * (사용자 확인: 작은 화면에서는 "비율 유지 축소" 방식으로 결정).
  */
 export function AppFrame({ children }) {
-  const [scale, setScale] = useState(1)
+  const [scale, setScale] = useState(DISPLAY_SCALE)
 
   useEffect(() => {
     const updateScale = () => {
       const widthScale = window.innerWidth / APP_WIDTH
       const heightScale = window.innerHeight / APP_HEIGHT
       // 가로/세로 중 더 빡빡한 쪽(더 작은 비율)에 맞춰야 어느 쪽으로도 화면을
-      // 벗어나지 않는다. 화면이 393x852보다 크더라도 1을 넘겨 확대하지는 않는다
-      // (요구사항: "반응형으로 늘어나지 않고 고정 크기를 유지").
-      setScale(Math.min(widthScale, heightScale, 1))
+      // 벗어나지 않는다. 화면이 아무리 커도 DISPLAY_SCALE(92%)을 넘겨 확대하지는
+      // 않는다 — "꽉 차 보이지 않게 여유를 준다"는 요구사항 그대로.
+      setScale(Math.min(widthScale, heightScale, DISPLAY_SCALE))
     }
 
     updateScale()
