@@ -75,10 +75,11 @@ export function KioskLiveScreen() {
   const { speak, stop: stopSpeech, isMuted, toggleMute } = useSpeech()
 
   // 홈 화면으로 되돌아가기
+  // ("/"가 core 라우팅 수정으로 로그인/스플래시 화면이 되어, 실제 홈은 "/home")
   const handleGoHome = useCallback(() => {
     stopCamera()
     stopSpeech()
-    navigate('/')
+    navigate('/home')
   }, [navigate, stopCamera, stopSpeech])
 
   // 1. 소개 화면 -> 권한 안내 화면
