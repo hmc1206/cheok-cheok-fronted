@@ -30,7 +30,8 @@ export function AuthCallbackScreen() {
       try {
         const userData = await authApi.getMe()
         setAuth({ token, userId: userData.userId, isNewUser })
-        navigate('/', { replace: true })
+        // "/"는 이제 로그인/스플래시 화면이라, 로그인 성공 후에는 실제 홈("/home")으로 보낸다.
+        navigate('/home', { replace: true })
       } catch (error) {
         console.error('[콜백] 로그인 사용자 정보 조회 실패:', error)
         useAuthStore.getState().clearAuth()
