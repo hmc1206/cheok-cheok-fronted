@@ -93,8 +93,12 @@ export function MapRouteScreen() {
             value={destinationInput}
             onChange={(event) => setDestinationInput(event.target.value)}
             placeholder="어디로 가시나요?"
-            className="flex-1 border rounded p-2"
-            style={{ fontSize: 'var(--font-size-base)', borderColor: 'var(--color-border)' }}
+            className="flex-1 border p-2"
+            style={{
+              fontSize: 'var(--font-size-base)',
+              borderColor: 'var(--color-border)',
+              borderRadius: 'var(--radius-base)',
+            }}
           />
           <button type="submit" className="quick-action-button">
             전송
@@ -112,18 +116,28 @@ export function MapRouteScreen() {
               {data.steps.map((routeStep, index) => (
                 <li
                   key={`${routeStep.type}-${index}`}
-                  className="border rounded p-3"
-                  style={{ borderColor: 'var(--color-border)' }}
+                  className="flex flex-col gap-1 border p-3"
+                  style={{ borderColor: 'var(--color-border)', borderRadius: 'var(--radius-base)' }}
                 >
-                  {/* 백엔드 현재 구현 상태 확인 결과: 원래 API 명세서 예시엔 desc였지만
+                  {/* 위계: 구간 종류(WALK/BUS/SUBWAY)는 작고 흐린 라벨, 실제 안내
+                      문구가 이 카드의 주인공이라 본문 크기로 둔다.
+                      백엔드 현재 구현 상태 확인 결과: 원래 API 명세서 예시엔 desc였지만
                       실제 응답 필드는 description이라고 확인됨. */}
-                  <span className="font-bold">{routeStep.type}</span>
+                  <span
+                    style={{
+                      fontSize: 'var(--font-size-base)',
+                      fontWeight: 700,
+                      color: 'var(--color-text-muted)',
+                    }}
+                  >
+                    {routeStep.type}
+                  </span>
                   <p>{routeStep.description}</p>
                   {routeStep.type === 'BUS' && routeStep.boardingStop && (
-                    <p>탑승: {routeStep.boardingStop}</p>
+                    <p style={{ color: 'var(--color-text-muted)' }}>탑승: {routeStep.boardingStop}</p>
                   )}
                   {routeStep.type === 'SUBWAY' && (
-                    <p>
+                    <p style={{ color: 'var(--color-text-muted)' }}>
                       {routeStep.line} · 탑승: {routeStep.boardingStation}
                     </p>
                   )}
