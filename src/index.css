@@ -1,3 +1,14 @@
+/* 토스 전용 폰트("Toss Product Sans"). 토스 자체 CDN이라 네트워크 차단/CORS 등으로
+   막힐 수 있어, 곧이어 Pretendard를 fallback으로 반드시 같이 등록한다.
+   CSS 스펙상 @import는 항상 다른 규칙보다 앞에 와야 하는데, 로컬 파일 @import(tailwindcss,
+   tokens.css)는 빌드 시 그 자리에 내용이 그대로 인라인되어 "다른 규칙"처럼 취급될 수 있어,
+   외부 URL @import는 전부 맨 위에 두어 순서 문제가 생기지 않게 한다. */
+@import url('https://static.toss.im/tps/main.css');
+@import url('https://static.toss.im/tps/others.css');
+/* Pretendard fallback: Toss Product Sans 로드 실패 시 시스템 기본 폰트로 완전히
+   떨어지지 않고 이 폰트로 대체되도록 한다 (오픈소스 CDN, 라이선스 문제 없음). */
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
+
 @import 'tailwindcss';
 @import './styles/tokens.css';
 
@@ -7,11 +18,39 @@
  */
 * {
   box-sizing: border-box;
+  /* font-family 목록은 브라우저가 왼쪽부터 순서대로 로드 가능 여부를 확인해 첫 번째로
+     쓸 수 있는 폰트를 고른다 — Toss Product Sans가 막히면 자동으로 Pretendard로,
+     그마저 실패하면 시스템 sans-serif로 단계적으로 떨어진다. */
+  font-family: 'Toss Product Sans', 'Pretendard', sans-serif;
+}
+
+/* "척척" 타이틀이 아래에서 위로 슬라이드업되며 나타나는 애니메이션.
+   500~600ms/ease-out으로 확인받음 — 토스 앱류에서 흔히 쓰는 자연스러운 스플래시 속도. */
+@keyframes chuck-slide-up {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.chuck-title-animate {
+  animation: chuck-slide-up 560ms ease-out both;
+}
+
+/* 서브타이틀은 타이틀 애니메이션이 끝나는 시점(560ms)에 이어서 등장하도록
+   animation-delay를 타이틀 duration과 동일하게 맞춘다. */
+.chuck-subtitle-animate {
+  animation: chuck-slide-up 560ms ease-out 560ms both;
 }
 
 body {
   margin: 0;
-  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+  /* font-family는 위 * 규칙(Toss Product Sans → Pretendard → sans-serif)을 그대로
+     쓰도록 여기서는 지정하지 않는다 (지정하면 specificity 때문에 *보다 우선해버림). */
   font-size: var(--font-size-base);
   color: var(--color-text);
   background: var(--color-bg);
