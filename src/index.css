@@ -52,7 +52,11 @@ body {
      쓰도록 여기서는 지정하지 않는다 (지정하면 specificity 때문에 *보다 우선해버림). */
   font-size: var(--font-size-base);
   color: var(--color-text);
-  background: #121212; /* 배경을 어둡게 처리하여 데스크톱 정렬 시 시각적 구분 강화 */
+  /* 여백(AppFrame 바깥)은 검정, 우리가 만드는 실제 사이트 영역은 흰색이 기본이다.
+   * AppFrame 자신이 검정 배경 div를 이미 그려주므로, body는 라이트 토큰 배경을 쓴다.
+   * (이전에 #121212로 어둡게 고정해뒀던 건 AppFrame을 아직 안 쓰는 화면에서
+   * 어두운 배경 위에 어두운 텍스트가 겹쳐 거의 안 보이는 문제를 일으켰다.) */
+  background: var(--color-bg);
 }
 
 #root {
