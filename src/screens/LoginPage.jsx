@@ -26,6 +26,13 @@ export function LoginPage() {
     window.location.href = GOOGLE_LOGIN_URL
   }
 
+  // 개발 중 백엔드가 안 떠 있으면 구글 로그인 버튼을 눌러도 넘어갈 수 없어, 화면
+  // 전환 확인용으로 가짜 토큰을 넣고 넘어가는 우회 버튼. import.meta.env.DEV는 Vite가
+  // `npm run dev`에서만 true로 주입하므로 배포 빌드(npm run build)에는 포함되지 않는다.
+  const handleDevBypass = () => {
+    useAuthStore.getState().setAuth({ token: 'dev-fake-token', userId: 'dev-user', isNewUser: false })
+  }
+
   return (
     <AppFrame>
       <main className="flex flex-col items-center justify-between h-full bg-white px-6 py-16">
@@ -42,13 +49,18 @@ export function LoginPage() {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={handleGoogleLogin}
-          className="quick-action-button w-full"
-        >
-          구글 계정으로 로그인
-        </button>
+        <div className="flex w-full flex-col gap-2">
+          <button type="button" onClick={handleGoogleLogin} className="quick-action-button w-full">
+            구글 계정으로 로그인
+          </button>
+
+          {/* 개발 모드 전용: 배포 빌드에는 포함되지 않는다 */}
+          {import.meta.env.DEV && (
+            <button type="button" onClick={handleDevBypass} className="quick-action-button w-full">
+              (개발용) 로그인 건너뛰기
+            </button>
+          )}
+        </div>
       </main>
     </AppFrame>
   )
