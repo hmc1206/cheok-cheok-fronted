@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { AppFrame } from '../components/common/AppFrame'
 import { CameraErrorUI } from '../components/kiosk/CameraErrorUI'
 import { KioskARControlCard } from '../components/kiosk/KioskARControlCard'
 import { KioskAROverlay } from '../components/kiosk/KioskAROverlay'
@@ -111,10 +112,11 @@ export function KioskLiveScreen() {
   const shouldShowAROverlay = stepState === 'ar' && (isCameraBypassed || recognition.targetBox)
 
   // 홈 화면으로 되돌아가기
+  // ("/"가 core 라우팅 수정으로 로그인/스플래시 화면이 되어, 실제 홈은 "/home")
   const handleGoHome = useCallback(() => {
     stopCamera()
     stopSpeech()
-    navigate('/')
+    navigate('/home')
   }, [navigate, stopCamera, stopSpeech])
 
   // 1. 소개 화면 -> 권한 안내 화면
@@ -237,7 +239,10 @@ export function KioskLiveScreen() {
     (cameraStatus === 'denied' || cameraStatus === 'unsupported' || cameraStatus === 'error' || errorType !== null)
 
   return (
-    <KioskMobileLayout>
+    // core 공용 AppFrame(393x852 고정 + 48px 라운드)으로 감싸고, 팀원분이 만든
+    // KioskMobileLayout(반응형 모바일 프리셋)은 그 안에서 그대로 유지한다.
+    <AppFrame>
+      <KioskMobileLayout>
       {/* 1. 키오스크 도움 소개 화면 */}
       {stepState === 'intro' && <KioskIntroStep onNext={handleStartIntro} onBack={handleGoHome} />}
 
@@ -251,9 +256,12 @@ export function KioskLiveScreen() {
         <CameraErrorUI errorType={errorType} onRetry={startCamera} onBypassCamera={handleBypassCamera} />
       )}
 
-      {/* 4. 카메라 뷰 및 AR 안내 레이어 (오류가 없거나 우회된 경우) */}
+      {/* 4. 카메라 뷰 및 AR 안내 레이어 (오류가 없거나 우회된 경우)
+          min-h-dvh(실제 뷰포트 기준) 대신 flex-1만 사용 — AppFrame이 준 h-full 안에서
+          flex-col 부모 기준으로 남는 공간을 채우면 되고, dvh를 쓰면 852px 프레임을
+          넘어갈 수 있다. */}
       {stepState !== 'intro' && stepState !== 'permission' && !isCameraError && (
-        <div className="relative w-full flex-1 min-h-dvh bg-black flex flex-col justify-center overflow-hidden">
+        <div className="relative w-full flex-1 bg-black flex flex-col justify-center overflow-hidden">
           {/* 실제 비디오 스트림 영역 */}
           {!isCameraBypassed ? (
             <div className="relative w-full h-full flex items-center justify-center">
@@ -443,6 +451,7 @@ export function KioskLiveScreen() {
           </div>
         </div>
       )}
-    </KioskMobileLayout>
+      </KioskMobileLayout>
+    </AppFrame>
   )
 }

@@ -1,27 +1,51 @@
 import { useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { authApi } from '../api/authApi'
+import { AppFrame } from '../components/common/AppFrame'
 import { useAuthStore } from '../store/authStore'
 
-// 백엔드 구글 로그인 완료 후 리다이렉트를 받는 화면. 로그인 버튼/동의화면 UI는 스코프 밖이며
-// (백엔드가 처리), 쿼리스트링의 token/isNewUser를 파싱해 authStore에 저장하는 로직만 담당한다
-// (기획서 2장, 가이드북 5장 OAuth2 흐름).
+// 백엔드 구글 로그인 완료 후 리다이렉트를 받는 화면 (서버사이드 OAuth 리다이렉트 확정).
+// 백엔드가 /auth/callback?token=...&isNewUser=...로 보내주면, 쿼리스트링을 파싱해
+// authStore에 저장하고 /users/me로 실제 사용자 정보를 확정한 뒤 홈으로 이동한다.
 export function AuthCallbackScreen() {
-  const [searchParams] = useSearchParams()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const setAuth = useAuthStore((state) => state.setAuth)
 
   useEffect(() => {
-    const token = searchParams.get('token')
-    const isNewUser = searchParams.get('isNewUser') === 'true'
+    const initAuth = async () => {
+      const token = searchParams.get('token')
+      const isNewUser = searchParams.get('isNewUser') === 'true'
 
-    if (token) {
-      // ASSUMPTION: userId는 콜백 쿼리스트링에 없다고 가정. authApi.getMe() 등으로 채우는
-      // 것을 전제로 하되, 실제 연결은 로그인 화면 구현 시점(이번 스코프 밖)으로 남겨둔다.
+      if (!token) {
+        alert('로그인 정보가 유효하지 않습니다.')
+        navigate('/login', { replace: true })
+        return
+      }
+
+      // 1단계: 우선 토큰만으로 인증 상태를 채워둔다 — authApi.getMe()도 인증이 필요한
+      // 요청이라 apiClient가 Authorization 헤더를 붙이려면 token이 먼저 스토어에 있어야 한다.
       setAuth({ token, userId: null, isNewUser })
+
+      try {
+        const userData = await authApi.getMe()
+        setAuth({ token, userId: userData.userId, isNewUser })
+        // "/"는 이제 로그인/스플래시 화면이라, 로그인 성공 후에는 실제 홈("/home")으로 보낸다.
+        navigate('/home', { replace: true })
+      } catch (error) {
+        console.error('[콜백] 로그인 사용자 정보 조회 실패:', error)
+        useAuthStore.getState().clearAuth()
+        alert('로그인 처리에 실패했습니다.')
+        navigate('/login', { replace: true })
+      }
     }
 
-    navigate('/', { replace: true })
-  }, [navigate, searchParams, setAuth])
+    initAuth()
+  }, [searchParams, navigate, setAuth])
 
-  return null // 스펙: UI 없음, 파싱/저장 로직만 구현
+  return (
+    <AppFrame>
+      <div className="flex h-full items-center justify-center">로그인 세션 확인 중...</div>
+    </AppFrame>
+  )
 }

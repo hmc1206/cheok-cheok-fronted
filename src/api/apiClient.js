@@ -17,12 +17,23 @@ apiClient.interceptors.request.use((config) => {
   return config
 })
 
+// API 명세서 6장: Refresh Token은 http-only 쿠키로 관리되고, POST /auth/refresh는
+// { token }을 돌려준다. 인터셉터가 걸린 apiClient 인스턴스를 그대로 쓰면 401이 다시
+// 이 인터셉터를 타고 무한 재시도로 이어질 수 있어, 순수 axios 호출로 분리했다.
+async function refreshAccessToken() {
+  const response = await axios.post(`${apiClient.defaults.baseURL}/auth/refresh`, null, {
+    withCredentials: true,
+  })
+  return response.data.token
+}
+
 // 가이드북 "공통 에러" 섹션: { errorCode, message, ttsText } 포맷을 공통으로 처리.
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     const status = error.response?.status
     const payload = error.response?.data
+    const originalRequest = error.config
 
     if (status === 409 && payload?.errorCode === 'SESSION_EXPIRED') {
       useVoiceSessionStore.getState().resetSession()
@@ -33,13 +44,24 @@ apiClient.interceptors.response.use(
       if (payload.ttsText && 'speechSynthesis' in window) {
         window.speechSynthesis.speak(new SpeechSynthesisUtterance(payload.ttsText))
       }
+      return Promise.reject(error)
     }
 
-    if (status === 401 || payload?.errorCode === 'UNAUTHORIZED') {
-      useAuthStore.getState().clearAuth()
-      // ASSUMPTION: "/auth/callback 이전 상태로 리다이렉트"의 정확한 목적지가 명세서에
-      // 없어, 로그인 화면이 이번 스코프 밖인 점을 감안해 홈으로 되돌리는 것으로 가정했다.
-      window.location.href = '/'
+    // 가이드북 6장 인증 흐름: 401이면 /auth/refresh로 갱신 후 원요청을 1회 재시도하고,
+    // 갱신마저 실패하면 재로그인을 유도한다.
+    if (status === 401 && originalRequest && !originalRequest._retriedAfterRefresh) {
+      originalRequest._retriedAfterRefresh = true
+      try {
+        const token = await refreshAccessToken()
+        const { userId, isNewUser } = useAuthStore.getState()
+        useAuthStore.getState().setAuth({ token, userId, isNewUser })
+        originalRequest.headers.Authorization = `Bearer ${token}`
+        return apiClient(originalRequest)
+      } catch {
+        useAuthStore.getState().clearAuth()
+        // 토큰 갱신마저 실패하면 재로그인을 유도한다 (구글 로그인 화면: /login).
+        window.location.href = '/login'
+      }
     }
 
     return Promise.reject(error)
