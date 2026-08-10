@@ -34,6 +34,33 @@ function getCoverTransform(video) {
   }
 }
 
+// clamp 이후 이 값보다 작은 변은 OCR/canvas 처리에 의미가 없어 폐기한다(0 또는 음수 방지 포함).
+const MIN_ROI_SIZE = 4
+
+/**
+ * 임의의 박스를 video 원본 픽셀 좌표 범위 안으로 clamp한다.
+ * 항상 다음을 보장한다: x>=0, y>=0, x+width<=videoWidth, y+height<=videoHeight, width>0, height>0.
+ * 조건을 만족하는 유효한 박스를 만들 수 없으면 null을 반환한다.
+ * @param {{x:number, y:number, width:number, height:number}} rect
+ * @param {number} videoWidth
+ * @param {number} videoHeight
+ */
+export function clampRoiToVideoBounds(rect, videoWidth, videoHeight) {
+  if (!rect || !videoWidth || !videoHeight) return null
+  if (!Number.isFinite(rect.x) || !Number.isFinite(rect.y) || !Number.isFinite(rect.width) || !Number.isFinite(rect.height)) {
+    return null
+  }
+
+  const x = Math.max(0, Math.min(rect.x, videoWidth))
+  const y = Math.max(0, Math.min(rect.y, videoHeight))
+  const width = Math.max(0, Math.min(rect.width, videoWidth - x))
+  const height = Math.max(0, Math.min(rect.height, videoHeight - y))
+
+  if (width < MIN_ROI_SIZE || height < MIN_ROI_SIZE) return null
+
+  return { x, y, width, height }
+}
+
 // 전면 카메라 등에서 CSS로 좌우 반전(scaleX(-1))이 적용되어 있는지 감지한다.
 // 이 프로젝트는 현재 video에 별도 mirror 스타일을 적용하지 않지만, 추후 적용되더라도
 // 좌표가 깨지지 않도록 실제 computed transform을 검사해 보정 여부를 스스로 판단한다.
@@ -75,15 +102,14 @@ export function getRoiInVideoCoords(video, roiElement) {
   const videoWidth = roiRect.width / transform.scale
   const videoHeight = roiRect.height / transform.scale
 
-  // 가이드 박스가 video 경계를 살짝 벗어나는 경우를 대비해 clamp 처리
-  const clampedX = Math.max(0, Math.min(videoX, transform.videoWidth))
-  const clampedY = Math.max(0, Math.min(videoY, transform.videoHeight))
-  const clampedWidth = Math.max(0, Math.min(videoWidth, transform.videoWidth - clampedX))
-  const clampedHeight = Math.max(0, Math.min(videoHeight, transform.videoHeight - clampedY))
-
-  if (clampedWidth <= 0 || clampedHeight <= 0) return null
-
-  return { x: clampedX, y: clampedY, width: clampedWidth, height: clampedHeight }
+  // 가이드 박스가 video 경계를 살짝 벗어나거나(반올림 오차 포함) roiElement가 아직
+  // 제대로 레이아웃되지 않은 경우를 대비해, x/y/width/height가 항상 video 원본 해상도
+  // 범위 안에 들어오도록 clamp한다.
+  return clampRoiToVideoBounds(
+    { x: videoX, y: videoY, width: videoWidth, height: videoHeight },
+    transform.videoWidth,
+    transform.videoHeight,
+  )
 }
 
 /**

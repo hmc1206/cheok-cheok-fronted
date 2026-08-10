@@ -6,7 +6,8 @@ import { classifyBrand, findBestTextMatch } from '../services/kioskClassifier'
 import { useOCR } from './useOCR'
 
 // 매 프레임 OCR을 돌리면 성능 문제가 생기므로 이 주기로 throttling한다.
-const OCR_INTERVAL_MS = 800
+// (테스트 단계이므로 우선 여유 있게 1000ms로 둔다.)
+const OCR_INTERVAL_MS = 1000
 
 // AR 박스가 OCR 오차로 흔들리지 않도록 이전 좌표에 부여하는 가중치.
 // newX = oldX * SMOOTHING_KEEP + detectedX * (1 - SMOOTHING_KEEP)
@@ -34,6 +35,7 @@ export function useARTracking({ videoRef, roiElementRef, enabled, targetTexts })
   const [isProcessing, setIsProcessing] = useState(false)
   const [lastProcessMs, setLastProcessMs] = useState(0)
   const [cycleCount, setCycleCount] = useState(0)
+  const [debugInfo, setDebugInfo] = useState(null) // DEV 전용: 마지막 주기의 video/ROI/canvas 크기 + 캔버스 미리보기
 
   const processingRef = useRef(false)
   const smoothedBoxRef = useRef(null)
@@ -54,17 +56,40 @@ export function useARTracking({ videoRef, roiElementRef, enabled, targetTexts })
   }, [enabled])
 
   const runCycle = useCallback(async () => {
+    // 이전 OCR 요청이 끝나기 전에는 새 요청을 시작하지 않는다(중복 실행 방지 lock).
     if (processingRef.current || !enabled || !isReady) return
 
     const video = videoRef.current
     const roiElement = roiElementRef.current
-    if (!video || video.readyState < 2) return
+    if (!video || !roiElement || video.readyState < 2) return
+
+    // video metadata가 아직 로드되지 않아 videoWidth/videoHeight가 0인 상태에서는
+    // ROI 계산 자체가 무의미하므로(0으로 나누기 등) 여기서 바로 건너뛴다.
+    if (!video.videoWidth || !video.videoHeight) return
 
     const roiVideoRect = getRoiInVideoCoords(video, roiElement)
     if (!roiVideoRect) return
 
     const cropped = cropRoiCanvas(video, roiVideoRect)
     if (!cropped) return
+
+    if (import.meta.env.DEV) {
+      const roi = cropped.roiVideoRect
+      console.log(
+        `[OCR] Video size: ${video.videoWidth} x ${video.videoHeight}\n` +
+          `[OCR] Display size: ${video.clientWidth} x ${video.clientHeight}\n` +
+          `[OCR] ROI: x=${Math.round(roi.x)}, y=${Math.round(roi.y)}, width=${Math.round(roi.width)}, height=${Math.round(roi.height)}\n` +
+          `[OCR] Canvas size: ${cropped.canvas.width} x ${cropped.canvas.height}`,
+      )
+      setDebugInfo({
+        videoSize: { width: video.videoWidth, height: video.videoHeight },
+        displaySize: { width: video.clientWidth, height: video.clientHeight },
+        roi,
+        canvasSize: { width: cropped.canvas.width, height: cropped.canvas.height },
+        // ROI crop 자체가 정상적인 이미지인지 눈으로 확인할 수 있도록 썸네일로 남겨둔다.
+        canvasPreviewUrl: cropped.canvas.toDataURL('image/jpeg', 0.7),
+      })
+    }
 
     processingRef.current = true
     setIsProcessing(true)
@@ -74,9 +99,11 @@ export function useARTracking({ videoRef, roiElementRef, enabled, targetTexts })
       const words = await recognize(cropped.canvas)
 
       // ROI 캔버스 좌표 -> video 원본 픽셀 좌표로 되돌린다.
+      // cropRoiCanvas가 drawImage 직전에 한 번 더 clamp한 roiVideoRect를 기준으로 삼아야
+      // 실제로 캡처된 이미지 영역과 좌표가 정확히 일치한다.
       const videoWords = words.map((word) => ({
         ...word,
-        ...mapRoiWordToVideoBox(word, roiVideoRect, cropped.resizeScale),
+        ...mapRoiWordToVideoBox(word, cropped.roiVideoRect, cropped.resizeScale),
       }))
 
       setRawWords(videoWords)
@@ -146,5 +173,6 @@ export function useARTracking({ videoRef, roiElementRef, enabled, targetTexts })
     isProcessing,
     lastProcessMs,
     cycleCount,
+    debugInfo,
   }
 }

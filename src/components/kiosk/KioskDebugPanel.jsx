@@ -4,7 +4,7 @@
  * OCR이 찾은 단어들의 bounding box를 얇은 선으로 그려 실제로 잘 인식되는지 확인할 수 있게 한다.
  * 프로덕션 사용자 화면에는 렌더링되지 않는다(KioskLiveScreen에서 import.meta.env.DEV로 분기).
  */
-export function KioskDebugPanel({ brand, orderState, ocrWords, targetMatch, processingMs }) {
+export function KioskDebugPanel({ brand, orderState, ocrWords, targetMatch, processingMs, debugInfo }) {
   const confidencePercent = Math.round((brand?.confidence ?? 0) * 100)
   const targetConfidencePercent = targetMatch ? Math.round(targetMatch.confidence * 100) : null
 
@@ -35,7 +35,35 @@ export function KioskDebugPanel({ brand, orderState, ocrWords, targetMatch, proc
         <p className="truncate">Target: {targetMatch?.text ?? '-'}</p>
         <p>Target confidence: {targetConfidencePercent !== null ? `${targetConfidencePercent}%` : '-'}</p>
         <p>OCR processing: {processingMs ?? 0}ms</p>
+        {debugInfo && (
+          <>
+            <p className="pt-1 border-t border-lime-400/30">
+              Video: {debugInfo.videoSize.width}x{debugInfo.videoSize.height}
+            </p>
+            <p>
+              Display: {debugInfo.displaySize.width}x{debugInfo.displaySize.height}
+            </p>
+            <p>
+              ROI: x={Math.round(debugInfo.roi.x)}, y={Math.round(debugInfo.roi.y)}, w=
+              {Math.round(debugInfo.roi.width)}, h={Math.round(debugInfo.roi.height)}
+            </p>
+            <p>
+              Canvas: {debugInfo.canvasSize.width}x{debugInfo.canvasSize.height}
+            </p>
+          </>
+        )}
       </div>
+
+      {/* ROI crop 결과 미리보기 - 실제로 어떤 이미지를 Tesseract에 넘기고 있는지 눈으로 확인 */}
+      {debugInfo?.canvasPreviewUrl && (
+        <div className="absolute top-2 right-2 z-30 pointer-events-none select-none">
+          <img
+            src={debugInfo.canvasPreviewUrl}
+            alt="OCR ROI crop preview"
+            className="max-w-[120px] max-h-[160px] border-2 border-lime-400 bg-black/50 object-contain"
+          />
+        </div>
+      )}
     </>
   )
 }

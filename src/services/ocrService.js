@@ -1,4 +1,5 @@
 import { createWorker, PSM } from 'tesseract.js'
+import { clampRoiToVideoBounds } from './coordinateMapper'
 
 /**
  * Tesseract.js 워커를 감싸는 저수준 OCR 서비스.
@@ -50,36 +51,45 @@ export async function terminateOcrWorker() {
   }
 }
 
+// 이보다 작은 캔버스는 Tesseract(Leptonica)에 넘겼을 때 "box outside rectangle" /
+// "invalid box" 같은 내부 오류를 유발하기 쉬워, 아예 OCR을 시도하지 않고 건너뛴다.
+const MIN_CANVAS_SIZE = 20
+
 /**
  * video에서 ROI(관심 영역)만 잘라내 OCR용 캔버스를 만든다.
  * 얼굴, 매장 간판 등 ROI 바깥 영역을 아예 넘기지 않도록 잘라내고,
  * 성능을 위해 MAX_OCR_WIDTH 기준으로 다운스케일한다.
+ *
+ * roiVideoRect는 호출 시점에 이미 clamp되어 있어야 정상이지만, video 해상도가 바뀌는 등의
+ * 경합 상황에 대비해 drawImage 직전에 한 번 더 video의 실제 크기 기준으로 clamp한다
+ * (x>=0, y>=0, x+width<=videoWidth, y+height<=videoHeight를 항상 보장).
+ *
  * @param {HTMLVideoElement} video
  * @param {{x:number, y:number, width:number, height:number}} roiVideoRect video 픽셀 좌표 기준 ROI
  * @returns {{canvas: HTMLCanvasElement, resizeScale: number}|null}
  */
 export function cropRoiCanvas(video, roiVideoRect) {
-  if (!roiVideoRect || roiVideoRect.width <= 0 || roiVideoRect.height <= 0) return null
+  if (!video.videoWidth || !video.videoHeight) return null
 
-  const resizeScale = Math.min(1, MAX_OCR_WIDTH / roiVideoRect.width)
+  const safeRoi = clampRoiToVideoBounds(roiVideoRect, video.videoWidth, video.videoHeight)
+  if (!safeRoi) return null
+
+  const resizeScale = Math.min(1, MAX_OCR_WIDTH / safeRoi.width)
+  const canvasWidth = Math.round(safeRoi.width * resizeScale)
+  const canvasHeight = Math.round(safeRoi.height * resizeScale)
+
+  // 너무 작은 캔버스는 Tesseract에 넘기지 않고 이번 주기를 건너뛴다(1px 등으로
+  // 억지로 늘리면 내용이 없는 이미지가 되어 엔진 내부 오류의 원인이 된다).
+  if (canvasWidth < MIN_CANVAS_SIZE || canvasHeight < MIN_CANVAS_SIZE) return null
+
   const canvas = document.createElement('canvas')
-  canvas.width = Math.max(1, Math.round(roiVideoRect.width * resizeScale))
-  canvas.height = Math.max(1, Math.round(roiVideoRect.height * resizeScale))
+  canvas.width = canvasWidth
+  canvas.height = canvasHeight
 
   const ctx = canvas.getContext('2d', { willReadFrequently: true })
-  ctx.drawImage(
-    video,
-    roiVideoRect.x,
-    roiVideoRect.y,
-    roiVideoRect.width,
-    roiVideoRect.height,
-    0,
-    0,
-    canvas.width,
-    canvas.height,
-  )
+  ctx.drawImage(video, safeRoi.x, safeRoi.y, safeRoi.width, safeRoi.height, 0, 0, canvasWidth, canvasHeight)
 
-  return { canvas, resizeScale }
+  return { canvas, resizeScale, roiVideoRect: safeRoi }
 }
 
 // block > paragraph > line > word 트리 구조를 평평한 단어 배열로 변환한다.

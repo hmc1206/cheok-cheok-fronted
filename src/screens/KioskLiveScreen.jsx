@@ -287,13 +287,16 @@ export function KioskLiveScreen() {
 
               {/* 정렬 화면의 가이드 사각형과 동일한 위치/크기의 ROI 기준 엘리먼트.
                   화면에는 보이지 않지만("opacity-0"), 화면 맞추기가 끝난 뒤에도 계속 존재해야
-                  OCR 실시간 추적이 같은 영역을 ROI로 계속 사용할 수 있다. */}
+                  OCR 실시간 추적이 같은 영역을 ROI로 계속 사용할 수 있다.
+                  주의: ref는 반드시 실제 가이드 박스 크기(max-w-[340px] aspect-[3/4])를 갖는
+                  안쪽 div에 달아야 한다. 바깥 div는 inset-0으로 항상 컨테이너 전체 크기이므로,
+                  거기에 ref를 달면 getBoundingClientRect()가 video 전체 영역을 반환해
+                  ROI가 사실상 "잘라내지 않은 전체 화면"이 되어버린다. */}
               <div
-                ref={roiElementRef}
                 aria-hidden="true"
                 className="absolute inset-0 flex items-center justify-center px-6 my-2 pointer-events-none opacity-0"
               >
-                <div className="w-full max-w-[340px] aspect-[3/4]" />
+                <div ref={roiElementRef} className="w-full max-w-[340px] aspect-[3/4]" />
               </div>
             </div>
           ) : (
@@ -377,6 +380,7 @@ export function KioskLiveScreen() {
               ocrWords={recognition.ocrWords}
               targetMatch={recognition.targetMatch}
               processingMs={recognition.lastProcessMs}
+              debugInfo={recognition.debugInfo}
             />
           )}
 
