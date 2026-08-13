@@ -161,7 +161,7 @@ export function MapRouteScreen() {
               <MapTextInput
                 value={startName}
                 onChange={(event) => setStartName(event.target.value)}
-                placeholder="출발지 (예: 수원역)"
+                placeholder="출발지 (예: 서울역)"
                 hasError={Boolean(startError)}
                 aria-label="출발지"
               />
@@ -243,7 +243,7 @@ function MapTextInput({ value, onChange, placeholder, hasError, ...rest }) {
       onChange={onChange}
       placeholder={placeholder}
       className={
-        'w-full rounded-2xl border bg-white px-4 py-3 shadow-sm outline-none transition-colors duration-200 ' +
+        'w-full rounded-2xl border bg-white px-4 py-3 text-center shadow-sm outline-none transition-colors duration-200 ' +
         (hasError ? 'border-red-400 focus:border-red-400' : 'border-white/60 focus:border-[#146156]/60')
       }
       style={{ color: 'var(--color-text)' }}
