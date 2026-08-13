@@ -1,98 +1,212 @@
 import { useCallback, useState } from 'react'
 import { routesApi } from '../api/routesApi'
 import { AppFrame } from '../components/common/AppFrame'
+import { GlassButton, GlassInput } from '../components/common/Glass'
+import { GLASS_BACKGROUND_STYLE, GLASS_BRAND_COLOR } from '../components/common/glassTokens'
 import { useTTS } from '../hooks/useTTS'
-import { openNaverMapWithWebFallback } from '../lib/naverMapDeepLink'
+import { openDeepLinkWithWebFallback } from '../lib/deepLink'
 
-// 길찾기 화면. 기존엔 음성 대화(/voice/process)로 목적지를 말하면 우리 앱 안에
-// 네이버 지도 SDK를 그대로 그리는 방식이었지만, 백엔드가 좌표 변환+딥링크 조립을
-// 전담하는 새 방식으로 완전히 대체됐다: 출발지/목적지 텍스트만 보내면 백엔드가
-// 완성된 네이버 지도 앱/웹 URL을 돌려주고, 프론트는 그 URL을 실행만 한다.
+// 길찾기 화면. 경로 계산은 서버가 담당한다 — 출발지/목적지 "이름"만 보내면
+// 백엔드가 좌표 변환(Geocoding) + 네이버 지도 대중교통 딥링크 조립까지 전부 처리해서
+// 완성된 앱/웹 URL을 돌려주고, 프론트는 그 URL을 실행만 한다(API 명세서 v2.0 8-2장).
+//
+// 참고: 이 저장소는 순수 웹(Vite/React) 프로젝트라 iOS Info.plist의
+// LSApplicationQueriesSchemes / Android AndroidManifest.xml의 <queries>에
+// nmap 스킴을 등록하는 작업은 여기서 할 수 없다 — 해당 설정은 네이티브 앱 래퍼
+// 프로젝트(별도 저장소) 쪽 작업이라, 필요하면 그쪽 담당자에게 별도로 요청해야 한다.
 export function MapRouteScreen() {
   const { speak } = useTTS()
+
+  // 사용자가 입력창에 타이핑한 원문. 요청 필드명(startName/goalName)과 그대로 맞춰
+  // 명세서에 나온 이름 그대로 API에 보낼 수 있게 한다.
   const [startName, setStartName] = useState('')
   const [goalName, setGoalName] = useState('')
-  const [status, setStatus] = useState('idle') // idle | loading | error
-  const [errorMessage, setErrorMessage] = useState('')
 
-  const handleSubmit = useCallback(
-    async (event) => {
-      event.preventDefault()
-      if (!startName.trim() || !goalName.trim()) return
+  // 필드별 에러 메시지. GEOCODE_NOT_FOUND 응답의 error.field가 'startName'인지
+  // 'goalName'인지에 따라 이 중 하나에만 메시지를 채워, 해당 입력창 테두리만
+  // 빨갛게 표시하고 "어디를 다시 입력해야 하는지" 바로 알 수 있게 한다.
+  const [startError, setStartError] = useState('')
+  const [goalError, setGoalError] = useState('')
 
-      setStatus('loading')
-      setErrorMessage('')
-      try {
-        const { naverMapAppUrl, naverMapWebUrl } = await routesApi.getNaverMapLink({
-          startName: startName.trim(),
-          goalName: goalName.trim(),
-        })
-        // 어르신 UX: 앱으로 넘어가기 직전, 무슨 일이 일어나는지 음성으로도 안내한다
-        // (다른 화면들의 "청각+시각 이중 안내" 원칙과 동일).
-        speak(`${startName}에서 ${goalName}까지 경로를 네이버 지도에서 열어드릴게요.`)
-        openNaverMapWithWebFallback(naverMapAppUrl, naverMapWebUrl)
-        setStatus('idle')
-      } catch (error) {
-        console.error('[길찾기] 링크 생성 실패:', error)
-        // 공통 에러 포맷({ errorCode, message, ttsText })을 그대로 활용하되,
-        // ttsText가 없을 수도 있어 message로도 한 번 더 대비한다.
-        const message =
-          error.response?.data?.ttsText ??
-          error.response?.data?.message ??
-          '경로를 찾는 데 실패했어요. 다시 시도해주세요.'
-        setErrorMessage(message)
+  // 필드에 딱 매핑되지 않는 에러(입력 누락, 서버/Geocoding 실패 등)를 보여줄 공용 메시지.
+  const [generalError, setGeneralError] = useState('')
+
+  // 502(GEOCODE_API_FAIL/EXTERNAL_API_FAIL) 같은 "일시적 실패"일 때만 true로 켜서
+  // 재시도 버튼을 보여준다. 400/404처럼 사용자가 입력을 고쳐야 하는 에러는 재시도
+  // 버튼 없이 입력창 에러 표시로만 유도한다(같은 값으로 재시도해봐야 똑같이 실패하므로).
+  const [canRetry, setCanRetry] = useState(false)
+
+  // idle: 대기/평상시, loading: API 응답을 기다리는 중(버튼 비활성화 + 로딩 표시).
+  const [status, setStatus] = useState('idle')
+
+  // 제출 전 모든 에러 상태를 비운다. 매 시도마다 이전 실패 흔적이 남아있지 않게 한다.
+  const clearErrors = useCallback(() => {
+    setStartError('')
+    setGoalError('')
+    setGeneralError('')
+    setCanRetry(false)
+  }, [])
+
+  // 실제 API 호출 + 딥링크 실행을 담당하는 핵심 함수. "길찾기" 버튼(최초 시도)과
+  // "다시 시도" 버튼(재시도) 둘 다 이 함수를 그대로 재사용한다 — 재시도는 같은
+  // startName/goalName으로 다시 부르기만 하면 되기 때문에 별도 로직이 필요 없다.
+  const runSearch = useCallback(async () => {
+    const trimmedStart = startName.trim()
+    const trimmedGoal = goalName.trim()
+
+    // 명세서 에러 표: "출발지/목적지 미입력 -> 400 INVALID_REQUEST, 버튼 비활성화".
+    // 버튼 자체도 비활성화 상태이긴 하지만(disabled 조건 참고), 방어적으로 한 번 더 막는다.
+    if (!trimmedStart || !trimmedGoal) {
+      setGeneralError('출발지/목적지를 입력해주세요.')
+      return
+    }
+
+    clearErrors()
+    setStatus('loading')
+
+    try {
+      // POST /api/v1/routes/naver-link — 요청/응답 필드명은 명세서 그대로 사용.
+      const { naverMapAppUrl, naverMapWebUrl } = await routesApi.getNaverMapLink({
+        startName: trimmedStart,
+        goalName: trimmedGoal,
+      })
+
+      // 어르신 UX: 앱으로 넘어가기 직전, 무슨 일이 일어나는지 음성으로도 안내한다
+      // (다른 화면들과 동일한 "청각+시각 이중 안내" 원칙).
+      speak(`${trimmedStart}에서 ${trimmedGoal}까지 경로를 네이버 지도에서 열어드릴게요.`)
+
+      // 딥링크 실행 + Fallback 흐름(명세서 10-2장과 동일한 순서):
+      // 1) naverMapAppUrl로 네이버 지도 앱 실행 시도
+      // 2) 일정 시간(기본 1.5초) 안에 앱으로 화면 전환이 없으면 미설치로 간주
+      // 3) naverMapWebUrl로 대신 이동(Fallback)
+      openDeepLinkWithWebFallback(naverMapAppUrl, naverMapWebUrl)
+
+      setStatus('idle')
+    } catch (error) {
+      // 명세서 9장 에러코드 마스터 표 + 8-2장 실패 응답 형태:
+      // { success: false, error: { code, message, field? } }
+      const errorCode = error.response?.data?.error?.code
+      const errorField = error.response?.data?.error?.field
+      const errorMessage = error.response?.data?.error?.message
+
+      if (errorCode === 'GEOCODE_NOT_FOUND') {
+        // field로 어느 입력창이 문제인지 구분해서 그 입력창에만 에러를 표시한다.
+        const message = errorMessage ?? '해당 장소를 찾을 수 없어요. 다시 입력해주세요.'
+        if (errorField === 'startName') {
+          setStartError(message)
+        } else if (errorField === 'goalName') {
+          setGoalError(message)
+        } else {
+          setGeneralError(message)
+        }
         speak(message)
-        setStatus('error')
+      } else if (errorCode === 'GEOCODE_API_FAIL' || errorCode === 'EXTERNAL_API_FAIL') {
+        // 일시적인 외부 API 실패 — 같은 입력값으로 재시도해볼 가치가 있어 재시도 버튼을 켠다.
+        const message = errorMessage ?? '경로를 찾는 중 문제가 생겼어요. 다시 시도해주세요.'
+        setGeneralError(message)
+        setCanRetry(true)
+        speak(message)
+      } else if (errorCode === 'INVALID_REQUEST') {
+        const message = errorMessage ?? '출발지/목적지를 입력해주세요.'
+        setGeneralError(message)
+        speak(message)
+      } else {
+        // INTERNAL_ERROR(500) 및 그 외 알 수 없는 실패(네트워크 끊김 등) 공통 처리.
+        const message = errorMessage ?? '경로를 찾는 데 실패했어요. 다시 시도해주세요.'
+        setGeneralError(message)
+        setCanRetry(true)
+        speak(message)
       }
-    },
-    [startName, goalName, speak],
-  )
+
+      setStatus('idle')
+    }
+  }, [startName, goalName, speak, clearErrors])
+
+  const handleSubmit = (event) => {
+    event.preventDefault()
+    runSearch()
+  }
+
+  // 출발지/목적지 중 하나라도 비어있거나 요청이 진행 중이면 버튼을 눌러도 아무 일도
+  // 일어나지 않게 막는다(명세서: "미입력 시 버튼 비활성화").
+  const isSubmitDisabled = status === 'loading' || !startName.trim() || !goalName.trim()
 
   return (
     <AppFrame>
-      <main className="flex h-full flex-col gap-4 p-6">
-        <h1 style={{ fontSize: 'var(--font-size-xl)' }}>길 찾기</h1>
-        <p style={{ color: 'var(--color-text-muted)' }}>
-          출발지와 목적지를 입력하면 네이버 지도에서 대중교통 경로를 열어드려요.
-        </p>
+      {/* 홈 화면과 동일한 브랜드 톤 배경 위에 유리 재질 입력창/버튼을 올려야 반투명
+          효과가 실제로 눈에 띈다 (GLASS_BACKGROUND_STYLE, glassTokens.js 참고). */}
+      <main className="flex h-full flex-col items-center p-6" style={GLASS_BACKGROUND_STYLE}>
+        <h1 className="mt-10" style={{ fontSize: 'var(--font-size-xl)', fontWeight: 800, color: GLASS_BRAND_COLOR }}>
+          길찾기
+        </h1>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-          <label className="flex flex-col gap-1">
-            <span style={{ fontSize: 'var(--font-size-base)' }}>출발지</span>
-            <input
+        {/* 입력창/버튼을 화면 중앙에 배치하고, flex-1로 위아래 여백을 자동으로 채워
+            화면을 꽉 채우지 않게 한다(요청사항: "여백을 살려서 배치"). */}
+        <form
+          onSubmit={handleSubmit}
+          className="flex w-full flex-1 flex-col items-center justify-center gap-4"
+        >
+          <div className="flex w-full flex-col gap-1">
+            <GlassInput
               value={startName}
               onChange={(event) => setStartName(event.target.value)}
-              placeholder="예: 수원역"
-              className="border p-2"
-              style={{
-                fontSize: 'var(--font-size-base)',
-                borderColor: 'var(--color-border)',
-                borderRadius: 'var(--radius-base)',
-              }}
+              placeholder="출발지 (예: 수원역)"
+              hasError={Boolean(startError)}
+              aria-label="출발지"
             />
-          </label>
+            {/* 필드별 에러: GEOCODE_NOT_FOUND의 field가 startName일 때만 여기 표시된다. */}
+            {startError && (
+              <p style={{ fontSize: 'var(--font-size-base)', color: 'var(--color-danger)' }}>{startError}</p>
+            )}
+          </div>
 
-          <label className="flex flex-col gap-1">
-            <span style={{ fontSize: 'var(--font-size-base)' }}>목적지</span>
-            <input
+          <div className="flex w-full flex-col gap-1">
+            <GlassInput
               value={goalName}
               onChange={(event) => setGoalName(event.target.value)}
-              placeholder="예: 부산역"
-              className="border p-2"
-              style={{
-                fontSize: 'var(--font-size-base)',
-                borderColor: 'var(--color-border)',
-                borderRadius: 'var(--radius-base)',
-              }}
+              placeholder="목적지 (예: 부산역)"
+              hasError={Boolean(goalError)}
+              aria-label="목적지"
             />
-          </label>
+            {goalError && (
+              <p style={{ fontSize: 'var(--font-size-base)', color: 'var(--color-danger)' }}>{goalError}</p>
+            )}
+          </div>
 
-          <button type="submit" className="quick-action-button" disabled={status === 'loading'}>
-            {status === 'loading' ? '경로 찾는 중...' : '길찾기'}
-          </button>
+          <GlassButton type="submit" disabled={isSubmitDisabled}>
+            {status === 'loading' ? (
+              // 로딩 인디케이터: 별도 라이브러리 없이 Tailwind animate-spin으로 최소한의
+              // 원형 스피너만 그린다. 버튼 자체도 disabled라 중복 클릭은 막혀 있다.
+              <span className="inline-flex items-center justify-center gap-2">
+                <span
+                  className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"
+                  aria-hidden="true"
+                />
+                찾는 중...
+              </span>
+            ) : (
+              '길찾기'
+            )}
+          </GlassButton>
+
+          {/* 필드에 매핑되지 않는 에러(입력 누락, 서버 오류 등) 공용 메시지 + 재시도 버튼.
+              canRetry는 502(GEOCODE_API_FAIL/EXTERNAL_API_FAIL) 같은 일시적 실패에서만 켜진다. */}
+          {generalError && (
+            <div className="flex w-full flex-col items-center gap-2">
+              <p style={{ fontSize: 'var(--font-size-base)', color: 'var(--color-danger)' }}>{generalError}</p>
+              {canRetry && (
+                <button
+                  type="button"
+                  onClick={runSearch}
+                  disabled={status === 'loading'}
+                  className="quick-action-button"
+                >
+                  다시 시도
+                </button>
+              )}
+            </div>
+          )}
         </form>
-
-        {status === 'error' && <p style={{ color: 'var(--color-danger)' }}>{errorMessage}</p>}
       </main>
     </AppFrame>
   )
