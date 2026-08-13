@@ -32,16 +32,13 @@ export function useVoiceAssistant({ onResult } = {}) {
 
   const applyResponse = useCallback(
     (response) => {
-      const { intent, step, screen, slots, data, ttsText, audioUrl, recognizedText } = response
-
-      // ASSUMPTION: MediaRecorder 폴백 경로는 브라우저에서 바로 STT를 할 수 없으므로,
-      // 서버가 인식 결과를 recognizedText로 함께 돌려준다고 가정하고 자막을 채운다.
-      if (recognizedText) setSttCaption(recognizedText)
+      // API 명세서 v2.0 2장 공통 응답 필드: intent/step/slots/ttsText/screen/quickReplies/data.
+      const { intent, step, screen, slots, data, ttsText, quickReplies } = response
 
       setTtsCaption(ttsText ?? '')
-      if (ttsText || audioUrl) speak(ttsText, { audioUrl })
+      if (ttsText) speak(ttsText)
 
-      setSession({ intent, step, screen, slots, data })
+      setSession({ intent, step, screen, slots, data, quickReplies: quickReplies ?? null })
 
       // "진행 중이면 같은 화면에서 이어감" — 이미 목적지 화면이면 다시 navigate하지 않는다.
       const targetPath = INTENT_ROUTES[intent]
