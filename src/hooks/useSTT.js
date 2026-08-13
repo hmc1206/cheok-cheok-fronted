@@ -4,7 +4,7 @@ const SpeechRecognitionImpl =
   typeof window !== 'undefined' ? window.SpeechRecognition || window.webkitSpeechRecognition : null
 
 // Web Speech API 우선, 미지원 브라우저에서는 MediaRecorder로 녹음해 서버 STT로 넘길
-// audioBase64를 만든다 (기획서 1장 음성인식 폴백 정책).
+// audio(base64)를 만든다 (기획서 1장 음성인식 폴백 정책, API 명세서 v2.0 2장).
 export function useSTT() {
   const [isListening, setIsListening] = useState(false)
   const recognitionRef = useRef(null)
@@ -53,8 +53,8 @@ export function useSTT() {
             const blob = new Blob(chunks, { type: 'audio/webm' })
             const reader = new FileReader()
             reader.onloadend = () => {
-              const audioBase64 = reader.result?.toString().split(',')[1] ?? ''
-              resolve({ audioBase64 })
+              const audio = reader.result?.toString().split(',')[1] ?? ''
+              resolve({ audio })
             }
             reader.onerror = reject
             reader.readAsDataURL(blob)

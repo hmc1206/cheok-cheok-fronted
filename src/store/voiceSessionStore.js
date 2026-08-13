@@ -9,6 +9,7 @@ const initialState = {
   screen: null,
   slots: {},
   data: null,
+  quickReplies: null,
 }
 
 export const useVoiceSessionStore = create((set) => ({
