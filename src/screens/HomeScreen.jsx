@@ -1,6 +1,8 @@
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AppFrame } from '../components/common/AppFrame'
 import { CaptionOverlay } from '../components/common/CaptionOverlay'
+import { SidePanel } from '../components/home/SidePanel'
 import { useVoiceAssistant } from '../hooks/useVoiceAssistant'
 
 // 로그인 이후 진입하는 메인 화면 (기획서 4-1장).
@@ -49,16 +51,35 @@ function GlassCircleButton({ children, onClick, disabled, size = 100, ariaLabel 
 export function HomeScreen() {
   const navigate = useNavigate()
   const { status, sttCaption, ttsCaption, startListening } = useVoiceAssistant()
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+  const [history, setHistory] = useState([])
 
   const micStatusLabel =
     status === 'listening' ? '듣고 있어요...' : status === 'processing' ? '처리 중이에요...' : '눌러서 말하기'
+
+  // sttCaption의 "그때그때 최신값"을 ref에 미러링해둔다. 렌더마다 대입만 하므로
+  // effect 의존성에 넣지 않고도 아래 effect에서 항상 최신 질문 텍스트를 읽을 수 있다.
+  const latestSttCaptionRef = useRef(sttCaption)
+  latestSttCaptionRef.current = sttCaption
+
+  // 새 답변(ttsCaption)이 들어올 때만 히스토리에 한 쌍을 추가한다. sttCaption을
+  // 의존성에 넣으면, 질문이 막 인식된 시점(응답이 오기 전, ttsCaption은 아직 이전
+  // 값)에도 effect가 돌아 "새 질문 + 이전 답변"이 잘못 짝지어 기록되므로,
+  // ttsCaption 하나만 트리거로 두고 sttCaption은 ref로 그 시점 값만 꺼내 쓴다.
+  useEffect(() => {
+    if (!ttsCaption) return
+    setHistory((prev) => [
+      ...prev,
+      { id: Date.now(), question: latestSttCaptionRef.current, answer: ttsCaption },
+    ])
+  }, [ttsCaption])
 
   return (
     // AppFrame이 393x852로 고정하므로, 여기서는 실제 뷰포트 높이(min-h-dvh) 대신
     // 프레임이 준 100%(h-full)를 채운다.
     <AppFrame>
       <main
-        className="relative flex h-full flex-col items-center justify-between overflow-hidden p-6"
+        className="relative flex h-full flex-col items-center p-6"
         style={{
           // 유리 버튼은 반투명이라 배경이 밋밋한 흰색이면 "유리" 느낌이 거의 안 보인다.
           // 브랜드 컬러를 위에서 아래로 은은하게 깔아 블러/반투명 효과가 실제로
@@ -66,12 +87,44 @@ export function HomeScreen() {
           background: `linear-gradient(180deg, ${BRAND_COLOR}26 0%, #ffffff 55%)`,
         }}
       >
-        <h1 className="mt-4 text-center" style={{ fontSize: 'var(--font-size-xl)' }}>
-          {/* "척척"만 브랜드 컬러+굵게로 포인트, 나머지는 기본 스타일 유지 */}
-          <span style={{ color: BRAND_COLOR, fontWeight: 800 }}>척척</span> 알려드릴게요
-        </h1>
+        {/* 좌측 상단 고정 메뉴 버튼. 드로어가 열려도 위치는 그대로 두고, 오버레이가
+            위(z-40)에서 덮으므로 열려있는 동안은 자연스럽게 클릭이 막힌다. */}
+        <button
+          type="button"
+          onClick={() => setIsDrawerOpen(true)}
+          aria-label="메뉴 열기"
+          className="absolute left-4 top-4 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-white/70 shadow-sm backdrop-blur-sm"
+          style={{ color: BRAND_COLOR }}
+        >
+          <MenuIcon />
+        </button>
 
-        <div className="flex gap-3">
+        <div className="mt-16 text-center">
+          <p className="home-greeting-line-1" style={{ fontSize: 'var(--font-size-lg)' }}>
+            안녕하세요?
+          </p>
+          <p className="home-greeting-line-2" style={{ fontSize: 'var(--font-size-lg)' }}>
+            {/* "무엇"만 브랜드 컬러+굵게로 포인트, 나머지는 기본 스타일 유지 */}
+            <span style={{ color: BRAND_COLOR, fontWeight: 800 }}>무엇</span>을 도와드릴까요?
+          </p>
+        </div>
+
+        {/* 중앙: 마이크가 이 화면의 메인 액션이라 하단 버튼보다 눈에 띄게 크게(150px) 둔다. */}
+        <div className="flex flex-1 flex-col items-center justify-center gap-3">
+          <GlassCircleButton
+            onClick={startListening}
+            disabled={status === 'processing'}
+            size={150}
+            ariaLabel="음성 비서 시작"
+          >
+            <MicIcon size={38} />
+          </GlassCircleButton>
+          <p style={{ fontSize: 'var(--font-size-base)', color: 'var(--color-text-muted)' }}>
+            {micStatusLabel}
+          </p>
+        </div>
+
+        <div className="flex gap-3 pb-6">
           {NAV_ITEMS.map(({ label, path, Icon }) => (
             <GlassCircleButton key={path} onClick={() => navigate(path)} ariaLabel={label}>
               <Icon />
@@ -80,23 +133,9 @@ export function HomeScreen() {
           ))}
         </div>
 
-        <div className="flex flex-col items-center gap-3 pb-6">
-          <GlassCircleButton
-            onClick={startListening}
-            disabled={status === 'processing'}
-            size={112}
-            ariaLabel="음성 비서 시작"
-          >
-            <MicIcon />
-          </GlassCircleButton>
-          {/* 위쪽 원형 버튼들과 톤을 맞추면서도, 문구 자체는 화면 어디서나 쓰는
-              기존 톤(--color-text-muted)을 그대로 따른다. */}
-          <p style={{ fontSize: 'var(--font-size-base)', color: 'var(--color-text-muted)' }}>
-            {micStatusLabel}
-          </p>
-        </div>
-
         <CaptionOverlay sttCaption={sttCaption} ttsCaption={ttsCaption} />
+
+        <SidePanel isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} history={history} />
       </main>
     </AppFrame>
   )
@@ -104,6 +143,14 @@ export function HomeScreen() {
 
 // 아래 아이콘들은 새 의존성을 추가하지 않기 위해 직접 그린 최소한의 선 아이콘이다
 // (stroke=currentColor라 버튼의 text-white를 그대로 물려받는다).
+
+function MenuIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+      <path d="M4 6h16M4 12h16M4 18h16" />
+    </svg>
+  )
+}
 
 function MapIcon() {
   return (
@@ -132,9 +179,9 @@ function KioskIcon() {
   )
 }
 
-function MicIcon() {
+function MicIcon({ size = 28 }) {
   return (
-    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <rect x="9" y="2" width="6" height="12" rx="3" />
       <path d="M5 10a7 7 0 0 0 14 0M12 19v3" />
     </svg>
