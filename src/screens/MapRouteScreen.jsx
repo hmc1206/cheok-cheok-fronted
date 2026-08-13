@@ -152,7 +152,10 @@ export function MapRouteScreen() {
             살려 분산 배치"). 제목+입력창+버튼은 하나의 top 그룹으로 묶어 촘촘하게(gap-3)
             붙여서 제목과 입력창 사이만은 가깝게 유지한다. */}
         <form onSubmit={handleSubmit} className="flex h-full w-full flex-col items-center justify-between py-4">
-          <div className="flex w-full flex-col items-center gap-3">
+          {/* 입력창/버튼 그룹 자체를 화면 폭보다 좁게(w-72) 잡아서, 이 그룹이 화면
+              가로 중앙에 오도록 한다(요청사항: "칸을 화면 중앙에 오게"). 안의 글자는
+              MapTextInput이 기본값(왼쪽 정렬)을 쓰므로 입력 텍스트는 그대로 왼쪽 정렬이다. */}
+          <div className="flex w-72 flex-col items-center gap-3">
             <h1 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 800, color: GLASS_BRAND_COLOR }}>
               길 찾기
             </h1>
@@ -243,7 +246,7 @@ function MapTextInput({ value, onChange, placeholder, hasError, ...rest }) {
       onChange={onChange}
       placeholder={placeholder}
       className={
-        'w-full rounded-2xl border bg-white px-4 py-3 text-center shadow-sm outline-none transition-colors duration-200 ' +
+        'w-full rounded-2xl border bg-white px-4 py-3 shadow-sm outline-none transition-colors duration-200 ' +
         (hasError ? 'border-red-400 focus:border-red-400' : 'border-white/60 focus:border-[#146156]/60')
       }
       style={{ color: 'var(--color-text)' }}
