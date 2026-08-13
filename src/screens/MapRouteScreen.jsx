@@ -1,157 +1,98 @@
-import { useCallback, useEffect, useState } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useCallback, useState } from 'react'
+import { routesApi } from '../api/routesApi'
 import { AppFrame } from '../components/common/AppFrame'
-import { CaptionOverlay } from '../components/common/CaptionOverlay'
-import { VoiceButton } from '../components/common/VoiceButton'
-import { NaverMap } from '../components/map/NaverMap'
-import { useGeolocation } from '../hooks/useGeolocation'
 import { useTTS } from '../hooks/useTTS'
-import { useVoiceAssistant } from '../hooks/useVoiceAssistant'
-import { useVoiceSessionStore } from '../store/voiceSessionStore'
+import { openNaverMapWithWebFallback } from '../lib/naverMapDeepLink'
 
-// TODO(4단계 - 백엔드 연동 대기): 실제 경로 좌표(path)/턴바이턴 안내(guides)를 주는
-// 백엔드 엔드포인트 스펙이 아직 없어서, 지도 SDK 연결과 마커/경로선 렌더링만 먼저
-// 확인할 수 있도록 서울시청→강남역 더미 좌표를 하드코딩해뒀다. 실제 스펙이 정해지면
-// 이 상수들을 지우고 data(steps 응답 또는 별도 directions API 응답)로 교체해야 한다.
-const DUMMY_ORIGIN = { lat: 37.5666805, lng: 126.9784147 } // 서울시청 (임시)
-const DUMMY_DESTINATION = { lat: 37.497942, lng: 127.027621 } // 강남역 (임시)
-const DUMMY_ROUTE_PATH = [DUMMY_ORIGIN, { lat: 37.53, lng: 127.0 }, DUMMY_DESTINATION]
-// TODO(4단계 완료 후): guides[0]로 교체.
-const DUMMY_FIRST_GUIDE = '임시 안내입니다. 서울시청에서 출발해서 강남역으로 이동해요.'
-
-// 길찾기 화면 (기획서 4-2장).
+// 길찾기 화면. 기존엔 음성 대화(/voice/process)로 목적지를 말하면 우리 앱 안에
+// 네이버 지도 SDK를 그대로 그리는 방식이었지만, 백엔드가 좌표 변환+딥링크 조립을
+// 전담하는 새 방식으로 완전히 대체됐다: 출발지/목적지 텍스트만 보내면 백엔드가
+// 완성된 네이버 지도 앱/웹 URL을 돌려주고, 프론트는 그 URL을 실행만 한다.
 export function MapRouteScreen() {
-  const routerLocation = useLocation()
-  const { status: geoStatus, requestLocation } = useGeolocation()
-  const { status, sttCaption, ttsCaption, startListening, sendText } = useVoiceAssistant()
   const { speak } = useTTS()
-  const step = useVoiceSessionStore((state) => state.step)
-  const screen = useVoiceSessionStore((state) => state.screen)
-  const data = useVoiceSessionStore((state) => state.data) ?? routerLocation.state?.data
+  const [startName, setStartName] = useState('')
+  const [goalName, setGoalName] = useState('')
+  const [status, setStatus] = useState('idle') // idle | loading | error
+  const [errorMessage, setErrorMessage] = useState('')
 
-  const [destinationInput, setDestinationInput] = useState('')
-  const [originAutoAnswered, setOriginAutoAnswered] = useState(false)
+  const handleSubmit = useCallback(
+    async (event) => {
+      event.preventDefault()
+      if (!startName.trim() || !goalName.trim()) return
 
-  // 지도 SDK 로드 실패 등은 useVoiceAssistant의 대화 흐름과 무관하므로, NaverMap이
-  // onError로 알려주면 여기서 별도로 TTS 안내한다 (어르신 UX: 화면을 못 봐도 음성으로 인지).
-  const handleMapError = useCallback(() => {
-    speak('지도를 불러오지 못했어요.')
-  }, [speak])
-
-  useEffect(() => {
-    requestLocation()
-  }, [requestLocation])
-
-  // 6단계: 경로 안내가 준비되면(지금은 더미 데이터라 마운트 시점) 첫 안내를 TTS로 읽는다.
-  // TODO(4단계 완료 후): 이 useEffect의 트리거를 "실제 MAP_RESULT 응답 도착"으로 바꾸고,
-  // 그때는 useVoiceAssistant가 이미 읽고 있는 대화형 ttsText와 겹치지 않게 순서를 조정해야 한다.
-  useEffect(() => {
-    speak(DUMMY_FIRST_GUIDE) // 더미 단계라 의도적으로 마운트 시 1회만 읽는다.
-  }, [speak])
-
-  useEffect(() => {
-    // API 명세서 3장: /voice/process는 origin 좌표를 받는 파라미터가 따로 없다.
-    // 목적지를 먼저 말한 뒤 서버가 step: ASK_ORIGIN으로 "지금 계신 곳에서 출발할까요?"를
-    // 물어오면, 위치 권한이 이미 있으니 사용자가 대답할 필요 없이 "네"로 자동 응답해
-    // 질문을 건너뛴 것처럼 만든다. 권한 거부/실패 시에는 그대로 두어 사용자가 직접 답한다.
-    if (geoStatus === 'granted' && step === 'ASK_ORIGIN' && !originAutoAnswered) {
-      setOriginAutoAnswered(true)
-      sendText('네')
-    }
-  }, [geoStatus, step, originAutoAnswered, sendText])
-
-  const handleSubmitDestination = (event) => {
-    event.preventDefault()
-    if (!destinationInput.trim()) return
-    setOriginAutoAnswered(false) // 새 목적지 검색 시 ASK_ORIGIN 자동응답을 다시 허용
-    sendText(destinationInput.trim())
-    setDestinationInput('')
-  }
+      setStatus('loading')
+      setErrorMessage('')
+      try {
+        const { naverMapAppUrl, naverMapWebUrl } = await routesApi.getNaverMapLink({
+          startName: startName.trim(),
+          goalName: goalName.trim(),
+        })
+        // 어르신 UX: 앱으로 넘어가기 직전, 무슨 일이 일어나는지 음성으로도 안내한다
+        // (다른 화면들의 "청각+시각 이중 안내" 원칙과 동일).
+        speak(`${startName}에서 ${goalName}까지 경로를 네이버 지도에서 열어드릴게요.`)
+        openNaverMapWithWebFallback(naverMapAppUrl, naverMapWebUrl)
+        setStatus('idle')
+      } catch (error) {
+        console.error('[길찾기] 링크 생성 실패:', error)
+        // 공통 에러 포맷({ errorCode, message, ttsText })을 그대로 활용하되,
+        // ttsText가 없을 수도 있어 message로도 한 번 더 대비한다.
+        const message =
+          error.response?.data?.ttsText ??
+          error.response?.data?.message ??
+          '경로를 찾는 데 실패했어요. 다시 시도해주세요.'
+        setErrorMessage(message)
+        speak(message)
+        setStatus('error')
+      }
+    },
+    [startName, goalName, speak],
+  )
 
   return (
     <AppFrame>
-      {/* AppFrame이 높이를 852px로 고정하므로, 지도+폼+결과 목록이 그 안에서
-          넘칠 수 있다. h-full로 프레임을 꽉 채우고 overflow-y-auto로 스크롤되게
-          해서(clip 아님) 내용이 잘려 안 보이는 일이 없게 한다. */}
-      <main className="flex h-full flex-col gap-4 overflow-y-auto p-6 pb-40">
+      <main className="flex h-full flex-col gap-4 p-6">
         <h1 style={{ fontSize: 'var(--font-size-xl)' }}>길 찾기</h1>
+        <p style={{ color: 'var(--color-text-muted)' }}>
+          출발지와 목적지를 입력하면 네이버 지도에서 대중교통 경로를 열어드려요.
+        </p>
 
-        {/* 어르신 UX: 턴바이턴 안내는 화면 상단에 큰 글씨로 고정 배치.
-            TODO(4단계 완료 후): DUMMY_FIRST_GUIDE 대신 실제 guides[0] 문구로 교체. */}
-        <p style={{ fontSize: 'var(--font-size-lg)', fontWeight: 'bold' }}>{DUMMY_FIRST_GUIDE}</p>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+          <label className="flex flex-col gap-1">
+            <span style={{ fontSize: 'var(--font-size-base)' }}>출발지</span>
+            <input
+              value={startName}
+              onChange={(event) => setStartName(event.target.value)}
+              placeholder="예: 수원역"
+              className="border p-2"
+              style={{
+                fontSize: 'var(--font-size-base)',
+                borderColor: 'var(--color-border)',
+                borderRadius: 'var(--radius-base)',
+              }}
+            />
+          </label>
 
-        {/* 2~3단계 확인용: 실제 경로 데이터가 없어 더미 좌표로 지도/마커/경로선만 먼저 그린다. */}
-        <NaverMap
-          origin={DUMMY_ORIGIN}
-          destination={DUMMY_DESTINATION}
-          routePath={DUMMY_ROUTE_PATH}
-          onError={handleMapError}
-        />
+          <label className="flex flex-col gap-1">
+            <span style={{ fontSize: 'var(--font-size-base)' }}>목적지</span>
+            <input
+              value={goalName}
+              onChange={(event) => setGoalName(event.target.value)}
+              placeholder="예: 부산역"
+              className="border p-2"
+              style={{
+                fontSize: 'var(--font-size-base)',
+                borderColor: 'var(--color-border)',
+                borderRadius: 'var(--radius-base)',
+              }}
+            />
+          </label>
 
-        <form onSubmit={handleSubmitDestination} className="flex gap-2">
-          <input
-            value={destinationInput}
-            onChange={(event) => setDestinationInput(event.target.value)}
-            placeholder="어디로 가시나요?"
-            className="flex-1 border p-2"
-            style={{
-              fontSize: 'var(--font-size-base)',
-              borderColor: 'var(--color-border)',
-              borderRadius: 'var(--radius-base)',
-            }}
-          />
-          <button type="submit" className="quick-action-button">
-            전송
+          <button type="submit" className="quick-action-button" disabled={status === 'loading'}>
+            {status === 'loading' ? '경로 찾는 중...' : '길찾기'}
           </button>
         </form>
 
-        {screen === 'MAP_NOT_FOUND' && <p>경로를 찾지 못했어요. 다시 말씀해주세요.</p>}
-
-        {screen === 'MAP_RESULT' && Array.isArray(data?.steps) && (
-          <>
-            <p style={{ color: 'var(--color-text-muted)' }}>
-              총 {data.durationMinutes}분 · 환승 {data.transferCount}회 · {data.totalFare}원
-            </p>
-            <ul className="flex flex-col gap-2">
-              {data.steps.map((routeStep, index) => (
-                <li
-                  key={`${routeStep.type}-${index}`}
-                  className="flex flex-col gap-1 border p-3"
-                  style={{ borderColor: 'var(--color-border)', borderRadius: 'var(--radius-base)' }}
-                >
-                  {/* 위계: 구간 종류(WALK/BUS/SUBWAY)는 작고 흐린 라벨, 실제 안내
-                      문구가 이 카드의 주인공이라 본문 크기로 둔다.
-                      백엔드 현재 구현 상태 확인 결과: 원래 API 명세서 예시엔 desc였지만
-                      실제 응답 필드는 description이라고 확인됨. */}
-                  <span
-                    style={{
-                      fontSize: 'var(--font-size-base)',
-                      fontWeight: 700,
-                      color: 'var(--color-text-muted)',
-                    }}
-                  >
-                    {routeStep.type}
-                  </span>
-                  <p>{routeStep.description}</p>
-                  {routeStep.type === 'BUS' && routeStep.boardingStop && (
-                    <p style={{ color: 'var(--color-text-muted)' }}>탑승: {routeStep.boardingStop}</p>
-                  )}
-                  {routeStep.type === 'SUBWAY' && (
-                    <p style={{ color: 'var(--color-text-muted)' }}>
-                      {routeStep.line} · 탑승: {routeStep.boardingStation}
-                    </p>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </>
-        )}
-
-        <div className="flex justify-center">
-          <VoiceButton status={status} onPress={startListening} />
-        </div>
-
-        <CaptionOverlay sttCaption={sttCaption} ttsCaption={ttsCaption} />
+        {status === 'error' && <p style={{ color: 'var(--color-danger)' }}>{errorMessage}</p>}
       </main>
     </AppFrame>
   )
