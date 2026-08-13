@@ -1,96 +1,82 @@
-import { useLocation } from 'react-router-dom'
-import { youtubeApi } from '../api/youtubeApi'
+import { useEffect, useRef } from 'react'
 import { AppFrame } from '../components/common/AppFrame'
 import { CaptionOverlay } from '../components/common/CaptionOverlay'
 import { VoiceButton } from '../components/common/VoiceButton'
 import { useVoiceAssistant } from '../hooks/useVoiceAssistant'
-import { useAuthStore } from '../store/authStore'
+import { openDeepLinkWithWebFallback } from '../lib/deepLink'
 import { useVoiceSessionStore } from '../store/voiceSessionStore'
 
-// 음성 AI가 YOUTUBE_PLAY로 라우팅했을 때 진입하는 화면 (기획서 4-6장).
+// 음성 AI가 YOUTUBE_PLAY로 라우팅했을 때 진입하는 화면 (API 명세서 v2.0 3장).
+// 우리 앱이 영상을 재생하지 않는다 — 유튜브 앱(미설치 시 웹)으로 바로 이동시키는
+// 화면이라, 인앱 플레이어/재생 컨트롤은 없고 "CONFIRM(미리보기+확인) -> DONE(실행)"
+// 두 단계만 그린다.
 export function YoutubePlayerScreen() {
-  const routerLocation = useLocation()
-  const data = useVoiceSessionStore((state) => state.data) ?? routerLocation.state?.data
   const step = useVoiceSessionStore((state) => state.step)
-  const userId = useAuthStore((state) => state.userId)
-  const { status, sttCaption, ttsCaption, startListening } = useVoiceAssistant()
+  const data = useVoiceSessionStore((state) => state.data)
+  const quickReplies = useVoiceSessionStore((state) => state.quickReplies)
+  const { status, sttCaption, ttsCaption, startListening, sendText } = useVoiceAssistant()
 
-  const handleControl = (action) => {
-    youtubeApi.control({ userId, action })
-  }
+  // DONE 응답을 받을 때마다 한 번만 실행되게, 마지막으로 실행한 app_url을 기억해둔다
+  // (같은 렌더가 여러 번 일어나도 딥링크를 중복 실행하지 않기 위함).
+  const launchedAppUrlRef = useRef(null)
 
-  if (step === 'NOT_FOUND') {
-    return (
-      <AppFrame>
-        <main className="h-full p-6">
-          <h1 style={{ fontSize: 'var(--font-size-xl)' }}>유튜브</h1>
-          <p>영상을 찾지 못했어요. 다시 말씀해주세요.</p>
-        </main>
-      </AppFrame>
-    )
-  }
+  useEffect(() => {
+    if (step !== 'DONE' || !data?.app_url) return
+    if (launchedAppUrlRef.current === data.app_url) return
+    launchedAppUrlRef.current = data.app_url
+    openDeepLinkWithWebFallback(data.app_url, data.web_url)
+  }, [step, data])
 
   return (
     <AppFrame>
-      {/* AppFrame이 높이를 852px로 고정하므로, 영상+컨트롤이 넘칠 수 있다.
-          h-full + overflow-y-auto로 잘리지 않고 스크롤되게 한다. */}
-      <main className="flex h-full flex-col gap-4 overflow-y-auto p-6 pb-40">
-        <h1 style={{ fontSize: 'var(--font-size-xl)' }}>{data?.title ?? '유튜브'}</h1>
+      <main className="flex h-full flex-col gap-4 p-6">
+        <h1 style={{ fontSize: 'var(--font-size-xl)' }}>유튜브</h1>
 
-        {/* ASSUMPTION: 실제 플레이어 라이브러리(react-youtube 등)는 아직 붙이지 않고,
-            videoId를 받는 자리(iframe placeholder)만 컴포넌트 인터페이스로 만들어둔다. */}
-        <div className="w-full aspect-video" style={{ background: 'var(--color-surface)' }}>
-          {data?.videoId ? (
-            <iframe
-              title={data.title ?? 'youtube video'}
-              src={`https://www.youtube.com/embed/${data.videoId}`}
-              className="w-full h-full"
-              allow="autoplay"
-            />
-          ) : (
-            <p>재생할 영상이 없습니다.</p>
-          )}
-        </div>
+        {step === 'CONFIRM' && data && (
+          <div
+            className="flex flex-col gap-3 border p-3"
+            style={{ borderColor: 'var(--color-border)', borderRadius: 'var(--radius-base)' }}
+          >
+            {data.thumbnailUrl && (
+              <img
+                src={data.thumbnailUrl}
+                alt={data.title ?? '영상 미리보기'}
+                className="w-full rounded"
+                style={{ borderRadius: 'var(--radius-base)' }}
+              />
+            )}
+            <p style={{ fontSize: 'var(--font-size-lg)', fontWeight: 700 }}>{data.title}</p>
+            {data.channelName && (
+              <p style={{ color: 'var(--color-text-muted)' }}>{data.channelName}</p>
+            )}
 
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            className="quick-action-button"
-            onClick={() => handleControl('PAUSE')}
-          >
-            일시정지
-          </button>
-          <button
-            type="button"
-            className="quick-action-button"
-            onClick={() => handleControl('RESUME')}
-          >
-            다시재생
-          </button>
-          <button
-            type="button"
-            className="quick-action-button"
-            onClick={() => handleControl('NEXT')}
-          >
-            다음영상
-          </button>
-          <button
-            type="button"
-            className="quick-action-button"
-            onClick={() => handleControl('VOLUME_UP')}
-          >
-            소리크게
-          </button>
-          <button
-            type="button"
-            className="quick-action-button"
-            onClick={() => handleControl('VOLUME_DOWN')}
-          >
-            소리작게
-          </button>
-        </div>
+            <div className="grid grid-cols-2 gap-2">
+              {(quickReplies ?? []).map((reply) => (
+                <button
+                  key={reply.value}
+                  type="button"
+                  className="quick-action-button"
+                  onClick={() => sendText(reply.value)}
+                >
+                  {reply.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
-        {/* 발화("일시정지해줘" 등)가 계속 들어올 수 있도록 마이크 버튼은 이 화면에서도 유지 */}
+        {step === 'DONE' && data && (
+          <p style={{ fontSize: 'var(--font-size-lg)' }}>유튜브를 열고 있어요...</p>
+        )}
+
+        {step !== 'CONFIRM' && step !== 'DONE' && (
+          <p style={{ color: 'var(--color-text-muted)' }}>
+            마이크 버튼을 누르고 보고 싶은 영상을 말씀해주세요.
+          </p>
+        )}
+
+        {/* 유튜브 앱 실행 이후의 재생/일시정지 등 인앱 제어는 서버가 관여하지 않는다
+            (API 명세서 v2.0 3장) — 대신 "다른 영상 찾기"용 마이크는 계속 열어둔다. */}
         <div className="flex justify-center">
           <VoiceButton status={status} onPress={startListening} />
         </div>
