@@ -92,3 +92,11 @@ input:focus-visible {
   outline: var(--focus-ring);
   outline-offset: 2px;
 }
+
+/* 길찾기 화면 입력창(.map-input)만 위 전역 파란 포커스 링 대신 브랜드 톤(#146156)을
+   쓴다. class 선택자(.map-input) + :focus-visible이 위 규칙(input:focus-visible)보다
+   구체적이라(specificity 우위) 이 클래스가 붙은 요소에서만 이 규칙이 이긴다. */
+.map-input:focus-visible {
+  outline: 2px solid #146156;
+  outline-offset: 2px;
+}

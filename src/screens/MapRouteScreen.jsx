@@ -245,6 +245,16 @@ export function MapRouteScreen() {
 // 출발지/목적지 입력창. 홈 화면의 유리(반투명) 버튼과는 다르게, 입력창은 흰 배경 +
 // 옅은 테두리/그림자로 깔끔하게 둔다(요청사항: "입력창 배경은 하얀색으로 처리").
 // hasError면 테두리를 경고색으로 바꿔 GEOCODE_NOT_FOUND 필드별 재입력을 유도한다.
+//
+// 포커스 시 나타나는 강조 테두리: index.css의 전역 접근성 규칙(`input:focus-visible {
+// outline: var(--focus-ring) }`, tokens.css의 --color-primary #2f6fed = 파란색)이
+// 앱 전체 input/button에 파란 outline을 준다. 이 화면은 브랜드 톤(#146156 초록)으로
+// 통일해야 해서, `.map-input` 클래스에 index.css의 별도 규칙(같은 index.css, 전역
+// 규칙보다 뒤+더 구체적인 선택자)으로 이 두 입력창만 outline 색을 덮어썼다.
+// Tailwind 유틸리티 클래스(focus-visible:outline-...)로는 안 됐다 — Tailwind
+// 클래스는 @layer utilities 안에 들어가는데, CSS Cascade Layers 스펙상 layer 밖의
+// 일반 규칙(index.css의 전역 규칙)이 specificity와 무관하게 항상 이기기 때문에,
+// 오버라이드도 layer 밖 일반 CSS로 작성해야 한다.
 function MapTextInput({ value, onChange, placeholder, hasError, ...rest }) {
   return (
     <input
@@ -252,7 +262,7 @@ function MapTextInput({ value, onChange, placeholder, hasError, ...rest }) {
       onChange={onChange}
       placeholder={placeholder}
       className={
-        'w-full rounded-2xl border bg-white px-4 py-3 shadow-sm outline-none transition-colors duration-200 ' +
+        'map-input w-full rounded-2xl border bg-white px-4 py-3 shadow-sm outline-none transition-colors duration-200 ' +
         (hasError ? 'border-red-400 focus:border-red-400' : 'border-white/60 focus:border-[#146156]/60')
       }
       style={{ color: 'var(--color-text)' }}
