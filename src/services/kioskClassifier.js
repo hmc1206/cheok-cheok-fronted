@@ -1,42 +1,49 @@
-import {
-  BRAND_CONFIDENCE_THRESHOLD,
-  KIOSK_GUIDE_STEPS,
-  MEGA_COFFEE_BRAND_KEYWORDS,
-  STATE_DETECT_THRESHOLD,
-  TARGET_MATCH_THRESHOLD,
-} from '../data/megaCoffeeGuide'
+import { TARGET_MATCH_THRESHOLD } from '../data/megaCoffeeGuide'
+import { BRAND, KIOSK_BRAND_REGISTRY } from '../data/kioskBrands'
 import { fuzzyIncludes, normalizeText, textSimilarity } from './textMatch'
 
 /**
- * OCR 단어 목록을 종합해 현재 카메라에 보이는 키오스크가 메가커피인지 판단한다.
- * 단일 단어만으로 판단하지 않고, 여러 키워드의 가중치를 합산해 confidence score를 계산한다.
+ * OCR 단어 목록을 종합해 현재 카메라에 보이는 키오스크가 어느 브랜드인지 판단한다.
+ * 단일 단어만으로 판단하지 않고, 브랜드별 키워드 가중치를 합산해 confidence score를 계산한다.
+ *
+ * 여러 브랜드(메가커피/맘스터치 등)를 KIOSK_BRAND_REGISTRY에서 모두 채점한 뒤,
+ * 자기 자신의 threshold를 넘긴 브랜드 중 confidence가 가장 높은 쪽을 채택한다.
+ * "음료", "결제하기"처럼 여러 브랜드에 공통으로 등장하는 단어만으로는 어느 한쪽으로
+ * 확정되지 않도록, 브랜드 고유 키워드(로고/상호명)에 훨씬 큰 가중치를 준다.
+ *
  * @param {Array<{text: string}>} words
- * @returns {{brand: 'MEGA_COFFEE'|'UNKNOWN', confidence: number, matchedKeywords: string[]}}
+ * @returns {{brand: string, confidence: number, matchedKeywords: string[]}}
  */
 export function classifyBrand(words) {
-  if (!words || words.length === 0) {
-    return { brand: 'UNKNOWN', confidence: 0, matchedKeywords: [] }
-  }
+  const unknown = { brand: BRAND.UNKNOWN, confidence: 0, matchedKeywords: [] }
+  if (!words || words.length === 0) return unknown
 
   const normalizedTexts = words.map((word) => normalizeText(word.text)).filter(Boolean)
 
-  let score = 0
-  const matchedKeywords = []
+  let best = unknown
 
-  for (const keyword of MEGA_COFFEE_BRAND_KEYWORDS) {
-    const normalizedKeyword = normalizeText(keyword.text)
-    const isMatched = normalizedTexts.some((text) => fuzzyIncludes(text, normalizedKeyword))
+  for (const entry of KIOSK_BRAND_REGISTRY) {
+    let score = 0
+    const matchedKeywords = []
 
-    if (isMatched) {
-      matchedKeywords.push(keyword.text)
-      score += keyword.weight
+    for (const keyword of entry.keywords) {
+      const normalizedKeyword = normalizeText(keyword.text)
+      const isMatched = normalizedTexts.some((text) => fuzzyIncludes(text, normalizedKeyword))
+
+      if (isMatched) {
+        matchedKeywords.push(keyword.text)
+        score += keyword.weight
+      }
+    }
+
+    const confidence = Math.min(1, Number(score.toFixed(2)))
+
+    if (confidence >= entry.brandThreshold && confidence > best.confidence) {
+      best = { brand: entry.brand, confidence, matchedKeywords }
     }
   }
 
-  const confidence = Math.min(1, Number(score.toFixed(2)))
-  const brand = confidence >= BRAND_CONFIDENCE_THRESHOLD ? 'MEGA_COFFEE' : 'UNKNOWN'
-
-  return { brand, confidence, matchedKeywords }
+  return best
 }
 
 /**
@@ -73,33 +80,90 @@ export function findBestTextMatch(words, targetTexts) {
 }
 
 /**
- * 현재 OCR 결과(화면 특징 단어)를 이용해 주문 단계가 바뀌었는지 추정한다.
- * 신호가 불확실하면 currentState를 그대로 유지한다(자동판별 실패 시 수동 버튼으로 이동 가능).
+ * 임의의 key별 signals(특징 단어) 후보 목록에서 현재 OCR 단어와 가장 잘 맞는 key를 찾는다.
+ * 브랜드별 주문 단계(guideSteps) 판별과, 맘스터치 세트 구성/세트 옵션처럼 한 상태 안의
+ * 하위 단계(phase) 판별에 공통으로 재사용하는 범용 함수다.
+ *
  * @param {Array<{text: string}>} words
- * @param {string} currentState ORDER_STATE 값
- * @returns {string} ORDER_STATE 값
+ * @param {Array<{key: string, signals?: string[]}>} candidates
+ * @param {string|null} currentKey 신호가 불확실할 때 유지할 기본값
+ * @param {number} threshold 이 비율 이상 일치해야 currentKey를 바꾼다
+ * @returns {{key: string|null, ratio: number, matchedSignals: string[]}}
  */
-export function detectOrderState(words, currentState) {
-  if (!words?.length) return currentState
+export function detectBestSignalMatch(words, candidates, currentKey, threshold) {
+  const fallback = { key: currentKey, ratio: 0, matchedSignals: [] }
+  if (!words?.length || !candidates?.length) return fallback
 
   const normalizedTexts = words.map((word) => normalizeText(word.text)).filter(Boolean)
 
-  let bestState = currentState
+  let bestKey = currentKey
   let bestRatio = 0
+  let bestSignals = []
 
-  for (const step of KIOSK_GUIDE_STEPS) {
-    if (!step.stateSignals?.length) continue
+  for (const candidate of candidates) {
+    if (!candidate.signals?.length) continue
 
-    const matchedCount = step.stateSignals.filter((signal) =>
+    const matchedSignals = candidate.signals.filter((signal) =>
       normalizedTexts.some((text) => fuzzyIncludes(text, normalizeText(signal))),
-    ).length
+    )
+    const ratio = matchedSignals.length / candidate.signals.length
 
-    const ratio = matchedCount / step.stateSignals.length
     if (ratio > bestRatio) {
       bestRatio = ratio
-      bestState = step.state
+      bestKey = candidate.key
+      bestSignals = matchedSignals
     }
   }
 
-  return bestRatio >= STATE_DETECT_THRESHOLD ? bestState : currentState
+  if (bestRatio >= threshold) {
+    return { key: bestKey, ratio: bestRatio, matchedSignals: bestSignals }
+  }
+
+  return { key: currentKey, ratio: bestRatio, matchedSignals: bestSignals }
+}
+
+/**
+ * 브랜드의 guideSteps를 이용해 현재 주문 단계를 추정한다(메가커피/맘스터치 공용).
+ * 신호가 불확실하면 currentState를 그대로 유지한다(자동판별 실패 시 수동 버튼으로 이동 가능).
+ * @param {Array<{text: string}>} words
+ * @param {Array<{state: string, stateSignals?: string[]}>} guideSteps
+ * @param {string|null} currentState
+ * @param {number} threshold
+ */
+export function detectOrderState(words, guideSteps, currentState, threshold) {
+  const candidates = guideSteps.map((step) => ({ key: step.state, signals: step.stateSignals }))
+  return detectBestSignalMatch(words, candidates, currentState, threshold)
+}
+
+// 상품/음료 후보 목록에서 노이즈로 제외할 공통 단어(가격 단위, 뱃지 문구 등).
+const DYNAMIC_CANDIDATE_STOPWORDS = ['원', '개', 'NEW', 'SOLDOUT', 'HOT', 'BEST']
+
+/**
+ * 상품명/음료명처럼 매장·시기에 따라 바뀌는 화면에서, 실시간 OCR 결과 중
+ * 사용자가 고를 만한 후보 텍스트만 추려낸다(가격/뱃지 등 노이즈 및 중복 제거).
+ * @param {Array<{text: string}>} words
+ * @param {{ exclude?: string[], limit?: number }} [options]
+ * @returns {string[]}
+ */
+export function extractDynamicCandidates(words, options = {}) {
+  const { exclude = [], limit = 8 } = options
+  if (!words?.length) return []
+
+  const excludeNormalized = new Set(exclude.map((text) => normalizeText(text)))
+  const seen = new Set()
+  const candidates = []
+
+  for (const word of words) {
+    const normalized = normalizeText(word.text)
+    if (!normalized || normalized.length < 2) continue
+    if (seen.has(normalized) || excludeNormalized.has(normalized)) continue
+    if (DYNAMIC_CANDIDATE_STOPWORDS.some((stopword) => normalizeText(stopword) === normalized)) continue
+
+    seen.add(normalized)
+    candidates.push(word.text.trim())
+
+    if (candidates.length >= limit) break
+  }
+
+  return candidates
 }

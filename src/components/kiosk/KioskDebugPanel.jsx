@@ -4,8 +4,19 @@
  * OCR이 찾은 단어들의 bounding box를 얇은 선으로 그려 실제로 잘 인식되는지 확인할 수 있게 한다.
  * 프로덕션 사용자 화면에는 렌더링되지 않는다(KioskLiveScreen에서 import.meta.env.DEV로 분기).
  */
-export function KioskDebugPanel({ brand, orderState, ocrWords, targetMatch, processingMs, debugInfo }) {
-  const confidencePercent = Math.round((brand?.confidence ?? 0) * 100)
+export function KioskDebugPanel({
+  brand,
+  brandConfidence,
+  orderState,
+  phase,
+  stateConfidence,
+  ocrWords,
+  targetMatch,
+  processingMs,
+  debugInfo,
+}) {
+  const confidencePercent = Math.round((brandConfidence ?? 0) * 100)
+  const stateConfidencePercent = Math.round((stateConfidence ?? 0) * 100)
   const targetConfidencePercent = targetMatch ? Math.round(targetMatch.confidence * 100) : null
 
   return (
@@ -28,11 +39,16 @@ export function KioskDebugPanel({ brand, orderState, ocrWords, targetMatch, proc
 
       {/* 인식 상태 텍스트 패널 */}
       <div className="absolute top-2 left-2 z-30 max-w-[220px] rounded-lg bg-black/80 text-[10px] leading-tight text-lime-300 font-mono p-2 pointer-events-none select-none space-y-0.5">
-        <p>Brand: {brand?.brand ?? '-'}</p>
-        <p>Confidence: {confidencePercent}%</p>
-        <p>State: {orderState}</p>
+        <p>Brand: {brand ?? '-'}</p>
+        <p>Brand confidence: {confidencePercent}%</p>
+        <p>
+          State: {orderState ?? '-'}
+          {phase ? ` (${phase})` : ''}
+        </p>
+        <p>State confidence: {stateConfidencePercent}%</p>
         <p className="line-clamp-2 break-words">OCR: {ocrWords?.length ? ocrWords.map((w) => w.text).join(' / ') : '-'}</p>
         <p className="truncate">Target: {targetMatch?.text ?? '-'}</p>
+        <p>Target found: {targetMatch ? 'true' : 'false'}</p>
         <p>Target confidence: {targetConfidencePercent !== null ? `${targetConfidencePercent}%` : '-'}</p>
         <p>OCR processing: {processingMs ?? 0}ms</p>
         {debugInfo && (

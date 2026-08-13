@@ -1,17 +1,20 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AppFrame } from '../components/common/AppFrame'
 import { CameraErrorUI } from '../components/kiosk/CameraErrorUI'
 import { KioskARControlCard } from '../components/kiosk/KioskARControlCard'
 import { KioskAROverlay } from '../components/kiosk/KioskAROverlay'
 import { KioskAlignmentOverlay } from '../components/kiosk/KioskAlignmentOverlay'
+import { KioskChoicePicker } from '../components/kiosk/KioskChoicePicker'
 import { KioskDebugPanel } from '../components/kiosk/KioskDebugPanel'
+import { KioskDirectionHint } from '../components/kiosk/KioskDirectionHint'
 import { KioskIntroStep } from '../components/kiosk/KioskIntroStep'
 import { KioskMobileLayout } from '../components/kiosk/KioskMobileLayout'
 import { KioskPermissionStep } from '../components/kiosk/KioskPermissionStep'
 import { useCamera } from '../hooks/useCamera'
 import { useKioskRecognition } from '../hooks/useKioskRecognition'
 import { useSpeech } from '../hooks/useSpeech'
+import { extractDynamicCandidates } from '../services/kioskClassifier'
 
 // 카메라를 쓸 수 없는 환경(PC 등)에서 "카메라 없이 도움받기"를 눌렀을 때 보여주는
 // 시뮬레이션 전용 3단계 샘플 데이터. 실제 카메라 인식과는 무관하게 그대로 유지한다.
@@ -103,13 +106,43 @@ export function KioskLiveScreen() {
   // 컨트롤 카드/오버레이에 전달할 현재 진행 정보를 모드에 따라 통일한다
   const totalSteps = isCameraBypassed ? SIMULATION_AR_STEPS.length : recognition.totalStates
   const activeIndex = isCameraBypassed ? currentStepIndex : recognition.stateIndex
-  const hasSpecificTarget = !isCameraBypassed && recognition.currentStep.targetTexts.length > 0
+
+  // 매장/포장, 메뉴 종류, 옵션, 결제수단처럼 "사용자가 직접 골라야 하는" 단계인지 여부
+  // (맘스터치에서 주로 쓰이고, 메가커피 단계에는 selection이 없어 항상 false다)
+  const currentSelection = !isCameraBypassed ? recognition.currentStep?.selection : null
+  const isPendingSelection = !isCameraBypassed && Boolean(currentSelection) && !recognition.chosenTarget
+
+  // 특정 버튼을 짚어줄 수 없는 안내(스크롤 유도, 카드 투입구 방향 안내)
+  const isScrollHintStep = !isCameraBypassed && Boolean(recognition.currentStep?.isScrollHint)
+  const isDirectionOnlyStep = !isCameraBypassed && Boolean(recognition.currentStep?.noTargetSearch)
+  const isInformationalStep = isScrollHintStep || isDirectionOnlyStep
+
+  // 사용자가 선택 UI에서 고른 대상이 있으면 그 문구를, 없으면 단계 기본 문구를 보여준다.
+  const resolvedTitle = recognition.chosenTarget?.title ?? recognition.currentStep?.title
+  const resolvedDescription = recognition.chosenTarget?.description ?? recognition.currentStep?.description
+
+  const hasSpecificTarget =
+    !isCameraBypassed &&
+    !isInformationalStep &&
+    (recognition.chosenTarget?.targetTexts?.length ?? recognition.currentStep?.targetTexts?.length ?? 0) > 0
+
   const activeStep = isCameraBypassed
     ? SIMULATION_AR_STEPS[currentStepIndex]
-    : !hasSpecificTarget || recognition.targetBox
-      ? recognition.currentStep
+    : isInformationalStep || !hasSpecificTarget || recognition.targetBox
+      ? { title: resolvedTitle, description: resolvedDescription }
       : SEARCHING_STEP
+
   const shouldShowAROverlay = stepState === 'ar' && (isCameraBypassed || recognition.targetBox)
+
+  // 상품명/음료명처럼 화면에서 실시간으로 인식된 텍스트 중 사용자가 고를 수 있는 후보 목록
+  const dynamicCandidates = useMemo(() => {
+    if (isCameraBypassed || !currentSelection) return []
+    const showDynamic = currentSelection.type === 'dynamic' || currentSelection.allowDynamic
+    if (!showDynamic) return []
+
+    const excludeTexts = (currentSelection.options ?? []).flatMap((option) => option.targetTexts ?? [])
+    return extractDynamicCandidates(recognition.ocrWords, { exclude: excludeTexts })
+  }, [isCameraBypassed, currentSelection, recognition.ocrWords])
 
   // 홈 화면으로 되돌아가기
   // ("/"가 core 라우팅 수정으로 로그인/스플래시 화면이 되어, 실제 홈은 "/home")
@@ -154,22 +187,24 @@ export function KioskLiveScreen() {
     setStepState('checking')
   }, [])
 
-  // 4. 'checking' 단계: OCR 인식 결과를 지켜보다가 메가커피로 확인되면 'ar'로,
-  //    일정 주기 안에 확인되지 않으면 'mismatch'로 전환한다.
+  // 4. 'checking' 단계: OCR 인식 결과를 지켜보다가 지원하는 브랜드(메가커피/맘스터치)로
+  //    확인되면 'ar'로, 일정 주기 안에 확인되지 않으면 'mismatch'로 전환한다.
+  //    브랜드 확정 자체가 useKioskRecognition 내부에서 2회 연속 감지를 요구하므로
+  //    (recognition.brand), 여기서는 그 결과만 지켜보면 된다.
   useEffect(() => {
     if (isCameraBypassed || stepState !== 'checking') return
     if (recognition.cycleCount === 0) return
 
-    if (recognition.brandResult.brand === 'MEGA_COFFEE') {
+    if (recognition.brand !== 'UNKNOWN') {
       setStepState('ar')
-      speak(recognition.currentStep.description)
+      speak(recognition.currentStep?.description ?? '')
       return
     }
 
     if (recognition.cycleCount >= CHECKING_MAX_CYCLES) {
       setStepState('mismatch')
     }
-  }, [recognition.cycleCount, stepState, isCameraBypassed, recognition.brandResult, recognition.currentStep, speak])
+  }, [recognition.cycleCount, stepState, isCameraBypassed, recognition.brand, recognition.currentStep, speak])
 
   // 실카메라 모드: 자동/수동 여부와 관계없이 주문 단계(orderState)가 바뀌면 안내 음성을 재생한다.
   const prevOrderStateRef = useRef(recognition.orderState)
@@ -325,7 +360,7 @@ export function KioskLiveScreen() {
             />
           )}
 
-          {/* 메가커피 키오스크 확인 중 로딩 오버레이 */}
+          {/* 키오스크 브랜드 확인 중 로딩 오버레이 */}
           {stepState === 'checking' && (
             <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-black/50 text-white pointer-events-none">
               <div className="w-10 h-10 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin" />
@@ -333,7 +368,7 @@ export function KioskLiveScreen() {
             </div>
           )}
 
-          {/* 메가커피 키오스크로 확인되지 않은 경우 */}
+          {/* 지원하는 브랜드(메가커피/맘스터치)로 확인되지 않은 경우 */}
           {stepState === 'mismatch' && (
             <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-6 bg-black/70 backdrop-blur-sm p-6 text-center pointer-events-auto">
               <div className="w-20 h-20 rounded-full bg-red-500/20 border-2 border-red-400 flex items-center justify-center text-red-300">
@@ -348,7 +383,7 @@ export function KioskLiveScreen() {
               </div>
 
               <div className="space-y-2">
-                <p className="text-xl font-extrabold text-white leading-snug">메가커피 키오스크를 인식하지 못했어요.</p>
+                <p className="text-xl font-extrabold text-white leading-snug">메가커피 또는 맘스터치 키오스크를 인식하지 못했어요.</p>
                 <p className="text-base font-medium text-neutral-200 leading-relaxed">
                   키오스크 화면 전체가 보이도록 카메라를 움직여주세요.
                 </p>
@@ -375,8 +410,11 @@ export function KioskLiveScreen() {
           {/* 개발 환경 전용 디버그 패널 (프로덕션 사용자 화면에는 표시되지 않음) */}
           {import.meta.env.DEV && isRecognitionActive && (
             <KioskDebugPanel
-              brand={recognition.brandResult}
+              brand={recognition.brand}
+              brandConfidence={recognition.brandResult?.confidence}
               orderState={recognition.orderState}
+              phase={recognition.phase}
+              stateConfidence={recognition.stateConfidence}
               ocrWords={recognition.ocrWords}
               targetMatch={recognition.targetMatch}
               processingMs={recognition.lastProcessMs}
@@ -391,16 +429,50 @@ export function KioskLiveScreen() {
                 isCameraBypassed
                   ? SIMULATION_AR_STEPS[currentStepIndex]
                   : {
-                    title: recognition.currentStep.title,
-                    description: recognition.currentStep.description,
+                    title: resolvedTitle,
+                    description: resolvedDescription,
                     target: recognition.targetBox,
                   }
               }
             />
           )}
 
-          {/* 하단 컨트롤 카드 */}
-          {stepState === 'ar' && (
+          {/* 방향 안내(스크롤 유도, 카드 투입구 방향) - 특정 버튼을 짚어줄 수 없는 단계 전용 */}
+          {stepState === 'ar' && !isPendingSelection && isInformationalStep && (
+            <KioskDirectionHint
+              title={resolvedTitle}
+              description={resolvedDescription}
+              direction={isScrollHintStep ? 'up' : (recognition.currentStep?.directionHint ?? 'down')}
+            />
+          )}
+
+          {/* 사용자가 직접 골라야 하는 단계(매장/포장, 메뉴 종류, 옵션, 결제수단, 상품명 등) */}
+          {stepState === 'ar' && isPendingSelection && (
+            <KioskChoicePicker
+              title={recognition.currentStep?.title}
+              description={recognition.currentStep?.description}
+              fixedOptions={currentSelection?.options ?? []}
+              dynamicCandidates={dynamicCandidates}
+              dynamicHint={currentSelection?.dynamicHint}
+              onChooseFixed={(option) => recognition.chooseOption(option)}
+              onChooseDynamic={(text) =>
+                recognition.chooseOption({
+                  targetTexts: [text],
+                  title: `${text}을(를) 선택해주세요`,
+                  description: '화면에서 방금 고르신 항목의 실제 위치를 찾고 있어요.',
+                })
+              }
+              onPrev={handlePrevStep}
+              onReListen={handleReListen}
+              onNext={handleNextStep}
+              onExit={handleGoHome}
+              isMuted={isMuted}
+              onToggleMute={toggleMute}
+            />
+          )}
+
+          {/* 하단 컨트롤 카드 (선택 UI가 떠 있는 동안에는 그 안에 이전/다시듣기/종료가 대신 있다) */}
+          {stepState === 'ar' && !isPendingSelection && (
             <KioskARControlCard
               currentIndex={activeIndex}
               totalSteps={totalSteps}
