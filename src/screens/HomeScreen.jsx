@@ -4,6 +4,7 @@ import { AppFrame } from '../components/common/AppFrame'
 import { CaptionOverlay } from '../components/common/CaptionOverlay'
 import { GlassCircleButton } from '../components/common/Glass'
 import { GLASS_BACKGROUND_STYLE, GLASS_BRAND_COLOR } from '../components/common/glassTokens'
+import { MicIcon } from '../components/common/icons'
 import { SidePanel } from '../components/home/SidePanel'
 import { useVoiceAssistant } from '../hooks/useVoiceAssistant'
 
@@ -133,15 +134,6 @@ function KioskIcon() {
       <rect x="5" y="2" width="14" height="18" rx="2" />
       <rect x="8.5" y="5.5" width="7" height="6" rx="0.5" />
       <path d="M9 17h6" />
-    </svg>
-  )
-}
-
-function MicIcon({ size = 28 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="9" y="2" width="6" height="12" rx="3" />
-      <path d="M5 10a7 7 0 0 0 14 0M12 19v3" />
     </svg>
   )
 }
