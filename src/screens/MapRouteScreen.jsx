@@ -147,85 +147,86 @@ export function MapRouteScreen() {
           실제로 눈에 띈다 (GLASS_BACKGROUND_STYLE, glassTokens.js 참고). 입력창 자체는
           이 브랜드 배경과 대비되도록 흰 배경으로 둔다(아래 MapTextInput 참고). */}
       <main className="flex h-full flex-col items-center p-6" style={GLASS_BACKGROUND_STYLE}>
-        {/* 제목+입력창+버튼을 하나의 그룹으로 묶어 화면 중앙에 배치한다(flex-1이 위아래
-            여백을 자동으로 채움). 그룹 내부(gap-3)는 촘촘하게 붙여서 제목과 입력창이
-            멀어 보이지 않게 한다. */}
-        <form
-          onSubmit={handleSubmit}
-          className="flex w-full flex-1 flex-col items-center justify-center gap-3"
-        >
-          <h1 className="mb-1" style={{ fontSize: 'var(--font-size-xl)', fontWeight: 800, color: GLASS_BRAND_COLOR }}>
-            길 찾기
-          </h1>
+        {/* 세로 배치: 제목(위쪽) <-> 마이크(아래쪽)를 justify-between으로 화면 양 끝에
+            붙이고, 그 사이 공간이 자동으로 벌어지게 한다(요청사항: "화면 전체에 여백을
+            살려 분산 배치"). 제목+입력창+버튼은 하나의 top 그룹으로 묶어 촘촘하게(gap-3)
+            붙여서 제목과 입력창 사이만은 가깝게 유지한다. */}
+        <form onSubmit={handleSubmit} className="flex h-full w-full flex-col items-center justify-between py-4">
+          <div className="flex w-full flex-col items-center gap-3">
+            <h1 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 800, color: GLASS_BRAND_COLOR }}>
+              길 찾기
+            </h1>
 
-          <div className="flex w-full flex-col gap-1">
-            <MapTextInput
-              value={startName}
-              onChange={(event) => setStartName(event.target.value)}
-              placeholder="출발지 (예: 수원역)"
-              hasError={Boolean(startError)}
-              aria-label="출발지"
-            />
-            {/* 필드별 에러: GEOCODE_NOT_FOUND의 field가 startName일 때만 여기 표시된다. */}
-            {startError && (
-              <p style={{ fontSize: 'var(--font-size-base)', color: 'var(--color-danger)' }}>{startError}</p>
+            <div className="flex w-full flex-col gap-1">
+              <MapTextInput
+                value={startName}
+                onChange={(event) => setStartName(event.target.value)}
+                placeholder="출발지 (예: 수원역)"
+                hasError={Boolean(startError)}
+                aria-label="출발지"
+              />
+              {/* 필드별 에러: GEOCODE_NOT_FOUND의 field가 startName일 때만 여기 표시된다. */}
+              {startError && (
+                <p style={{ fontSize: 'var(--font-size-base)', color: 'var(--color-danger)' }}>{startError}</p>
+              )}
+            </div>
+
+            <div className="flex w-full flex-col gap-1">
+              <MapTextInput
+                value={goalName}
+                onChange={(event) => setGoalName(event.target.value)}
+                placeholder="목적지 (예: 부산역)"
+                hasError={Boolean(goalError)}
+                aria-label="목적지"
+              />
+              {goalError && (
+                <p style={{ fontSize: 'var(--font-size-base)', color: 'var(--color-danger)' }}>{goalError}</p>
+              )}
+            </div>
+
+            <GlassButton type="submit" disabled={isSubmitDisabled}>
+              {status === 'loading' ? (
+                // 로딩 인디케이터: 별도 라이브러리 없이 Tailwind animate-spin으로 최소한의
+                // 원형 스피너만 그린다. 버튼 자체도 disabled라 중복 클릭은 막혀 있다.
+                <span className="inline-flex items-center justify-center gap-2">
+                  <span
+                    className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"
+                    aria-hidden="true"
+                  />
+                  찾는 중...
+                </span>
+              ) : (
+                '길 찾기'
+              )}
+            </GlassButton>
+
+            {/* 필드에 매핑되지 않는 에러(입력 누락, 서버 오류 등) 공용 메시지 + 재시도 버튼.
+                canRetry는 502(GEOCODE_API_FAIL/EXTERNAL_API_FAIL) 같은 일시적 실패에서만 켜진다. */}
+            {generalError && (
+              <div className="flex w-full flex-col items-center gap-2">
+                <p style={{ fontSize: 'var(--font-size-base)', color: 'var(--color-danger)' }}>{generalError}</p>
+                {canRetry && (
+                  <button
+                    type="button"
+                    onClick={runSearch}
+                    disabled={status === 'loading'}
+                    className="quick-action-button"
+                  >
+                    다시 시도
+                  </button>
+                )}
+              </div>
             )}
           </div>
 
-          <div className="flex w-full flex-col gap-1">
-            <MapTextInput
-              value={goalName}
-              onChange={(event) => setGoalName(event.target.value)}
-              placeholder="목적지 (예: 부산역)"
-              hasError={Boolean(goalError)}
-              aria-label="목적지"
-            />
-            {goalError && (
-              <p style={{ fontSize: 'var(--font-size-base)', color: 'var(--color-danger)' }}>{goalError}</p>
-            )}
-          </div>
-
-          <GlassButton type="submit" disabled={isSubmitDisabled}>
-            {status === 'loading' ? (
-              // 로딩 인디케이터: 별도 라이브러리 없이 Tailwind animate-spin으로 최소한의
-              // 원형 스피너만 그린다. 버튼 자체도 disabled라 중복 클릭은 막혀 있다.
-              <span className="inline-flex items-center justify-center gap-2">
-                <span
-                  className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"
-                  aria-hidden="true"
-                />
-                찾는 중...
-              </span>
-            ) : (
-              '길 찾기'
-            )}
-          </GlassButton>
-
-          {/* 길 찾기 버튼 바로 아래 보조 마이크 버튼. 홈 화면 마이크와 완전히 같은
-              GlassCircleButton + MicIcon 조합을 재사용해 디자인을 통일했다. 음성 인식은
-              아직 연결하지 않았고(handleMicClick TODO 참고), disabled 처리는 하지 않아
-              버튼 자체는 눌리지만 지금은 아무 동작도 하지 않는다. */}
+          {/* 화면 하단 보조 마이크 버튼. 홈 화면 마이크와 완전히 같은 GlassCircleButton +
+              MicIcon 조합을 재사용해 디자인을 통일했다. 음성 인식은 아직 연결하지
+              않았고(handleMicClick TODO 참고), disabled 처리는 하지 않아 버튼 자체는
+              눌리지만 지금은 아무 동작도 하지 않는다. justify-between 덕분에 위 top
+              그룹과 자동으로 거리가 벌어져 제목과 붙어 보이지 않는다. */}
           <GlassCircleButton onClick={handleMicClick} size={72} ariaLabel="음성으로 길 찾기 (준비 중)">
             <MicIcon size={28} />
           </GlassCircleButton>
-
-          {/* 필드에 매핑되지 않는 에러(입력 누락, 서버 오류 등) 공용 메시지 + 재시도 버튼.
-              canRetry는 502(GEOCODE_API_FAIL/EXTERNAL_API_FAIL) 같은 일시적 실패에서만 켜진다. */}
-          {generalError && (
-            <div className="flex w-full flex-col items-center gap-2">
-              <p style={{ fontSize: 'var(--font-size-base)', color: 'var(--color-danger)' }}>{generalError}</p>
-              {canRetry && (
-                <button
-                  type="button"
-                  onClick={runSearch}
-                  disabled={status === 'loading'}
-                  className="quick-action-button"
-                >
-                  다시 시도
-                </button>
-              )}
-            </div>
-          )}
         </form>
       </main>
     </AppFrame>
