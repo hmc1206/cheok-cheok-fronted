@@ -45,21 +45,3 @@ export function GlassButton({ children, onClick, disabled, type = 'button' }) {
     </button>
   )
 }
-
-// 유리 느낌 텍스트 입력창. hasError면 테두리를 경고색으로 바꿔 재입력을 유도한다
-// (지도 화면의 GEOCODE_NOT_FOUND 필드별 에러 표시에 사용).
-export function GlassInput({ value, onChange, placeholder, hasError, ...rest }) {
-  return (
-    <input
-      value={value}
-      onChange={onChange}
-      placeholder={placeholder}
-      className={
-        'w-full rounded-2xl border px-4 py-3 text-white placeholder-white/70 backdrop-blur-md ' +
-        'bg-[#146156]/40 outline-none transition-colors duration-200 ' +
-        (hasError ? 'border-red-300 focus:border-red-300' : 'border-white/30 focus:border-white/70')
-      }
-      {...rest}
-    />
-  )
-}

@@ -1,8 +1,9 @@
 import { useCallback, useState } from 'react'
 import { routesApi } from '../api/routesApi'
 import { AppFrame } from '../components/common/AppFrame'
-import { GlassButton, GlassInput } from '../components/common/Glass'
+import { GlassButton, GlassCircleButton } from '../components/common/Glass'
 import { GLASS_BACKGROUND_STYLE, GLASS_BRAND_COLOR } from '../components/common/glassTokens'
+import { MicIcon } from '../components/common/icons'
 import { useTTS } from '../hooks/useTTS'
 import { openDeepLinkWithWebFallback } from '../lib/deepLink'
 
@@ -47,7 +48,7 @@ export function MapRouteScreen() {
     setCanRetry(false)
   }, [])
 
-  // 실제 API 호출 + 딥링크 실행을 담당하는 핵심 함수. "길찾기" 버튼(최초 시도)과
+  // 실제 API 호출 + 딥링크 실행을 담당하는 핵심 함수. "길 찾기" 버튼(최초 시도)과
   // "다시 시도" 버튼(재시도) 둘 다 이 함수를 그대로 재사용한다 — 재시도는 같은
   // startName/goalName으로 다시 부르기만 하면 되기 때문에 별도 로직이 필요 없다.
   const runSearch = useCallback(async () => {
@@ -127,27 +128,38 @@ export function MapRouteScreen() {
     runSearch()
   }
 
+  // TODO(음성 인식 연동): 지금은 클릭 핸들러 구조만 잡아둔다. 실제로는 홈 화면의
+  // useVoiceAssistant().startListening처럼 STT를 시작해서 인식된 문장에서
+  // 출발지/목적지를 추출해 startName/goalName에 채워주는 로직이 들어갈 자리다.
+  // 아직 연결하지 않은 이유: 이번 스코프는 입력창 기반 UI 확정까지만 요청받았고,
+  // 음성 인식으로 "출발지"/"목적지"를 어떻게 구분해 받을지는 별도 설계가 필요하다.
+  const handleMicClick = () => {
+    // TODO: 음성 인식 시작 -> 인식된 텍스트에서 출발지/목적지 파싱 -> setStartName/setGoalName
+  }
+
   // 출발지/목적지 중 하나라도 비어있거나 요청이 진행 중이면 버튼을 눌러도 아무 일도
   // 일어나지 않게 막는다(명세서: "미입력 시 버튼 비활성화").
   const isSubmitDisabled = status === 'loading' || !startName.trim() || !goalName.trim()
 
   return (
     <AppFrame>
-      {/* 홈 화면과 동일한 브랜드 톤 배경 위에 유리 재질 입력창/버튼을 올려야 반투명
-          효과가 실제로 눈에 띈다 (GLASS_BACKGROUND_STYLE, glassTokens.js 참고). */}
+      {/* 홈 화면과 동일한 브랜드 톤 배경 위에 유리 재질 버튼을 올려야 반투명 효과가
+          실제로 눈에 띈다 (GLASS_BACKGROUND_STYLE, glassTokens.js 참고). 입력창 자체는
+          이 브랜드 배경과 대비되도록 흰 배경으로 둔다(아래 MapTextInput 참고). */}
       <main className="flex h-full flex-col items-center p-6" style={GLASS_BACKGROUND_STYLE}>
-        <h1 className="mt-10" style={{ fontSize: 'var(--font-size-xl)', fontWeight: 800, color: GLASS_BRAND_COLOR }}>
-          길찾기
-        </h1>
-
-        {/* 입력창/버튼을 화면 중앙에 배치하고, flex-1로 위아래 여백을 자동으로 채워
-            화면을 꽉 채우지 않게 한다(요청사항: "여백을 살려서 배치"). */}
+        {/* 제목+입력창+버튼을 하나의 그룹으로 묶어 화면 중앙에 배치한다(flex-1이 위아래
+            여백을 자동으로 채움). 그룹 내부(gap-3)는 촘촘하게 붙여서 제목과 입력창이
+            멀어 보이지 않게 한다. */}
         <form
           onSubmit={handleSubmit}
-          className="flex w-full flex-1 flex-col items-center justify-center gap-4"
+          className="flex w-full flex-1 flex-col items-center justify-center gap-3"
         >
+          <h1 className="mb-1" style={{ fontSize: 'var(--font-size-xl)', fontWeight: 800, color: GLASS_BRAND_COLOR }}>
+            길 찾기
+          </h1>
+
           <div className="flex w-full flex-col gap-1">
-            <GlassInput
+            <MapTextInput
               value={startName}
               onChange={(event) => setStartName(event.target.value)}
               placeholder="출발지 (예: 수원역)"
@@ -161,7 +173,7 @@ export function MapRouteScreen() {
           </div>
 
           <div className="flex w-full flex-col gap-1">
-            <GlassInput
+            <MapTextInput
               value={goalName}
               onChange={(event) => setGoalName(event.target.value)}
               placeholder="목적지 (예: 부산역)"
@@ -185,9 +197,17 @@ export function MapRouteScreen() {
                 찾는 중...
               </span>
             ) : (
-              '길찾기'
+              '길 찾기'
             )}
           </GlassButton>
+
+          {/* 길 찾기 버튼 바로 아래 보조 마이크 버튼. 홈 화면 마이크와 완전히 같은
+              GlassCircleButton + MicIcon 조합을 재사용해 디자인을 통일했다. 음성 인식은
+              아직 연결하지 않았고(handleMicClick TODO 참고), disabled 처리는 하지 않아
+              버튼 자체는 눌리지만 지금은 아무 동작도 하지 않는다. */}
+          <GlassCircleButton onClick={handleMicClick} size={72} ariaLabel="음성으로 길 찾기 (준비 중)">
+            <MicIcon size={28} />
+          </GlassCircleButton>
 
           {/* 필드에 매핑되지 않는 에러(입력 누락, 서버 오류 등) 공용 메시지 + 재시도 버튼.
               canRetry는 502(GEOCODE_API_FAIL/EXTERNAL_API_FAIL) 같은 일시적 실패에서만 켜진다. */}
@@ -209,5 +229,24 @@ export function MapRouteScreen() {
         </form>
       </main>
     </AppFrame>
+  )
+}
+
+// 출발지/목적지 입력창. 홈 화면의 유리(반투명) 버튼과는 다르게, 입력창은 흰 배경 +
+// 옅은 테두리/그림자로 깔끔하게 둔다(요청사항: "입력창 배경은 하얀색으로 처리").
+// hasError면 테두리를 경고색으로 바꿔 GEOCODE_NOT_FOUND 필드별 재입력을 유도한다.
+function MapTextInput({ value, onChange, placeholder, hasError, ...rest }) {
+  return (
+    <input
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      className={
+        'w-full rounded-2xl border bg-white px-4 py-3 shadow-sm outline-none transition-colors duration-200 ' +
+        (hasError ? 'border-red-400 focus:border-red-400' : 'border-white/60 focus:border-[#146156]/60')
+      }
+      style={{ color: 'var(--color-text)' }}
+      {...rest}
+    />
   )
 }
