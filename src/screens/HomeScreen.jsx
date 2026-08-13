@@ -2,14 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AppFrame } from '../components/common/AppFrame'
 import { CaptionOverlay } from '../components/common/CaptionOverlay'
+import { GlassCircleButton } from '../components/common/Glass'
+import { GLASS_BACKGROUND_STYLE, GLASS_BRAND_COLOR } from '../components/common/glassTokens'
 import { SidePanel } from '../components/home/SidePanel'
 import { useVoiceAssistant } from '../hooks/useVoiceAssistant'
-
-// 로그인 이후 진입하는 메인 화면 (기획서 4-1장).
-// 이 화면 전용 브랜드 포인트 컬러. 다른 화면은 아직 회색조 placeholder를 유지하고
-// 있어 전역 토큰으로 승격하지 않고 로컬 상수로만 둔다 — 이번 요청이 홈 화면
-// 한정이라, 이 색이 다른 화면에 영향을 주지 않게 하기 위함이다.
-const BRAND_COLOR = '#146156'
 
 // 아이콘+라벨이 함께 들어가는 원형 버튼 3개의 목록. path만 있으면 되므로 데이터로 뺐다.
 const NAV_ITEMS = [
@@ -17,36 +13,6 @@ const NAV_ITEMS = [
   { label: '기차예매', path: '/train', Icon: TrainIcon },
   { label: '키오스크 도움', path: '/kiosk', Icon: KioskIcon },
 ]
-
-// 유리 재질(glassmorphism) 원형 버튼 공용 스타일. Tailwind는 클래스 문자열을 빌드
-// 타임에 정적으로 스캔하므로, 여기 하이라이트된 값들(bg-[#146156]/60 등)은 변수로
-// 만들지 않고 리터럴로 고정한다 — 그래야 실제로 CSS가 생성된다.
-const GLASS_BUTTON_CLASS =
-  'flex flex-col items-center justify-center gap-1 rounded-full border border-white/30 ' +
-  'text-white text-center backdrop-blur-md transition-colors duration-200 ' +
-  'bg-[#146156]/60 hover:bg-[#0f4a41]/75 active:bg-[#0f4a41]/85 ' +
-  'disabled:opacity-50 disabled:hover:bg-[#146156]/60 disabled:cursor-not-allowed'
-
-function GlassCircleButton({ children, onClick, disabled, size = 100, ariaLabel }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      aria-label={ariaLabel}
-      className={GLASS_BUTTON_CLASS}
-      style={{
-        width: size,
-        height: size,
-        // Tailwind shadow-*는 무채색이라, 유리 버튼이 브랜드 컬러 위에 떠 있는
-        // 느낌을 내려고 색이 들어간 그림자를 인라인으로 준다.
-        boxShadow: '0 8px 24px rgba(20, 97, 86, 0.28)',
-      }}
-    >
-      {children}
-    </button>
-  )
-}
 
 export function HomeScreen() {
   const navigate = useNavigate()
@@ -78,15 +44,7 @@ export function HomeScreen() {
     // AppFrame이 393x852로 고정하므로, 여기서는 실제 뷰포트 높이(min-h-dvh) 대신
     // 프레임이 준 100%(h-full)를 채운다.
     <AppFrame>
-      <main
-        className="relative flex h-full flex-col items-center p-6"
-        style={{
-          // 유리 버튼은 반투명이라 배경이 밋밋한 흰색이면 "유리" 느낌이 거의 안 보인다.
-          // 브랜드 컬러를 위에서 아래로 은은하게 깔아 블러/반투명 효과가 실제로
-          // 눈에 띄게 한다 (톤은 옅게 유지해 나머지 화면들과 크게 튀지 않도록).
-          background: `linear-gradient(180deg, ${BRAND_COLOR}26 0%, #ffffff 55%)`,
-        }}
-      >
+      <main className="relative flex h-full flex-col items-center p-6" style={GLASS_BACKGROUND_STYLE}>
         {/* 좌측 상단 고정 메뉴 버튼. 드로어가 열려도 위치는 그대로 두고, 오버레이가
             위(z-40)에서 덮으므로 열려있는 동안은 자연스럽게 클릭이 막힌다. */}
         <button
@@ -94,7 +52,7 @@ export function HomeScreen() {
           onClick={() => setIsDrawerOpen(true)}
           aria-label="메뉴 열기"
           className="absolute left-4 top-4 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-white/70 shadow-sm backdrop-blur-sm"
-          style={{ color: BRAND_COLOR }}
+          style={{ color: GLASS_BRAND_COLOR }}
         >
           <MenuIcon />
         </button>
@@ -105,7 +63,7 @@ export function HomeScreen() {
           </p>
           <p className="home-greeting-line-2" style={{ fontSize: 'var(--font-size-lg)' }}>
             {/* "무엇"만 브랜드 컬러+굵게로 포인트, 나머지는 기본 스타일 유지 */}
-            <span style={{ color: BRAND_COLOR, fontWeight: 800 }}>무엇</span>을 도와드릴까요?
+            <span style={{ color: GLASS_BRAND_COLOR, fontWeight: 800 }}>무엇</span>을 도와드릴까요?
           </p>
         </div>
 
