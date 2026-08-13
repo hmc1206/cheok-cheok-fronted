@@ -1,179 +1,99 @@
-import { useCallback, useEffect, useState } from 'react'
-import { geocodeAddress } from '../api/geocoding'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { AppFrame } from '../components/common/AppFrame'
 import { CaptionOverlay } from '../components/common/CaptionOverlay'
-import { VoiceButton } from '../components/common/VoiceButton'
-import trainStations from '../data/trainStations.json'
-import { useGeolocation } from '../hooks/useGeolocation'
-import { useTTS } from '../hooks/useTTS'
 import { useVoiceAssistant } from '../hooks/useVoiceAssistant'
-import { findNearestStation } from '../lib/nearestStation'
-import { openNaverMapRoute } from '../lib/naverMapDeepLink'
+import { openDeepLinkWithWebFallback } from '../lib/deepLink'
 import { useVoiceSessionStore } from '../store/voiceSessionStore'
 
-// 기차 예매 화면 (기획서 4-3장).
-// 상태머신(ASK_DEPARTURE → ASK_DATE → ASK_TIME → CONFIRM → DONE)은 백엔드 응답의 step으로
-// 그대로 따라가고, 프론트는 매 step마다 음성/텍스트 응답을 다시 /voice/process로 보낸다.
+// 기차 예매 화면 (API 명세서 v2.0 5장). 시간표 조회·결제는 우리 서비스가 하지
+// 않는다 — 도착 도시를 말하면 서버가 가장 가까운 기차역으로 자동 매핑하고,
+// 출발지를 한 번 더 확인(ASK_ORIGIN)한 뒤, 그 역까지 가는 길을 네이버 지도
+// 딥링크로 열어주는 것까지만 담당한다(지도 기능과 동일한 흐름/데이터 모양).
 export function TrainBookingScreen() {
-  const { status, sttCaption, ttsCaption, startListening, sendText } = useVoiceAssistant()
-  const { speak } = useTTS()
-  const { coords: currentCoords, requestLocation } = useGeolocation()
   const step = useVoiceSessionStore((state) => state.step)
   const data = useVoiceSessionStore((state) => state.data)
-  const slots = useVoiceSessionStore((state) => state.slots)
-  const [textInput, setTextInput] = useState('')
-  const [isOpeningRoute, setIsOpeningRoute] = useState(false)
-  const [routeAnnouncement, setRouteAnnouncement] = useState('')
+  const quickReplies = useVoiceSessionStore((state) => state.quickReplies)
+  const { sttCaption, ttsCaption, sendText } = useVoiceAssistant()
+  const [destination, setDestination] = useState('')
+
+  const launchedAppUrlRef = useRef(null)
 
   useEffect(() => {
-    requestLocation()
-  }, [requestLocation])
+    if (step !== 'DONE' || !data?.naverMapAppUrl) return
+    if (launchedAppUrlRef.current === data.naverMapAppUrl) return
+    launchedAppUrlRef.current = data.naverMapAppUrl
+    openDeepLinkWithWebFallback(data.naverMapAppUrl, data.naverMapWebUrl)
+  }, [step, data])
 
-  const announce = useCallback(
-    (message) => {
-      setRouteAnnouncement(message) // 어르신 UX: 화면에도 큰 글씨로 동시 노출
-      speak(message)
+  const handleSubmit = useCallback(
+    (event) => {
+      event.preventDefault()
+      if (!destination.trim()) return
+      // /voice/process는 자유 발화 기준으로 의도를 분류하므로, 타이핑된 도시명을
+      // 예시 문장(API 명세서 v2.0 5장)과 같은 형태의 문장으로 감싸서 보낸다.
+      sendText(`${destination.trim()} 가는 기차표 끊어줘`)
     },
-    [speak],
+    [destination, sendText],
   )
 
-  // 하이브리드 예매 방식(지난 논의 반영): 실제 예매(결제)는 이 앱에서 하지 않고,
-  // 현재 위치~가장 가까운 역, 목적지 지명~가장 가까운 역을 찾아 네이버 지도 앱의
-  // 대중교통 경로 검색으로 넘긴다(코레일톡 딥링크 자리를 대체).
-  const handleOpenNaverMapRoute = useCallback(async () => {
-    setIsOpeningRoute(true)
-    try {
-      if (!currentCoords) {
-        announce('위치를 확인하고 있어요. 위치 권한을 허용해주세요.')
-        return
-      }
-
-      const originStation = findNearestStation(currentCoords, trainStations)
-      if (!originStation) {
-        // TODO: trainStations.json이 실제 데이터로 채워지면 이 분기는 사라진다.
-        announce('아직 역 데이터가 준비되지 않았어요.')
-        return
-      }
-
-      // TODO(geocoding API 확정 필요): geocodeAddress가 스텁이라 여기서 예외가 난다.
-      const destinationCoord = await geocodeAddress(slots.arrival)
-      const destinationStation = findNearestStation(destinationCoord, trainStations)
-      if (!destinationStation) {
-        announce('도착지 근처 역을 찾지 못했어요.')
-        return
-      }
-
-      announce(
-        `지금부터 네이버 지도에서 ${originStation.name}역부터 ${destinationStation.name}역까지 경로를 열어드릴게요.`,
-      )
-      openNaverMapRoute(
-        { name: originStation.name, lat: originStation.lat, lng: originStation.lng },
-        { name: destinationStation.name, lat: destinationStation.lat, lng: destinationStation.lng },
-      )
-    } catch (error) {
-      console.error('[네이버 지도 경로 안내] 실패:', error)
-      announce('경로를 여는 데 실패했어요.')
-    } finally {
-      setIsOpeningRoute(false)
-    }
-  }, [announce, currentCoords, slots.arrival])
-
-  const handleSubmit = (event) => {
-    event.preventDefault()
-    if (!textInput.trim()) return
-    sendText(textInput.trim())
-    setTextInput('')
-  }
+  const isAwaitingOrigin = step && step !== 'DONE'
 
   return (
     <AppFrame>
-      {/* AppFrame이 높이를 852px로 고정하므로, 대화 내역+후보 목록이 넘칠 수 있다.
-          h-full + overflow-y-auto로 잘리지 않고 스크롤되게 한다. */}
-      <main className="flex h-full flex-col gap-4 overflow-y-auto p-6 pb-40">
+      <main className="flex h-full flex-col gap-4 p-6">
         <h1 style={{ fontSize: 'var(--font-size-xl)' }}>기차 예매</h1>
-        <p style={{ color: 'var(--color-text-muted)' }}>현재 단계: {step ?? 'ASK_DEPARTURE'}</p>
+        <p style={{ color: 'var(--color-text-muted)' }}>
+          가시는 도시나 기차역을 알려주시면, 그 역까지 가는 길을 지도로 열어드려요.
+          시간표 확인과 예매는 지도 안에서 직접 진행하시면 돼요.
+        </p>
 
-        <form onSubmit={handleSubmit} className="flex gap-2">
-          <input
-            value={textInput}
-            onChange={(event) => setTextInput(event.target.value)}
-            className="flex-1 border p-2"
-            style={{
-              fontSize: 'var(--font-size-base)',
-              borderColor: 'var(--color-border)',
-              borderRadius: 'var(--radius-base)',
-            }}
-          />
-          <button type="submit" className="quick-action-button">
-            전송
-          </button>
-        </form>
-
-        {/* API 명세서 4장: candidates[]는 trainNo/departTime/arriveTime/price/seatAvailable를 준다. */}
-        {step === 'CONFIRM' && Array.isArray(data?.candidates) && (
-          <ul className="flex flex-col gap-2">
-            {data.candidates.map((train) => (
-              <li
-                key={train.trainNo}
-                className="flex flex-col gap-1 border p-3"
-                style={{ borderColor: 'var(--color-border)', borderRadius: 'var(--radius-base)' }}
-              >
-                {/* 위계: 열차 번호가 이 카드의 주인공, 시간은 그다음, 가격/좌석 여부는
-                    참고 정보라 가장 흐리게 — 훑어볼 때 열차명부터 눈에 들어오게 한다. */}
-                <p style={{ fontSize: 'var(--font-size-lg)', fontWeight: 700 }}>{train.trainNo}</p>
-                <p>
-                  {train.departTime} → {train.arriveTime}
-                </p>
-                <p style={{ color: 'var(--color-text-muted)' }}>
-                  {train.price?.toLocaleString()}원 · {train.seatAvailable ? '예약 가능' : '매진'}
-                </p>
-              </li>
-            ))}
-            <li>
-              {/* ASSUMPTION: 하이브리드 예매 방식(지난 논의 반영) — mock DONE 응답을 최종 완료
-                  화면으로 쓰지 않고, 가까운 역을 찾아 네이버 지도 대중교통 경로로 연결하는
-                  버튼을 둔다. 실제 예매(결제)는 사용자가 네이버 지도 앱에서 진행한다. */}
-              <button
-                type="button"
-                className="quick-action-button w-full"
-                onClick={handleOpenNaverMapRoute}
-                disabled={isOpeningRoute}
-              >
-                네이버 지도에서 경로 보기
-              </button>
-              {/* 어르신 UX: 딥링크 실행 전 안내를 큰 글씨로 고정 배치 (동시에 TTS도 재생됨) */}
-              {routeAnnouncement && (
-                <p style={{ fontSize: 'var(--font-size-lg)', fontWeight: 'bold' }}>
-                  {routeAnnouncement}
-                </p>
-              )}
-            </li>
-          </ul>
+        {!step && (
+          <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+            <label className="flex flex-col gap-1">
+              <span style={{ fontSize: 'var(--font-size-base)' }}>가시는 곳</span>
+              <input
+                value={destination}
+                onChange={(event) => setDestination(event.target.value)}
+                placeholder="예: 부산"
+                className="border p-2"
+                style={{
+                  fontSize: 'var(--font-size-base)',
+                  borderColor: 'var(--color-border)',
+                  borderRadius: 'var(--radius-base)',
+                }}
+              />
+            </label>
+            <button type="submit" className="quick-action-button">
+              기차역 찾기
+            </button>
+          </form>
         )}
 
-        {step === 'DONE' && data && (
-          // ASSUMPTION: DONE 응답은 데모/mock 화면 전환 확인용으로만 쓴다.
-          // 실서비스 전환 시 위 네이버 지도 딥링크 방식으로 완전히 대체할 예정.
+        {isAwaitingOrigin && (
           <div
-            className="flex flex-col gap-1 border p-3"
+            className="flex flex-col gap-3 border p-3"
             style={{ borderColor: 'var(--color-border)', borderRadius: 'var(--radius-base)' }}
           >
-            {/* 위계: 완료 안내는 작은 라벨, 실제 예매 내용(구간/열차)이 이 카드의 핵심이라
-                가장 크고 굵게 둔다. 예약번호는 참고용이라 가장 흐리게. */}
-            <p style={{ color: 'var(--color-text-muted)' }}>(데모) 예매가 완료되었습니다.</p>
-            <p style={{ fontSize: 'var(--font-size-lg)', fontWeight: 700 }}>
-              {data.departStation} → {data.arriveStation} · {data.trainNo}
-            </p>
-            <p>
-              {data.departTime} → {data.arriveTime} · {data.seat}
-            </p>
-            <p style={{ color: 'var(--color-text-muted)' }}>예약번호: {data.reservationId}</p>
+            <div className="grid grid-cols-2 gap-2">
+              {(quickReplies ?? []).map((reply) => (
+                <button
+                  key={reply.value}
+                  type="button"
+                  className="quick-action-button"
+                  onClick={() => sendText(reply.value)}
+                >
+                  {reply.label}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
-        <div className="flex justify-center">
-          <VoiceButton status={status} onPress={startListening} />
-        </div>
+        {step === 'DONE' && data && (
+          <p style={{ fontSize: 'var(--font-size-lg)' }}>
+            {data.resolvedGoal?.name ?? '역'}까지 가는 길을 지도에서 열고 있어요...
+          </p>
+        )}
 
         <CaptionOverlay sttCaption={sttCaption} ttsCaption={ttsCaption} />
       </main>
