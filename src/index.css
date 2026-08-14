@@ -173,12 +173,14 @@ input:focus-visible {
 
 /* 음성 비서 마이크 버튼 — 화면의 메인 액션이라 primary-button과 같은 색 규칙(채우기
    --color-primary, 눌렀을 때 --color-primary-pressed)을 쓰되, 다른 화면들에서
-   재사용하는 원형 큰 버튼이라 별도 클래스로 둔다. */
+   재사용하는 큰 버튼이라 별도 클래스로 둔다. 홈 화면 카드형 박스 레이아웃 요청에
+   맞춰 원형이 아니라 둥근 사각 박스로 바뀌면서, 다른 카드처럼 shadow-card를
+   준다(모양/그림자만 변경 — 색/상태 로직은 그대로). */
 .voice-button {
   border: none;
   background: var(--color-primary);
   color: var(--color-primary-contrast);
-  box-shadow: var(--shadow-none);
+  box-shadow: var(--shadow-card);
   transition:
     transform 120ms ease-out,
     background-color 120ms ease-out;
@@ -193,6 +195,40 @@ input:focus-visible {
   background: var(--color-gray-light);
   color: var(--color-gray);
   cursor: not-allowed;
+}
+
+/* on/off 토글 스위치 (알림 설정 화면). 켜짐 상태는 accent 컬러, 꺼짐은 --color-gray-light —
+   앱 전체에서 accent가 "클릭 유도/활성" 의미로만 쓰이는 것과 일관되게 유지. */
+.toggle-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 52px;
+  height: 32px;
+  flex-shrink: 0;
+  padding: 4px;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--color-gray-light);
+  transition: background-color 120ms ease-out;
+}
+
+.toggle-switch[data-checked='true'] {
+  background: var(--color-primary);
+}
+
+.toggle-switch-thumb {
+  display: block;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: var(--shadow-card);
+  transition: transform 120ms ease-out;
+}
+
+.toggle-switch[data-checked='true'] .toggle-switch-thumb {
+  transform: translateX(20px);
 }
 
 /* 카드 — 디자인 브리프 "Cards" 규칙: 흰 배경, radius-lg, 옅은 그림자, 내부 여백 md. */

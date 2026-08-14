@@ -6,7 +6,9 @@ import { HomeScreen } from './screens/HomeScreen'
 import { KioskLiveScreen } from './screens/KioskLiveScreen'
 import { LoginPage } from './screens/LoginPage'
 import { MapRouteScreen } from './screens/MapRouteScreen'
+import { NotificationSettingsScreen } from './screens/NotificationSettingsScreen'
 import { TrainBookingScreen } from './screens/TrainBookingScreen'
+import { UsageLimitScreen } from './screens/UsageLimitScreen'
 import { YoutubePlayerScreen } from './screens/YoutubePlayerScreen'
 
 // 기획서 2장 라우트 표를 그대로 반영한 라우터 뼈대.
@@ -38,6 +40,9 @@ function App() {
           <Route path="/kiosk" element={<KioskLiveScreen />} />
           <Route path="/youtube" element={<YoutubePlayerScreen />} />
           <Route path="/auth/callback" element={<AuthCallbackScreen />} />
+          <Route path="/notification-settings" element={<NotificationSettingsScreen />} />
+          {/* TODO: 이용 한도 상세 화면 — 아직 기획/디자인 없음, 라우팅 스텁만 연결 */}
+          <Route path="/usage-limit" element={<UsageLimitScreen />} />
         </Routes>
       </BrowserRouter>
     </ThemeProvider>

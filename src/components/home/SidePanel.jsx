@@ -1,7 +1,16 @@
+import { useNavigate } from 'react-router-dom'
+
 // 햄버거 메뉴로 여는 사이드 드로어. 히스토리/알람 설정 데이터를 props로 받는
 // 독립 컴포넌트로 분리해서, HomeScreen은 상태(열림 여부, 히스토리 배열)만 들고
 // 있고 실제 목록 렌더링은 여기서 담당한다.
 export function SidePanel({ isOpen, onClose, history }) {
+  const navigate = useNavigate()
+
+  const handleOpenNotificationSettings = () => {
+    onClose() // 드로어를 닫고 나서 이동 — 뒤로가기로 돌아왔을 때 드로어가 열린 채로 남지 않게.
+    navigate('/notification-settings')
+  }
+
   return (
     <>
       {/* 오버레이: 뒤쪽을 어둡게 덮고, 바깥(오버레이) 클릭 시 닫히게 한다.
@@ -34,10 +43,9 @@ export function SidePanel({ isOpen, onClose, history }) {
           </button>
         </div>
 
-        {/* ASSUMPTION: 알람 설정 화면 자체는 아직 없어서, 이번 스코프에선 진입
-            버튼 자리만 만들어둔다(추후 실제 설정 화면과 연결). 세컨더리 버튼
-            스타일(.quick-action-button)을 그대로 써서 앱 전체 버튼 톤과 통일. */}
-        <button type="button" className="quick-action-button w-full">
+        {/* /notification-settings로 이동 — 세컨더리 버튼 스타일(.quick-action-button)을
+            그대로 써서 앱 전체 버튼 톤과 통일. */}
+        <button type="button" onClick={handleOpenNotificationSettings} className="quick-action-button w-full">
           알람 설정
         </button>
 

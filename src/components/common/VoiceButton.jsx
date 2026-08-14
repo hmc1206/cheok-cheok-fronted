@@ -14,10 +14,13 @@ export function VoiceButton({ status = 'idle', onPress }) {
       disabled={status === 'processing'}
       aria-label="음성 비서 시작"
       data-status={status}
-      className="voice-button rounded-full"
+      // 모양만 변경: 원형(rounded-full) -> 둥근 모서리 사각 박스. 클릭 핸들러,
+      // disabled 조건, aria-label 등 기존 로직/접근성 속성은 그대로 둔다.
+      // radius-lg(24px)를 써서 다른 카드형 박스들과 같은 둥근 모서리 톤을 맞췄다.
+      className="voice-button w-full"
       style={{
-        width: 'var(--voice-button-size)',
-        height: 'var(--voice-button-size)',
+        minHeight: 120,
+        borderRadius: 'var(--radius-lg)',
         fontSize: 'var(--text-body-lg)',
         fontWeight: 600,
       }}

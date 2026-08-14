@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { usageApi } from '../api/usageApi'
 import { AppFrame } from '../components/common/AppFrame'
 import { IconChipButton } from '../components/common/Button'
+import { Card } from '../components/common/Card'
 import { CaptionOverlay } from '../components/common/CaptionOverlay'
 import { VoiceButton } from '../components/common/VoiceButton'
 import { SidePanel } from '../components/home/SidePanel'
@@ -12,6 +14,9 @@ import { useVoiceAssistant } from '../hooks/useVoiceAssistant'
 // 걷어내고, 브리프의 flat 디자인(단일 accent 컬러, 카드 외엔 그림자 없음)으로
 // 다시 짰다. 기존 기능(햄버거 메뉴, 음성 비서, 3개 바로가기)은 하나도 빼지 않고
 // 그대로 유지 — 레이아웃/톤만 바뀐다.
+//
+// 후속 요청("현재 이용 상태" 카드 추가 등): 세로로 쌓인 카드형 박스 레이아웃으로
+// 재구성 — 마이크 버튼/3개 바로가기/이용 상태를 각각 독립된 카드로 감싼다.
 const NAV_ITEMS = [
   { label: '길 찾기', path: '/map', Icon: MapIcon },
   { label: '기차예매', path: '/train', Icon: TrainIcon },
@@ -23,6 +28,21 @@ export function HomeScreen() {
   const { status, sttCaption, ttsCaption, startListening } = useVoiceAssistant()
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [history, setHistory] = useState([])
+
+  // "현재 이용 상태" 카드에 쓸 남은 무료 이용 횟수. null이면 아직 응답을 못 받은
+  // 상태(로딩 중)라 카드에 "확인 중..."을 보여준다. usageApi.js 주석 참고 —
+  // API 명세서에 없는 값이라 지금은 mock으로 채워진다.
+  const [remainingFreeUsage, setRemainingFreeUsage] = useState(null)
+
+  useEffect(() => {
+    let cancelled = false
+    usageApi.getUsageStatus().then((data) => {
+      if (!cancelled) setRemainingFreeUsage(data.remainingFreeUsage)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const micStatusLabel =
     status === 'listening' ? '듣고 있어요...' : status === 'processing' ? '처리 중이에요...' : '눌러서 말하기'
@@ -48,7 +68,12 @@ export function HomeScreen() {
     // AppFrame이 393x852로 고정하므로, 여기서는 실제 뷰포트 높이(min-h-dvh) 대신
     // 프레임이 준 100%(h-full)를 채운다.
     <AppFrame>
-      <main className="relative flex h-full flex-col" style={{ background: 'var(--color-bg)' }}>
+      {/* 카드가 여러 개 쌓이면 852px 높이를 넘을 수 있어 세로 스크롤을 허용한다
+          (다른 화면들의 overflow-y-auto 패턴과 동일). */}
+      <main
+        className="relative flex h-full flex-col overflow-y-auto"
+        style={{ background: 'var(--color-bg)' }}
+      >
         {/* 좌측 상단 고정 메뉴 버튼. 56px 아이콘 칩 버튼(노인 사용자 오터치 방지 —
             웹 표준 44px보다 크게 잡은 공용 최소 터치 영역). 드로어가 열려도 위치는
             그대로 두고, 오버레이가 위(z-40)에서 덮으므로 열려있는 동안은 자연스럽게
@@ -63,7 +88,7 @@ export function HomeScreen() {
             시선이 여기 먼저 가게 한다 — "무엇"만 accent 컬러로 포인트를 줘서 클릭
             유도 없이도 시선을 붙잡는다(브리프: accent는 클릭 유도 색이지 강조
             전용은 아니지만, 텍스트 강조 정도는 브랜드 톤 일관성 차원에서 허용). */}
-        <div className="px-6 pt-16 text-center">
+        <div className="px-6 pb-2 pt-16 text-center">
           <p
             className="home-greeting-line-1"
             style={{ fontSize: 'var(--text-title)', fontWeight: 700, color: 'var(--color-text)' }}
@@ -78,35 +103,58 @@ export function HomeScreen() {
           </p>
         </div>
 
-        {/* 중앙 섹션: 음성 비서가 이 화면의 메인 액션이라 화면 가운데, 가장 큰
-            컴포넌트(160px)로 둔다. VoiceButton은 다른 화면에서도 재사용하는 공용
-            컴포넌트라 여기서 새로 만들지 않고 그대로 가져다 썼다. */}
-        <div className="flex flex-1 flex-col items-center justify-center gap-3">
-          <VoiceButton status={status} onPress={startListening} />
-          <p style={{ fontSize: 'var(--text-body)', color: 'var(--color-gray)' }}>{micStatusLabel}</p>
-        </div>
+        {/* 카드형 박스가 세로로 쌓인 레이아웃(참고 이미지의 구조만 차용 — 색/텍스트는
+            브리프 톤 그대로). 마이크 버튼, 3개 바로가기, 이용 상태를 각각 독립된
+            카드로 감싸고 gap-4(--space-md 상당)로 균일하게 띄운다. */}
+        <div className="flex flex-1 flex-col gap-4 px-6 pb-10">
+          {/* 마이크 카드: 화면의 메인 액션이라 흰 카드가 아니라 accent 컬러로 채운
+              박스로 구분했다. VoiceButton은 다른 화면에서도 재사용하는 공용
+              컴포넌트라 여기서 새로 만들지 않고 그대로 가져다 썼다(모양만 원형에서
+              둥근 박스로 바뀜 — VoiceButton.jsx 참고, 클릭/상태 로직은 불변). */}
+          <div className="flex flex-col items-center gap-2">
+            <VoiceButton status={status} onPress={startListening} />
+            <p style={{ fontSize: 'var(--text-body)', color: 'var(--color-gray)' }}>{micStatusLabel}</p>
+          </div>
 
-        {/* 하단 섹션: 3개 바로가기. 배경을 --color-bg-alt로 살짝 바꿔서 테두리/그림자
-            없이 "여기부터는 다른 그룹"이라는 걸 색으로만 구분한다(브리프: "Section
-            rhythm: alternate --color-bg and --color-bg-alt ... instead of
-            dividers/borders"). 버튼 3개는 전부 유지 — 기존 3-4번 요구사항대로 하나도
-            빼지 않는다. */}
-        <div
-          className="flex justify-center gap-6 px-6 pb-10 pt-8"
-          style={{ background: 'var(--color-bg-alt)' }}
-        >
-          {NAV_ITEMS.map(({ label, path, Icon }) => (
-            <div key={path} className="flex flex-col items-center gap-2">
-              {/* 72px — 공용 최소 규격(56px)보다 조금 키워서 3개뿐인 주요 바로가기가
-                  화면에서 눈에 잘 띄게 했다. */}
-              <IconChipButton onClick={() => navigate(path)} size={72} ariaLabel={label}>
-                <Icon />
-              </IconChipButton>
-              <span style={{ fontSize: 'var(--text-caption)', color: 'var(--color-text)' }}>
-                {label}
-              </span>
-            </div>
-          ))}
+          {/* 바로가기 카드: 길찾기/기차예매/키오스크 도움 3개 버튼을 유지하되, 흰
+              카드 하나로 감싸 다른 카드들과 톤을 맞췄다(요구사항 2). */}
+          <Card className="flex justify-center gap-6">
+            {NAV_ITEMS.map(({ label, path, Icon }) => (
+              <div key={path} className="flex flex-col items-center gap-2">
+                {/* 72px — 공용 최소 규격(56px)보다 조금 키워서 3개뿐인 주요
+                    바로가기가 카드 안에서 눈에 잘 띄게 했다. */}
+                <IconChipButton onClick={() => navigate(path)} size={72} ariaLabel={label}>
+                  <Icon />
+                </IconChipButton>
+                <span style={{ fontSize: 'var(--text-caption)', color: 'var(--color-text)' }}>
+                  {label}
+                </span>
+              </div>
+            ))}
+          </Card>
+
+          {/* "현재 이용 상태" 카드(신규). remainingFreeUsage는 usageApi.js를 통해
+              가져오는데, 실제 API 명세서에 이 데이터가 정의돼 있지 않아 지금은
+              mock 값이다(usageApi.js 주석 참고) — 절대 이 컴포넌트 안에서 숫자를
+              하드코딩하지 않고, API 응답 값을 그대로 표시한다. */}
+          <Card className="flex flex-col gap-1">
+            <h2 style={{ fontSize: 'var(--text-heading)', fontWeight: 600, color: 'var(--color-text)' }}>
+              현재 이용 상태
+            </h2>
+            <p style={{ fontSize: 'var(--text-body)', color: 'var(--color-text)' }}>
+              {remainingFreeUsage === null
+                ? '확인 중...'
+                : `이번 달 무료 이용 ${remainingFreeUsage}회 남았어요`}
+            </p>
+            <button
+              type="button"
+              onClick={() => navigate('/usage-limit')}
+              className="mt-1 self-start"
+              style={{ fontSize: 'var(--text-caption)', color: 'var(--color-gray)' }}
+            >
+              이용한도 확인하기
+            </button>
+          </Card>
         </div>
 
         <CaptionOverlay sttCaption={sttCaption} ttsCaption={ttsCaption} />
