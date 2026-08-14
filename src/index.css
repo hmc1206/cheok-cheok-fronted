@@ -47,6 +47,17 @@
   animation: chuck-slide-up 560ms ease-out 560ms both;
 }
 
+/* 홈 화면 인사 문구(두 줄)가 타이핑되듯 아래에서 위로 올라오는 애니메이션.
+   같은 chuck-slide-up 키프레임을 재사용하되, 두 줄이 거의 이어서 나타나도록
+   (로그인 스플래시의 타이틀→서브타이틀보다 짧은) 150ms 정도만 스태거를 준다.
+   both 덕분에 애니메이션이 끝난 뒤엔 마지막 상태(제자리, 불투명)로 고정된다. */
+.home-greeting-line-1 {
+  animation: chuck-slide-up 500ms ease-out both;
+}
+.home-greeting-line-2 {
+  animation: chuck-slide-up 500ms ease-out 150ms both;
+}
+
 body {
   margin: 0;
   /* font-family는 위 * 규칙(Toss Product Sans → Pretendard → sans-serif)을 그대로
@@ -79,5 +90,13 @@ button {
 button:focus-visible,
 input:focus-visible {
   outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* 길찾기 화면 입력창(.map-input)만 위 전역 파란 포커스 링 대신 브랜드 톤(#146156)을
+   쓴다. class 선택자(.map-input) + :focus-visible이 위 규칙(input:focus-visible)보다
+   구체적이라(specificity 우위) 이 클래스가 붙은 요소에서만 이 규칙이 이긴다. */
+.map-input:focus-visible {
+  outline: 2px solid #146156;
   outline-offset: 2px;
 }
