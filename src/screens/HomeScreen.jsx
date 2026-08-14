@@ -71,15 +71,27 @@ export function HomeScreen() {
         className="relative flex h-full flex-col overflow-y-auto"
         style={{ background: 'var(--color-bg)' }}
       >
-        {/* 좌측 상단 고정 메뉴 버튼. 56px 아이콘 칩 버튼(노인 사용자 오터치 방지 —
-            웹 표준 44px보다 크게 잡은 공용 최소 터치 영역). 드로어가 열려도 위치는
-            그대로 두고, 오버레이가 위(z-40)에서 덮으므로 열려있는 동안은 자연스럽게
-            클릭이 막힌다. */}
-        <div className="absolute left-4 top-4 z-20">
-          <IconChipButton onClick={() => setIsDrawerOpen(true)} size={56} ariaLabel="메뉴 열기">
-            <MenuIcon />
-          </IconChipButton>
-        </div>
+        {/* 좌측 상단 고정 메뉴 버튼. 요청사항: 초록 배경 칩을 없애고 아이콘만 남기되,
+            클릭 영역은 접근성 때문에 44px 이상 유지해야 해서 IconChipButton(배경 있는
+            칩 스타일) 대신 배경/테두리/그림자 없는 순수 버튼을 쓴다 — 보이는 아이콘은
+            22px지만 버튼 자체 크기(44px)만큼 보이지 않는 padding으로 클릭 영역을
+            넓혀뒀다. onClick/aria-label 등 기능은 그대로. */}
+        <button
+          type="button"
+          onClick={() => setIsDrawerOpen(true)}
+          aria-label="메뉴 열기"
+          className="absolute left-4 top-4 z-20 flex items-center justify-center"
+          style={{
+            width: 44,
+            height: 44,
+            background: 'transparent',
+            border: 'none',
+            boxShadow: 'none',
+            color: 'var(--color-text)',
+          }}
+        >
+          <MenuIcon />
+        </button>
 
         {/* 상단 섹션: 인사말. 화면 타이틀 급(--text-title, 26px/700)으로 키워서 첫
             시선이 여기 먼저 가게 한다 — "무엇"만 accent 컬러로 포인트를 줘서 클릭

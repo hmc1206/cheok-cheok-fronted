@@ -80,4 +80,10 @@
   --color-primary-pressed: #e0bd00;
   --color-primary-contrast: #000000;
   --color-secondary: #4d5d55;
+
+  /* 라이트 테마의 --shadow-card(어두운 rgba 그림자)는 검은 배경 위에서는 거의
+     안 보인다. 다크(고대비) 테마에서는 그림자 대신 옅은 흰색 테두리로 카드가
+     "떠 보이는" 느낌을 낸다(요청사항: "다크 테마에서는 그림자보다 미세한
+     테두리나 밝기 대비로 표현"). */
+  --shadow-card: 0 0 0 1px rgba(255, 255, 255, 0.14);
 }

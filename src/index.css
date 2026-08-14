@@ -157,12 +157,25 @@ input:focus-visible {
   background: var(--color-secondary);
   color: var(--color-text);
   box-shadow: var(--shadow-none);
+  /* hover/터치 시 filter로 살짝 어두워지는 효과가 튀지 않고 부드럽게 들어오도록
+     0.2s 트랜지션 추가(요청사항: "0.15~0.2초 정도 부드럽게"). */
   transition:
     transform 120ms ease-out,
-    opacity 120ms ease-out;
+    opacity 120ms ease-out,
+    filter 0.2s ease;
 }
 
+/* 마우스 hover 시 배경을 살짝 어둡게 — filter: brightness()는 색상(hue)은 그대로 두고
+   명도만 낮춰서, --color-secondary 값 자체를 건드리거나 새 색을 하드코딩하지
+   않아도 된다(요청사항: "색상 자체는 유지"). */
+.icon-chip-button:hover:not(:disabled) {
+  filter: brightness(0.9);
+}
+
+/* 터치 기기는 hover가 없어서 :active에도 같은 효과를 넣어야 "눌렀다"는 피드백이
+   보인다(요청사항: "모바일에서는 hover 대신 active 상태에도"). */
 .icon-chip-button:active:not(:disabled) {
+  filter: brightness(0.9);
   transform: scale(0.95);
 }
 
@@ -181,13 +194,23 @@ input:focus-visible {
   background: var(--color-primary);
   color: var(--color-primary-contrast);
   box-shadow: var(--shadow-card);
+  /* filter 트랜지션 추가 — 0.2s로 부드럽게(요청사항 1). */
   transition:
     transform 120ms ease-out,
-    background-color 120ms ease-out;
+    background-color 120ms ease-out,
+    filter 0.2s ease;
 }
 
+/* hover: 명도만 살짝 낮춤(brightness), hue는 그대로 — 요청사항 1. */
+.voice-button:hover:not(:disabled) {
+  filter: brightness(0.9);
+}
+
+/* 터치 기기는 hover가 없어 :active에도 동일 효과를 준다. 기존 배경색 스왑
+   (--color-primary-pressed)과 filter를 같이 적용하면 겹쳐서 필요 이상으로
+   어두워지므로, 배경색 스왑은 지우고 filter 하나로 통일했다. */
 .voice-button:active:not(:disabled) {
-  background: var(--color-primary-pressed);
+  filter: brightness(0.9);
   transform: scale(0.97);
 }
 
