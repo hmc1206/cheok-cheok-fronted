@@ -1,4 +1,5 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { MicPermissionGate } from './components/common/MicPermissionGate'
 import { ThemeProvider } from './components/common/ThemeProvider'
 import { AuthCallbackScreen } from './screens/AuthCallbackScreen'
 import { HomeScreen } from './screens/HomeScreen'
@@ -23,6 +24,11 @@ function App() {
   return (
     <ThemeProvider>
       <BrowserRouter>
+        {/* 앱 최상단 마운트 지점 — 라우트가 바뀌어도 다시 만들어지지 않도록 Routes
+            바깥에 딱 한 번만 둔다. 마이크 권한 상태는 전역(Zustand)이라 여기 위치는
+            "앱 로드 시 한 번 확인"이라는 타이밍 요구사항 때문일 뿐, 화면별로 따로
+            둘 필요는 없다. */}
+        <MicPermissionGate />
         <Routes>
           <Route path="/" element={<LoginPage />} />
           <Route path="/login" element={<LoginPage />} />
