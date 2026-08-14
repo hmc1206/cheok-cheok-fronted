@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { routesApi } from '../api/routesApi'
 import { AppFrame } from '../components/common/AppFrame'
 import { IconChipButton, PrimaryButton } from '../components/common/Button'
@@ -21,6 +22,7 @@ import { openDeepLinkWithWebFallback } from '../lib/deepLink'
 // nmap 스킴을 등록하는 작업은 여기서 할 수 없다 — 해당 설정은 네이티브 앱 래퍼
 // 프로젝트(별도 저장소) 쪽 작업이라, 필요하면 그쪽 담당자에게 별도로 요청해야 한다.
 export function MapRouteScreen() {
+  const navigate = useNavigate()
   const { speak } = useTTS()
 
   // 사용자가 입력창에 타이핑한 원문. 요청 필드명(startName/goalName)과 그대로 맞춰
@@ -148,7 +150,26 @@ export function MapRouteScreen() {
 
   return (
     <AppFrame>
-      <main className="flex h-full flex-col items-center p-6" style={{ background: 'var(--color-bg)' }}>
+      <main className="relative flex h-full flex-col items-center p-6" style={{ background: 'var(--color-bg)' }}>
+        {/* 뒤로가기 버튼. 홈 화면 햄버거 버튼과 같은 좌측 상단 자리/44px 터치 영역
+            규칙을 그대로 따른다(요청사항: "< 표시의 버튼으로 홈화면으로 돌아가기"). */}
+        <button
+          type="button"
+          onClick={() => navigate('/home')}
+          aria-label="홈으로 돌아가기"
+          className="absolute left-4 top-4 z-20 flex items-center justify-center"
+          style={{
+            width: 44,
+            height: 44,
+            background: 'transparent',
+            border: 'none',
+            boxShadow: 'none',
+            color: 'var(--color-text)',
+          }}
+        >
+          <ChevronLeftIcon />
+        </button>
+
         {/* 세로 배치: 제목+입력창+버튼 그룹을 화면 맨 위에 붙이지 않고, 위쪽 빈 스페이서
             (flex-1)로 한 번 밀어내려 화면 세로 중앙 부근(원래 비어있던 중간 영역)에
             오도록 한다. 그 아래 또 다른 스페이서(flex-1)가 마이크 버튼을 화면 하단으로
@@ -241,6 +262,16 @@ export function MapRouteScreen() {
         </form>
       </main>
     </AppFrame>
+  )
+}
+
+// 홈 화면의 MenuIcon과 같은 방식(새 의존성 없이 stroke=currentColor 선 아이콘 직접 작성)으로
+// 그린 "<" 뒤로가기 화살표.
+function ChevronLeftIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M15 18l-6-6 6-6" />
+    </svg>
   )
 }
 
