@@ -268,7 +268,10 @@ input:focus-visible {
    포인트 있는" 느낌을 낸다. box-shadow는 .app-card의 것을 그대로 물려받는다. */
 .usage-status-card {
   background: var(--color-bg-alt);
+  /* 처음엔 왼쪽에만 뒀는데, 피드백으로 오른쪽에도 같은 두께의 보더를 추가해
+     카드를 accent 컬러가 좌우로 감싸는 느낌으로 바꿨다. */
   border-left: 4px solid var(--color-primary);
+  border-right: 4px solid var(--color-primary);
 }
 
 /* 3개 바로가기 카드 전용 — 마찬가지로 흰 배경이 존재감 없어 보인다는 피드백 반영.
