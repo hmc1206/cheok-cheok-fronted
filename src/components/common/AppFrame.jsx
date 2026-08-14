@@ -60,7 +60,7 @@ export function AppFrame({ children }) {
           height: APP_HEIGHT,
           flexShrink: 0,
           transform: `scale(${scale})`,
-          background: '#ffffff',
+          background: 'var(--color-bg)',
           borderRadius: APP_BORDER_RADIUS,
           overflow: 'hidden',
         }}

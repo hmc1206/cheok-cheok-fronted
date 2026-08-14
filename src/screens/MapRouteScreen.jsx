@@ -1,8 +1,7 @@
 import { useCallback, useState } from 'react'
 import { routesApi } from '../api/routesApi'
 import { AppFrame } from '../components/common/AppFrame'
-import { GlassButton, GlassCircleButton } from '../components/common/Glass'
-import { GLASS_BACKGROUND_STYLE, GLASS_BRAND_COLOR } from '../components/common/glassTokens'
+import { IconChipButton, PrimaryButton } from '../components/common/Button'
 import { MicIcon } from '../components/common/icons'
 import { useTTS } from '../hooks/useTTS'
 import { openDeepLinkWithWebFallback } from '../lib/deepLink'
@@ -10,6 +9,12 @@ import { openDeepLinkWithWebFallback } from '../lib/deepLink'
 // 길찾기 화면. 경로 계산은 서버가 담당한다 — 출발지/목적지 "이름"만 보내면
 // 백엔드가 좌표 변환(Geocoding) + 네이버 지도 대중교통 딥링크 조립까지 전부 처리해서
 // 완성된 앱/웹 URL을 돌려주고, 프론트는 그 URL을 실행만 한다(API 명세서 v2.0 8-2장).
+//
+// feature/fe-redesign 병합: 유리질감(glassmorphism) 버튼 시스템(Glass.jsx,
+// glassTokens.js)이 통째로 삭제되고 새 디자인 시스템(Button.jsx의
+// PrimaryButton/IconChipButton, tokens.css의 --text-*/--color-* 토큰)으로
+// 교체됐다 — 이 화면도 같이 옮겼다. 배경은 새 브리프의 "flat, 흰 배경 기본"
+// 원칙에 맞춰 브랜드 톤 그라디언트를 걷어내고 var(--color-bg) 흰 배경으로 통일.
 //
 // 참고: 이 저장소는 순수 웹(Vite/React) 프로젝트라 iOS Info.plist의
 // LSApplicationQueriesSchemes / Android AndroidManifest.xml의 <queries>에
@@ -143,10 +148,7 @@ export function MapRouteScreen() {
 
   return (
     <AppFrame>
-      {/* 홈 화면과 동일한 브랜드 톤 배경 위에 유리 재질 버튼을 올려야 반투명 효과가
-          실제로 눈에 띈다 (GLASS_BACKGROUND_STYLE, glassTokens.js 참고). 입력창 자체는
-          이 브랜드 배경과 대비되도록 흰 배경으로 둔다(아래 MapTextInput 참고). */}
-      <main className="flex h-full flex-col items-center p-6" style={GLASS_BACKGROUND_STYLE}>
+      <main className="flex h-full flex-col items-center p-6" style={{ background: 'var(--color-bg)' }}>
         {/* 세로 배치: 제목+입력창+버튼 그룹을 화면 맨 위에 붙이지 않고, 위쪽 빈 스페이서
             (flex-1)로 한 번 밀어내려 화면 세로 중앙 부근(원래 비어있던 중간 영역)에
             오도록 한다. 그 아래 또 다른 스페이서(flex-1)가 마이크 버튼을 화면 하단으로
@@ -160,7 +162,7 @@ export function MapRouteScreen() {
               가로 중앙에 오도록 한다(요청사항: "칸을 화면 중앙에 오게"). 안의 글자는
               MapTextInput이 기본값(왼쪽 정렬)을 쓰므로 입력 텍스트는 그대로 왼쪽 정렬이다. */}
           <div className="flex w-72 flex-col items-center gap-3">
-            <h1 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 800, color: GLASS_BRAND_COLOR }}>
+            <h1 style={{ fontSize: 'var(--text-title)', fontWeight: 800, color: 'var(--color-primary)' }}>
               길 찾기
             </h1>
 
@@ -174,7 +176,7 @@ export function MapRouteScreen() {
               />
               {/* 필드별 에러: GEOCODE_NOT_FOUND의 field가 startName일 때만 여기 표시된다. */}
               {startError && (
-                <p style={{ fontSize: 'var(--font-size-base)', color: 'var(--color-danger)' }}>{startError}</p>
+                <p style={{ fontSize: 'var(--text-body)', color: 'var(--color-danger)' }}>{startError}</p>
               )}
             </div>
 
@@ -187,11 +189,11 @@ export function MapRouteScreen() {
                 aria-label="목적지"
               />
               {goalError && (
-                <p style={{ fontSize: 'var(--font-size-base)', color: 'var(--color-danger)' }}>{goalError}</p>
+                <p style={{ fontSize: 'var(--text-body)', color: 'var(--color-danger)' }}>{goalError}</p>
               )}
             </div>
 
-            <GlassButton type="submit" disabled={isSubmitDisabled}>
+            <PrimaryButton type="submit" disabled={isSubmitDisabled} className="w-full">
               {status === 'loading' ? (
                 // 로딩 인디케이터: 별도 라이브러리 없이 Tailwind animate-spin으로 최소한의
                 // 원형 스피너만 그린다. 버튼 자체도 disabled라 중복 클릭은 막혀 있다.
@@ -205,13 +207,13 @@ export function MapRouteScreen() {
               ) : (
                 '길 찾기'
               )}
-            </GlassButton>
+            </PrimaryButton>
 
             {/* 필드에 매핑되지 않는 에러(입력 누락, 서버 오류 등) 공용 메시지 + 재시도 버튼.
                 canRetry는 502(GEOCODE_API_FAIL/EXTERNAL_API_FAIL) 같은 일시적 실패에서만 켜진다. */}
             {generalError && (
               <div className="flex w-full flex-col items-center gap-2">
-                <p style={{ fontSize: 'var(--font-size-base)', color: 'var(--color-danger)' }}>{generalError}</p>
+                <p style={{ fontSize: 'var(--text-body)', color: 'var(--color-danger)' }}>{generalError}</p>
                 {canRetry && (
                   <button
                     type="button"
@@ -229,32 +231,29 @@ export function MapRouteScreen() {
           {/* 그룹과 마이크 버튼 사이 여백 + 마이크를 화면 하단 쪽으로 밀어내는 스페이서. */}
           <div className="flex-1" />
 
-          {/* 화면 하단 보조 마이크 버튼. 홈 화면 마이크와 완전히 같은 GlassCircleButton +
-              MicIcon 조합을 재사용해 디자인을 통일했다. 음성 인식은 아직 연결하지
-              않았고(handleMicClick TODO 참고), disabled 처리는 하지 않아 버튼 자체는
-              눌리지만 지금은 아무 동작도 하지 않는다. */}
-          <GlassCircleButton onClick={handleMicClick} size={72} ariaLabel="음성으로 길 찾기 (준비 중)">
+          {/* 화면 하단 보조 마이크 버튼. 홈 화면 마이크와 같은 새 디자인 시스템
+              (IconChipButton + MicIcon)을 재사용해 톤을 통일했다. 음성 인식은 아직
+              연결하지 않았고(handleMicClick TODO 참고), disabled 처리는 하지 않아
+              버튼 자체는 눌리지만 지금은 아무 동작도 하지 않는다. */}
+          <IconChipButton onClick={handleMicClick} size={72} ariaLabel="음성으로 길 찾기 (준비 중)">
             <MicIcon size={28} />
-          </GlassCircleButton>
+          </IconChipButton>
         </form>
       </main>
     </AppFrame>
   )
 }
 
-// 출발지/목적지 입력창. 홈 화면의 유리(반투명) 버튼과는 다르게, 입력창은 흰 배경 +
-// 옅은 테두리/그림자로 깔끔하게 둔다(요청사항: "입력창 배경은 하얀색으로 처리").
+// 출발지/목적지 입력창. 다른 카드형 버튼들과는 다르게, 입력창은 흰 배경 + 옅은
+// 테두리/그림자로 깔끔하게 둔다(요청사항: "입력창 배경은 하얀색으로 처리").
 // hasError면 테두리를 경고색으로 바꿔 GEOCODE_NOT_FOUND 필드별 재입력을 유도한다.
 //
 // 포커스 시 나타나는 강조 테두리: index.css의 전역 접근성 규칙(`input:focus-visible {
-// outline: var(--focus-ring) }`, tokens.css의 --color-primary #2f6fed = 파란색)이
-// 앱 전체 input/button에 파란 outline을 준다. 이 화면은 브랜드 톤(#146156 초록)으로
-// 통일해야 해서, `.map-input` 클래스에 index.css의 별도 규칙(같은 index.css, 전역
-// 규칙보다 뒤+더 구체적인 선택자)으로 이 두 입력창만 outline 색을 덮어썼다.
-// Tailwind 유틸리티 클래스(focus-visible:outline-...)로는 안 됐다 — Tailwind
-// 클래스는 @layer utilities 안에 들어가는데, CSS Cascade Layers 스펙상 layer 밖의
-// 일반 규칙(index.css의 전역 규칙)이 specificity와 무관하게 항상 이기기 때문에,
-// 오버라이드도 layer 밖 일반 CSS로 작성해야 한다.
+// outline: var(--focus-ring) }`)이 앱 전체 input/button에 --color-primary 색
+// outline을 준다. 이 화면은 원래 그 전역 규칙과 다른 색을 쓰려고 `.map-input` 전용
+// 규칙(index.css)을 별도로 뒀었는데, feature/fe-redesign 병합 이후 전역
+// --color-primary 자체가 이 화면이 쓰던 브랜드 그린과 같은 계열로 바뀌면서 사실상
+// 같은 색이 됐다 — 그래도 화면 전용 오버라이드가 있다고 문제될 건 없어 그대로 둔다.
 function MapTextInput({ value, onChange, placeholder, hasError, ...rest }) {
   return (
     <input
@@ -263,7 +262,9 @@ function MapTextInput({ value, onChange, placeholder, hasError, ...rest }) {
       placeholder={placeholder}
       className={
         'map-input w-full rounded-2xl border bg-white px-4 py-3 shadow-sm outline-none transition-colors duration-200 ' +
-        (hasError ? 'border-red-400 focus:border-red-400' : 'border-white/60 focus:border-[#146156]/60')
+        (hasError
+          ? 'border-red-400 focus:border-red-400'
+          : 'border-white/60 focus:border-[var(--color-primary)]/60')
       }
       style={{ color: 'var(--color-text)' }}
       {...rest}
