@@ -2,6 +2,7 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { MicPermissionGate } from './components/common/MicPermissionGate'
 import { ThemeProvider } from './components/common/ThemeProvider'
 import { AuthCallbackScreen } from './screens/AuthCallbackScreen'
+import { ChatScreen } from './screens/ChatScreen'
 import { HomeScreen } from './screens/HomeScreen'
 import { KioskLiveScreen } from './screens/KioskLiveScreen'
 import { LoginPage } from './screens/LoginPage'
@@ -35,6 +36,8 @@ function App() {
           <Route path="/" element={<LoginPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/home" element={<HomeScreen />} />
+          {/* 홈 화면 "눌러서 말하기" 카드에서 진입하는 음성 채팅 페이지 */}
+          <Route path="/chat" element={<ChatScreen />} />
           <Route path="/map" element={<MapRouteScreen />} />
           <Route path="/train" element={<TrainBookingScreen />} />
           <Route path="/kiosk" element={<KioskLiveScreen />} />
