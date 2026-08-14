@@ -85,7 +85,7 @@ export function HomeScreen() {
             시선이 여기 먼저 가게 한다 — "무엇"만 accent 컬러로 포인트를 줘서 클릭
             유도 없이도 시선을 붙잡는다(브리프: accent는 클릭 유도 색이지 강조
             전용은 아니지만, 텍스트 강조 정도는 브랜드 톤 일관성 차원에서 허용). */}
-        <div className="px-6 pb-24 pt-16 text-center">
+        <div className="px-6 pb-20 pt-20 text-center">
           <p
             className="home-greeting-line-1"
             style={{ fontSize: 'var(--text-title)', fontWeight: 700, color: 'var(--color-text)' }}
