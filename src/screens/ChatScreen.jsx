@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { AppFrame } from '../components/common/AppFrame'
 import { ChatBubble } from '../components/chat/ChatBubble'
 import { HamburgerMenuButton } from '../components/common/HamburgerMenuButton'
@@ -17,6 +18,7 @@ import { useSTT } from '../hooks/useSTT'
 // 전혀 하지 않는다 — 나중에 답변 API가 정해지면 handleSend의 TODO 자리에서
 // 이어붙이면 된다.
 export function ChatScreen() {
+  const navigate = useNavigate()
   const { start, stop, isListening } = useSTT()
   const [messages, setMessages] = useState([])
   const [inputValue, setInputValue] = useState('')
@@ -103,6 +105,38 @@ export function ChatScreen() {
             오른쪽은 참고 이미지엔 아이콘이 있지만 이 프로젝트엔 대응 기능이 없어
             TODO로 남기고 비활성 처리한다(요구사항 1). */}
         <HamburgerMenuButton onClick={() => setIsDrawerOpen(true)} />
+        {/* 햄버거 버튼 바로 아래에 홈으로 돌아가는 "<" 버튼. 이 채팅 페이지는 홈
+            화면 마이크 버튼에서만 들어오는 흐름이라, 브라우저 뒤로가기 없이도
+            바로 홈으로 돌아갈 수 있는 경로가 필요해서 추가했다. 햄버거와 같은
+            절제된 톤(배경 없음, 44px 최소 터치 영역)으로 스타일을 맞췄다. */}
+        <button
+          type="button"
+          onClick={() => navigate('/home')}
+          aria-label="홈으로 돌아가기"
+          className="absolute left-4 top-14 z-20 flex items-center justify-center"
+          style={{
+            width: 44,
+            height: 44,
+            background: 'transparent',
+            border: 'none',
+            boxShadow: 'none',
+            color: 'var(--color-text)',
+          }}
+        >
+          <svg
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M15 6l-6 6 6 6" />
+          </svg>
+        </button>
         {/* TODO: 참고 이미지의 우측 상단 아이콘(예: 새 대화 시작 등)에 대응하는
             기능이 아직 정해지지 않아 disabled로만 자리를 잡아둔다. */}
         <button
@@ -126,8 +160,11 @@ export function ChatScreen() {
           </svg>
         </button>
 
-        {/* 채팅 메시지 목록 (요구사항 4: 위→아래로 쌓이고, 최신이 아래, 자동 스크롤). */}
-        <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-4 pb-4 pt-16">
+        {/* 채팅 메시지 목록 (요구사항 4: 위→아래로 쌓이고, 최신이 아래, 자동 스크롤).
+            pt를 16(햄버거만 있을 때)에서 28로 늘렸다 — 햄버거 아래 뒤로가기 버튼이
+            top-14(56px)+44px 높이까지 차지해서, 이전 값(64px)으로는 메시지 목록
+            상단이 그 버튼과 겹쳤다. */}
+        <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-4 pb-4 pt-28">
           {messages.length === 0 && (
             <p
               className="mt-10 text-center"
