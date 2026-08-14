@@ -44,9 +44,6 @@ export function HomeScreen() {
     }
   }, [])
 
-  const micStatusLabel =
-    status === 'listening' ? '듣고 있어요...' : status === 'processing' ? '처리 중이에요...' : '눌러서 말하기'
-
   // sttCaption의 "그때그때 최신값"을 ref에 미러링해둔다. 렌더마다 대입만 하므로
   // effect 의존성에 넣지 않고도 아래 effect에서 항상 최신 질문 텍스트를 읽을 수 있다.
   const latestSttCaptionRef = useRef(sttCaption)
@@ -110,11 +107,10 @@ export function HomeScreen() {
           {/* 마이크 카드: 화면의 메인 액션이라 흰 카드가 아니라 accent 컬러로 채운
               박스로 구분했다. VoiceButton은 다른 화면에서도 재사용하는 공용
               컴포넌트라 여기서 새로 만들지 않고 그대로 가져다 썼다(모양만 원형에서
-              둥근 박스로 바뀜 — VoiceButton.jsx 참고, 클릭/상태 로직은 불변). */}
-          <div className="flex flex-col items-center gap-2">
-            <VoiceButton status={status} onPress={startListening} />
-            <p style={{ fontSize: 'var(--text-body)', color: 'var(--color-gray)' }}>{micStatusLabel}</p>
-          </div>
+              둥근 박스로 바뀜 — VoiceButton.jsx 참고, 클릭/상태 로직은 불변).
+              상태 텍스트("눌러서 말하기" 등)는 이제 박스 바깥이 아니라 VoiceButton
+              내부에 아이콘과 함께 표시되므로, 여기서 따로 캡션을 그리지 않는다. */}
+          <VoiceButton status={status} onPress={startListening} />
 
           {/* 바로가기 카드: 길찾기/기차예매/키오스크 도움 3개 버튼을 유지하되, 흰
               카드 하나로 감싸 다른 카드들과 톤을 맞췄다(요구사항 2). */}
