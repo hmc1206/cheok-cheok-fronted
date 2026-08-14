@@ -62,6 +62,12 @@
   /* ---- 기타(브리프 범위 밖, 기존 기능 유지를 위한 보조 토큰) ---- */
   --voice-button-size: 160px; /* 마이크 버튼은 화면의 메인 액션이라 IconChip(56px)보다 훨씬 크게 유지 */
   --focus-ring: 3px solid var(--color-primary);
+
+  /* 홈 화면 바로가기 카드(nav-icons-card)의 연한 테두리색. --color-primary와 같은
+     RGB를 그대로 쓰고 투명도만 낮췄다(CSS 변수는 자체적으로 alpha를 섞을 수 없어
+     별도 토큰으로 뺐다) — 라이트/고대비 테마 모두에서 accent와 같은 색 계열을
+     유지하려고 테마별로 다시 정의한다. */
+  --color-primary-soft-border: rgba(20, 100, 86, 0.15);
 }
 
 /*
@@ -86,4 +92,9 @@
      "떠 보이는" 느낌을 낸다(요청사항: "다크 테마에서는 그림자보다 미세한
      테두리나 밝기 대비로 표현"). */
   --shadow-card: 0 0 0 1px rgba(255, 255, 255, 0.14);
+
+  /* --color-primary가 고대비 테마에서 초록(#146456)이 아니라 노랑(#ffd60a)이라,
+     --color-primary-soft-border도 같은 노랑 RGB(255,214,10)로 다시 정의해야
+     팔레트가 어긋나지 않는다. */
+  --color-primary-soft-border: rgba(255, 214, 10, 0.25);
 }

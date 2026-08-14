@@ -93,29 +93,34 @@ export function HomeScreen() {
           <MenuIcon />
         </button>
 
-        {/* 상단 섹션: 인사말. 화면 타이틀 급(--text-title, 26px/700)으로 키워서 첫
-            시선이 여기 먼저 가게 한다 — "무엇"만 accent 컬러로 포인트를 줘서 클릭
-            유도 없이도 시선을 붙잡는다(브리프: accent는 클릭 유도 색이지 강조
-            전용은 아니지만, 텍스트 강조 정도는 브랜드 톤 일관성 차원에서 허용). */}
-        <div className="px-6 pb-16 pt-24 text-center">
-          <p
-            className="home-greeting-line-1"
-            style={{ fontSize: 'var(--text-title)', fontWeight: 700, color: 'var(--color-text)' }}
-          >
-            안녕하세요?
-          </p>
-          <p
-            className="home-greeting-line-2"
-            style={{ fontSize: 'var(--text-title)', fontWeight: 700, color: 'var(--color-text)' }}
-          >
-            <span style={{ color: 'var(--color-primary)' }}>무엇</span>을 도와드릴까요?
-          </p>
-        </div>
+        {/* 피드백 반영: 인사말+말하기 버튼+카드 2개를 하나의 세로 스택으로 묶고,
+            margin: auto 0으로 "화면보다 작으면 수직 중앙 정렬, 넘치면 자동으로
+            위 정렬 + 스크롤"을 CSS만으로 구현했다 — flex 컨테이너의 auto 마진은
+            남는 공간을 흡수해 중앙 정렬처럼 보이지만, 콘텐츠가 부모(overflow-y-auto인
+            main)보다 커지면 auto 마진이 0으로 수렴해 자연스럽게 위쪽부터 스크롤된다
+            (JS로 높이를 재는 방식 없이 순수 CSS로 처리). 섹션 간 간격도 기존
+            16px(gap-4)에서 --space-md(24px, 1.5배)로 넉넉하게 늘렸다. */}
+        <div
+          className="flex w-full flex-col px-6 py-6"
+          style={{ margin: 'auto 0', gap: 'var(--space-md)' }}
+        >
+          {/* 인사말. 화면 타이틀 급(--text-title, 26px/700)으로 키워서 첫 시선이
+              여기 먼저 가게 한다 — "무엇"만 accent 컬러로 포인트. */}
+          <div className="text-center">
+            <p
+              className="home-greeting-line-1"
+              style={{ fontSize: 'var(--text-title)', fontWeight: 700, color: 'var(--color-text)' }}
+            >
+              안녕하세요?
+            </p>
+            <p
+              className="home-greeting-line-2"
+              style={{ fontSize: 'var(--text-title)', fontWeight: 700, color: 'var(--color-text)' }}
+            >
+              <span style={{ color: 'var(--color-primary)' }}>무엇</span>을 도와드릴까요?
+            </p>
+          </div>
 
-        {/* 카드형 박스가 세로로 쌓인 레이아웃(참고 이미지의 구조만 차용 — 색/텍스트는
-            브리프 톤 그대로). 마이크 버튼, 3개 바로가기, 이용 상태를 각각 독립된
-            카드로 감싸고 gap-4(--space-md 상당)로 균일하게 띄운다. */}
-        <div className="flex flex-1 flex-col gap-4 px-6 pb-10">
           {/* 마이크 카드: 화면의 메인 액션이라 흰 카드가 아니라 accent 컬러로 채운
               박스로 구분했다. VoiceButton은 다른 화면에서도 재사용하는 공용
               컴포넌트라 여기서 새로 만들지 않고 그대로 가져다 썼다(모양만 원형에서
@@ -125,8 +130,11 @@ export function HomeScreen() {
           <VoiceButton status={status} onPress={startListening} />
 
           {/* 바로가기 카드: 길찾기/기차예매/키오스크 도움 3개 버튼을 유지하되, 흰
-              카드 하나로 감싸 다른 카드들과 톤을 맞췄다(요구사항 2). */}
-          <Card className="flex justify-center gap-6">
+              카드 하나로 감싸 다른 카드들과 톤을 맞췄다. 피드백 반영: 흰 배경이
+              페이지 배경(흰색)에 묻혀 보인다는 지적이라 nav-icons-card 클래스로
+              연한 그린 보더 + hover 시 살짝 떠오르는 효과를 추가했다(index.css 참고).
+              아이콘 뒤 민트색 원형 배경(--color-secondary)은 요청대로 그대로 둔다. */}
+          <Card className="nav-icons-card flex justify-center gap-6">
             {NAV_ITEMS.map(({ label, path, Icon }) => (
               <div key={path} className="flex flex-col items-center gap-2">
                 {/* 72px — 공용 최소 규격(56px)보다 조금 키워서 3개뿐인 주요
@@ -141,11 +149,13 @@ export function HomeScreen() {
             ))}
           </Card>
 
-          {/* "현재 이용 상태" 카드(신규). remainingFreeUsage는 usageApi.js를 통해
-              가져오는데, 실제 API 명세서에 이 데이터가 정의돼 있지 않아 지금은
-              mock 값이다(usageApi.js 주석 참고) — 절대 이 컴포넌트 안에서 숫자를
-              하드코딩하지 않고, API 응답 값을 그대로 표시한다. */}
-          <Card className="flex flex-col gap-1">
+          {/* "현재 이용 상태" 카드. remainingFreeUsage는 usageApi.js를 통해 가져오는데,
+              실제 API 명세서에 이 데이터가 정의돼 있지 않아 지금은 mock 값이다
+              (usageApi.js 주석 참고) — 절대 이 컴포넌트 안에서 숫자를 하드코딩하지
+              않고, API 응답 값을 그대로 표시한다. 피드백 반영: usage-status-card
+              클래스로 옅은 배경(--color-bg-alt 재사용) + 왼쪽 accent 보더를 추가해
+              "깔끔하지만 포인트 있는" 느낌을 냈다(index.css 참고). */}
+          <Card className="usage-status-card flex flex-col gap-1">
             <h2 style={{ fontSize: 'var(--text-heading)', fontWeight: 600, color: 'var(--color-text)' }}>
               현재 이용 상태
             </h2>
