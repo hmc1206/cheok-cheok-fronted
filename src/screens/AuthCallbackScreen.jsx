@@ -7,6 +7,7 @@ import { useAuthStore } from '../store/authStore'
 // 백엔드 구글 로그인 완료 후 리다이렉트를 받는 화면 (서버사이드 OAuth 리다이렉트 확정).
 // 백엔드가 /auth/callback?token=...&isNewUser=...로 보내주면, 쿼리스트링을 파싱해
 // authStore에 저장하고 /users/me로 실제 사용자 정보를 확정한 뒤 홈으로 이동한다.
+// (디자인 개편: 로직은 그대로, 대기 문구 스타일만 새 토큰 기준으로 변경)
 export function AuthCallbackScreen() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -45,7 +46,12 @@ export function AuthCallbackScreen() {
 
   return (
     <AppFrame>
-      <div className="flex h-full items-center justify-center">로그인 세션 확인 중...</div>
+      <div
+        className="flex h-full items-center justify-center"
+        style={{ background: 'var(--color-bg)', fontSize: 'var(--text-body)', color: 'var(--color-gray)' }}
+      >
+        로그인 세션 확인 중...
+      </div>
     </AppFrame>
   )
 }
