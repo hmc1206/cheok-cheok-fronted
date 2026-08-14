@@ -1,31 +1,27 @@
-/* 토스 전용 폰트("Toss Product Sans"). 토스 자체 CDN이라 네트워크 차단/CORS 등으로
-   막힐 수 있어, 곧이어 Pretendard를 fallback으로 반드시 같이 등록한다.
-   CSS 스펙상 @import는 항상 다른 규칙보다 앞에 와야 하는데, 로컬 파일 @import(tailwindcss,
-   tokens.css)는 빌드 시 그 자리에 내용이 그대로 인라인되어 "다른 규칙"처럼 취급될 수 있어,
-   외부 URL @import는 전부 맨 위에 두어 순서 문제가 생기지 않게 한다. */
-@import url('https://static.toss.im/tps/main.css');
-@import url('https://static.toss.im/tps/others.css');
-/* Pretendard fallback: Toss Product Sans 로드 실패 시 시스템 기본 폰트로 완전히
-   떨어지지 않고 이 폰트로 대체되도록 한다 (오픈소스 CDN, 라이선스 문제 없음). */
+/* 전체 디자인 개편(feature/fe-redesign) 브리프: "Pretendard만 사용, 다른 폰트는
+   fallback으로도 넣지 않는다." 기존에 있던 Toss Product Sans CDN @import 2개를
+   제거하고 Pretendard 하나만 남긴다. CSS 스펙상 @import는 항상 다른 규칙보다 앞에
+   와야 하는데, 로컬 파일 @import(tailwindcss, tokens.css)는 빌드 시 그 자리에 내용이
+   그대로 인라인되어 "다른 규칙"처럼 취급될 수 있어, 외부 URL @import를 맨 위에 둔다. */
 @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
 
 @import 'tailwindcss';
 @import './styles/tokens.css';
 
 /*
- * 전역 리셋 + 최소 베이스 스타일.
- * 화면별 세부 디자인은 넣지 않고, 디자이너 파일 적용 전까지 레이아웃이 깨지지 않을 정도만 잡는다.
+ * 전역 리셋 + 베이스 스타일. 화면별 세부 스타일은 각 컴포넌트에서 tokens.css의
+ * var(--token-name)만 참조해서 짠다(하드코딩 hex/px 금지) — 어디서 봐도 같은 앱처럼
+ * 보이게 하는 핵심 규칙.
  */
 * {
   box-sizing: border-box;
-  /* font-family 목록은 브라우저가 왼쪽부터 순서대로 로드 가능 여부를 확인해 첫 번째로
-     쓸 수 있는 폰트를 고른다 — Toss Product Sans가 막히면 자동으로 Pretendard로,
-     그마저 실패하면 시스템 sans-serif로 단계적으로 떨어진다. */
-  font-family: 'Toss Product Sans', 'Pretendard', sans-serif;
+  /* Pretendard 로드 실패 시에도 다른 브랜드 폰트로 떨어지지 않고 시스템 sans-serif로만
+     폴백한다(브리프: "no other font family anywhere, not even as a fallback"). */
+  font-family: var(--font-family);
 }
 
 /* "척척" 타이틀이 아래에서 위로 슬라이드업되며 나타나는 애니메이션.
-   500~600ms/ease-out으로 확인받음 — 토스 앱류에서 흔히 쓰는 자연스러운 스플래시 속도. */
+   500~600ms/ease-out — 색상/폰트와 무관한 순수 모션이라 리디자인 후에도 그대로 재사용. */
 @keyframes chuck-slide-up {
   from {
     transform: translateY(24px);
@@ -60,9 +56,10 @@
 
 body {
   margin: 0;
-  /* font-family는 위 * 규칙(Toss Product Sans → Pretendard → sans-serif)을 그대로
-     쓰도록 여기서는 지정하지 않는다 (지정하면 specificity 때문에 *보다 우선해버림). */
-  font-size: var(--font-size-base);
+  /* font-family는 위 * 규칙(var(--font-family) = Pretendard → system-ui → sans-serif)을
+     그대로 쓰도록 여기서는 지정하지 않는다 (지정하면 specificity 때문에 *보다 우선해버림). */
+  font-size: var(--text-body);
+  line-height: var(--line-height-normal);
   color: var(--color-text);
   background: var(--color-bg);
 }
@@ -76,14 +73,37 @@ button {
   cursor: pointer;
 }
 
-/* ASSUMPTION: 버튼 placeholder 스타일. 최종 디자인은 디자이너 파일 적용 시 교체 */
+/* 세컨더리(고스트) 버튼 — 디자인 브리프의 "Secondary/ghost button" 규칙을 그대로 적용:
+   투명 배경 + primary 2px 테두리, 필(pill) 모양, 56px 최소 터치 영역(노인 사용자
+   접근성 — 웹 표준 44px보다 크게), 클릭 시 살짝 어두워지며 눌리는 느낌(scale). */
 .quick-action-button {
-  padding: var(--space-3) var(--space-4);
-  font-size: var(--font-size-base);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-base);
-  background: var(--color-surface);
-  color: var(--color-text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 56px;
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--text-body-lg);
+  font-weight: 600;
+  border: 2px solid var(--color-primary);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--color-primary);
+  box-shadow: var(--shadow-none);
+  transition:
+    transform 120ms ease-out,
+    background-color 120ms ease-out,
+    color 120ms ease-out;
+}
+
+.quick-action-button:active:not(:disabled) {
+  transform: scale(0.97);
+  background: var(--color-bg-alt);
+}
+
+.quick-action-button:disabled {
+  border-color: var(--color-gray-light);
+  color: var(--color-gray);
+  cursor: not-allowed;
 }
 
 .quick-action-button:focus-visible,
@@ -91,4 +111,94 @@ button:focus-visible,
 input:focus-visible {
   outline: var(--focus-ring);
   outline-offset: 2px;
+}
+
+/* 메인(primary) 버튼 — 디자인 브리프 "Primary button" 규칙: --color-primary 채우기,
+   흰 텍스트, 필(pill) 모양, 56px 최소 터치 영역, 텍스트 20px/600. 눌렀을 때
+   --color-primary-pressed(약 15% 어둡게) + 살짝 축소(scale)로 눌리는 느낌을 준다. */
+.primary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 56px;
+  padding: 0 var(--space-lg);
+  font-size: var(--text-body-lg);
+  font-weight: 600;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary);
+  color: var(--color-primary-contrast);
+  box-shadow: var(--shadow-none);
+  transition:
+    transform 120ms ease-out,
+    background-color 120ms ease-out;
+}
+
+.primary-button:active:not(:disabled) {
+  background: var(--color-primary-pressed);
+  transform: scale(0.97);
+}
+
+.primary-button:disabled {
+  background: var(--color-gray-light);
+  color: var(--color-gray);
+  cursor: not-allowed;
+}
+
+/* 아이콘 전용 버튼 — 디자인 브리프 "Icon-only buttons" 규칙: 최소 56×56px 터치 영역,
+   --color-secondary 칩 배경, 아이콘은 --color-text. 원이 아니라 둥근 사각(radius-lg)
+   "칩" 모양으로 둬서 기존 유리 원형 버튼과는 다른 새 시각 언어를 준다. */
+.icon-chip-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--radius-lg);
+  background: var(--color-secondary);
+  color: var(--color-text);
+  box-shadow: var(--shadow-none);
+  transition:
+    transform 120ms ease-out,
+    opacity 120ms ease-out;
+}
+
+.icon-chip-button:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.icon-chip-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 음성 비서 마이크 버튼 — 화면의 메인 액션이라 primary-button과 같은 색 규칙(채우기
+   --color-primary, 눌렀을 때 --color-primary-pressed)을 쓰되, 다른 화면들에서
+   재사용하는 원형 큰 버튼이라 별도 클래스로 둔다. */
+.voice-button {
+  border: none;
+  background: var(--color-primary);
+  color: var(--color-primary-contrast);
+  box-shadow: var(--shadow-none);
+  transition:
+    transform 120ms ease-out,
+    background-color 120ms ease-out;
+}
+
+.voice-button:active:not(:disabled) {
+  background: var(--color-primary-pressed);
+  transform: scale(0.97);
+}
+
+.voice-button:disabled {
+  background: var(--color-gray-light);
+  color: var(--color-gray);
+  cursor: not-allowed;
+}
+
+/* 카드 — 디자인 브리프 "Cards" 규칙: 흰 배경, radius-lg, 옅은 그림자, 내부 여백 md. */
+.app-card {
+  background: var(--color-bg);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: var(--space-md);
 }

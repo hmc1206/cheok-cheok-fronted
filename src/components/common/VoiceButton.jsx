@@ -14,14 +14,12 @@ export function VoiceButton({ status = 'idle', onPress }) {
       disabled={status === 'processing'}
       aria-label="음성 비서 시작"
       data-status={status}
-      className="rounded-full"
+      className="voice-button rounded-full"
       style={{
         width: 'var(--voice-button-size)',
         height: 'var(--voice-button-size)',
-        background: 'var(--color-primary)',
-        color: 'var(--color-primary-contrast)',
-        fontSize: 'var(--font-size-lg)',
-        border: 'none',
+        fontSize: 'var(--text-body-lg)',
+        fontWeight: 600,
       }}
     >
       {STATUS_LABEL[status]}

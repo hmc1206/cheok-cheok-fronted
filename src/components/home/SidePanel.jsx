@@ -8,45 +8,46 @@ export function SidePanel({ isOpen, onClose, history }) {
           AppFrame 내부 div에 transform이 걸려 있어 fixed가 브라우저 전체가 아니라
           393x852 프레임 기준으로 잡힌다(다른 화면의 CaptionOverlay와 동일한 원리). */}
       {isOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/40"
-          onClick={onClose}
-          role="presentation"
-        />
+        <div className="fixed inset-0 z-40 bg-black/40" onClick={onClose} role="presentation" />
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-[78%] max-w-[300px] flex-col gap-4 overflow-y-auto bg-white p-5 shadow-xl transition-transform duration-300 ease-out ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-[78%] max-w-[300px] flex-col gap-4 overflow-y-auto p-5 transition-transform duration-300 ease-out ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
+        style={{ background: 'var(--color-bg)', boxShadow: 'var(--shadow-card)' }}
         aria-hidden={!isOpen}
       >
         <div className="flex items-center justify-between">
-          <h2 style={{ fontSize: 'var(--font-size-lg)', fontWeight: 700 }}>메뉴</h2>
+          <h2 style={{ fontSize: 'var(--text-title)', fontWeight: 700, color: 'var(--color-text)' }}>
+            메뉴
+          </h2>
+          {/* 56px 최소 터치 영역 — 노인 사용자가 오터치 없이 닫기 버튼을 누를 수 있게. */}
           <button
             type="button"
             onClick={onClose}
             aria-label="메뉴 닫기"
-            className="text-2xl leading-none"
-            style={{ color: 'var(--color-text-muted)' }}
+            className="flex items-center justify-center"
+            style={{ width: 56, height: 56, fontSize: 'var(--text-title)', color: 'var(--color-gray)' }}
           >
             ×
           </button>
         </div>
 
         {/* ASSUMPTION: 알람 설정 화면 자체는 아직 없어서, 이번 스코프에선 진입
-            버튼 자리만 만들어둔다(추후 실제 설정 화면과 연결). */}
-        <button type="button" className="quick-action-button w-full text-left">
+            버튼 자리만 만들어둔다(추후 실제 설정 화면과 연결). 세컨더리 버튼
+            스타일(.quick-action-button)을 그대로 써서 앱 전체 버튼 톤과 통일. */}
+        <button type="button" className="quick-action-button w-full">
           알람 설정
         </button>
 
         <div className="flex flex-col gap-2">
-          <h3 style={{ fontSize: 'var(--font-size-base)', color: 'var(--color-text-muted)' }}>
-            히스토리
-          </h3>
+          <h3 style={{ fontSize: 'var(--text-body)', color: 'var(--color-gray)' }}>히스토리</h3>
 
           {history.length === 0 && (
-            <p style={{ color: 'var(--color-text-muted)' }}>아직 대화 기록이 없어요.</p>
+            <p style={{ fontSize: 'var(--text-body)', color: 'var(--color-gray)' }}>
+              아직 대화 기록이 없어요.
+            </p>
           )}
 
           <ul className="flex flex-col gap-3">
@@ -55,10 +56,12 @@ export function SidePanel({ isOpen, onClose, history }) {
               <li
                 key={entry.id}
                 className="flex flex-col gap-1 border-b pb-2"
-                style={{ borderColor: 'var(--color-border)' }}
+                style={{ borderColor: 'var(--color-gray-light)' }}
               >
-                <p style={{ fontWeight: 700 }}>{entry.question}</p>
-                <p style={{ color: 'var(--color-text-muted)' }}>{entry.answer}</p>
+                <p style={{ fontSize: 'var(--text-body)', fontWeight: 700, color: 'var(--color-text)' }}>
+                  {entry.question}
+                </p>
+                <p style={{ fontSize: 'var(--text-body)', color: 'var(--color-gray)' }}>{entry.answer}</p>
               </li>
             ))}
           </ul>
