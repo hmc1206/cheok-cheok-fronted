@@ -1,7 +1,6 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AppFrame } from '../components/common/AppFrame'
-import { PrimaryButton } from '../components/common/Button'
 import { useAuthStore } from '../store/authStore'
 
 // 백엔드의 구글 로그인 진입점은 REST API(/api/...)가 아니라 Spring Security가
@@ -11,10 +10,6 @@ const GOOGLE_LOGIN_URL = `${new URL(import.meta.env.VITE_API_BASE_URL).origin}/o
 
 // 첫 진입 화면(랜딩/스플래시 성격). 앱처럼 보이도록 AppFrame(393x852 고정 프레임)으로
 // 감싸고, "척척" 타이틀이 슬라이드업된 뒤 서브타이틀이 이어서 나타난다.
-//
-// 디자인 개편(feature/fe-redesign): 실제 로고 에셋이 없어서(브리프: "No Apple logo,
-// no borrowed brand marks") "척척" 텍스트를 로고 대신 그대로 쓴다. API 호출/인증
-// 로직은 기존 그대로이고, 시각적 스타일만 새 토큰 기준으로 바꿨다.
 export function LoginPage() {
   const navigate = useNavigate()
   const token = useAuthStore((state) => state.token)
@@ -41,40 +36,28 @@ export function LoginPage() {
 
   return (
     <AppFrame>
-      <main
-        className="flex h-full flex-col items-center justify-between px-6 py-16"
-        style={{ background: 'var(--color-bg)' }}
-      >
-        <div className="flex flex-1 flex-col items-center justify-center gap-3">
-          {/* 로고 placeholder: 실제 로고 에셋이 없어 "척척" 텍스트를 그대로 쓴다
-              (브리프 컴포넌트 규칙). 타이포 스케일에서 "splash/login headline"으로
-              --text-hero(32px)를 명시적으로 지정해뒀다. */}
-          <h1
-            className="chuck-title-animate"
-            style={{ fontSize: 'var(--text-hero)', fontWeight: 700, color: 'var(--color-primary)' }}
-          >
+      <main className="flex flex-col items-center justify-between h-full bg-white px-6 py-16">
+        <div className="flex flex-1 flex-col items-center justify-center gap-2">
+          {/* 타이틀: 굵게(800), 서브타이틀: 상대적으로 얇게(500) — 의미에 따른 굵기 구분 */}
+          <h1 className="chuck-title-animate" style={{ fontSize: '48px', fontWeight: 800, color: '#000000' }}>
             척척
           </h1>
-          {/* 서브타이틀: 본문 크기(18px, 색은 --color-gray)로 타이틀보다 한 단계
-              낮춰서 "제목이 주인공, 설명은 보조"라는 위계를 그대로 유지한다. */}
+          {/* 타이포그래피 위계: 타이틀은 순검정, 서브타이틀은 --color-text-muted로 톤을
+              한 단계 낮춰 "제목이 주인공, 설명은 보조"라는 위계를 색으로도 드러낸다. */}
           <p
             className="chuck-subtitle-animate"
-            style={{ fontSize: 'var(--text-body)', fontWeight: 500, color: 'var(--color-gray)' }}
+            style={{ fontSize: '16px', fontWeight: 500, color: 'var(--color-text-muted)' }}
           >
             뭐든지 척척 알려주는 AI 비서
           </p>
         </div>
 
-        <div className="flex w-full flex-col gap-3">
-          {/* 메인 액션(Primary button): 이 화면에서 사용자가 하길 바라는 단 하나의
-              행동이라 accent 컬러로 채운 pill 버튼을 쓴다. */}
-          <PrimaryButton onClick={handleGoogleLogin} className="w-full">
+        <div className="flex w-full flex-col gap-2">
+          <button type="button" onClick={handleGoogleLogin} className="quick-action-button w-full">
             구글 계정으로 로그인
-          </PrimaryButton>
+          </button>
 
-          {/* 개발 모드 전용: 배포 빌드에는 포함되지 않는다. 메인 액션이 아니라
-              세컨더리(고스트) 버튼 톤으로 둬서 "진짜 로그인 버튼"과 시각적으로
-              구분되게 한다. */}
+          {/* 개발 모드 전용: 배포 빌드에는 포함되지 않는다 */}
           {import.meta.env.DEV && (
             <button type="button" onClick={handleDevBypass} className="quick-action-button w-full">
               (개발용) 로그인 건너뛰기
