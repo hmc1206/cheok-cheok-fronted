@@ -12,21 +12,41 @@ export function useSTT() {
 
   const isSupported = Boolean(SpeechRecognitionImpl)
 
-  const listenWithSpeechRecognition = useCallback(() => {
+  const listenWithSpeechRecognition = useCallback((onInterim) => {
     return new Promise((resolve, reject) => {
       const recognition = new SpeechRecognitionImpl()
       recognition.lang = 'ko-KR'
-      recognition.interimResults = false
+      recognition.interimResults = true
       recognition.maxAlternatives = 1
       recognitionRef.current = recognition
+      let hasFinalResult = false
 
       recognition.onstart = () => setIsListening(true)
       recognition.onresult = (event) => {
-        const text = event.results[0]?.[0]?.transcript ?? ''
-        resolve({ text })
+        let finalizedText = ''
+        let interimText = ''
+
+        for (let index = 0; index < event.results.length; index += 1) {
+          const text = event.results[index]?.[0]?.transcript ?? ''
+          if (event.results[index].isFinal) {
+            finalizedText += text
+          } else {
+            interimText += text
+          }
+        }
+
+        const caption = `${finalizedText} ${interimText}`.trim()
+        if (caption) onInterim?.(caption)
+        if (finalizedText) {
+          hasFinalResult = true
+          resolve({ text: finalizedText.trim() })
+        }
       }
       recognition.onerror = (event) => reject(event.error)
-      recognition.onend = () => setIsListening(false)
+      recognition.onend = () => {
+        setIsListening(false)
+        if (!hasFinalResult) reject(new Error('speech-recognition-stopped'))
+      }
 
       recognition.start()
     })
@@ -67,7 +87,7 @@ export function useSTT() {
   }, [])
 
   const start = useCallback(
-    () => (isSupported ? listenWithSpeechRecognition() : listenWithMediaRecorder()),
+    ({ onInterim } = {}) => (isSupported ? listenWithSpeechRecognition(onInterim) : listenWithMediaRecorder()),
     [isSupported, listenWithSpeechRecognition, listenWithMediaRecorder],
   )
 

@@ -1,168 +1,198 @@
+/** Design reminder — a calm blue mobile home with a single helpful voice action. */
 import { useEffect, useRef, useState } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
-import { usageApi } from '../api/usageApi'
 import { AppFrame } from '../components/common/AppFrame'
-import { IconChipButton } from '../components/common/Button'
-import { Card } from '../components/common/Card'
-import { CaptionOverlay } from '../components/common/CaptionOverlay'
-import { HamburgerMenuButton } from '../components/common/HamburgerMenuButton'
-import { VoiceButton } from '../components/common/VoiceButton'
+import { MicIcon } from '../components/common/icons'
 import { SidePanel } from '../components/home/SidePanel'
 import { useVoiceAssistant } from '../hooks/useVoiceAssistant'
+import { useMicrophoneLevel } from '../hooks/useMicrophoneLevel'
 
-// 로그인 이후 진입하는 메인 화면 (기획서 4-1장).
-// 디자인 개편(feature/fe-redesign): 반투명 유리(glassmorphism) 버튼 시스템을
-// 걷어내고, 브리프의 flat 디자인(단일 accent 컬러, 카드 외엔 그림자 없음)으로
-// 다시 짰다. 기존 기능(햄버거 메뉴, 음성 비서, 3개 바로가기)은 하나도 빼지 않고
-// 그대로 유지 — 레이아웃/톤만 바뀐다.
-//
-// 후속 요청("현재 이용 상태" 카드 추가 등): 세로로 쌓인 카드형 박스 레이아웃으로
-// 재구성 — 마이크 버튼/3개 바로가기/이용 상태를 각각 독립된 카드로 감싼다.
 const NAV_ITEMS = [
-  { label: '길 찾기', path: '/map', Icon: MapIcon },
-  { label: '기차예매', path: '/train', Icon: TrainIcon },
-  { label: '키오스크 도움', path: '/kiosk', Icon: KioskIcon },
+  { id: 'map', label: '길 찾기', sub: '목적지까지 편하게', path: '/map', Icon: MapIcon },
+  { id: 'train', label: '기차 예매', sub: '출발과 도착 확인', path: '/train', Icon: TrainIcon },
+  { id: 'kiosk', label: '키오스크', sub: '화면을 보며 따라하기', path: '/kiosk', Icon: KioskIcon },
+  { id: 'youtube', label: '영상 도움', sub: '보고 싶은 영상 찾기', path: '/youtube', Icon: YoutubeIcon },
+  { id: 'history', label: '도움 기록', sub: '이전 질문 다시 보기', Icon: HistoryIcon },
+  { id: 'voice', label: '말로 질문', sub: '바로 음성으로 물어보기', Icon: VoiceIcon },
 ]
 
 export function HomeScreen() {
   const navigate = useNavigate()
-  // startListening은 더 이상 여기서 쓰지 않는다 — 마이크 버튼이 이제 /chat으로
-  // 이동만 시키고, 실제 음성 인식은 그 페이지에서 자동으로 시작된다.
-  const { status, sttCaption, ttsCaption } = useVoiceAssistant()
+  const { status, sttCaption, ttsCaption, outcome, startListening, cancelListening, sendText } = useVoiceAssistant()
+  const microphoneLevel = useMicrophoneLevel(status === 'listening')
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [history, setHistory] = useState([])
+  const [isTranscriptEditing, setIsTranscriptEditing] = useState(false)
+  const [transcriptDraft, setTranscriptDraft] = useState('')
+  const [isMoreOpen, setIsMoreOpen] = useState(false)
+  const reducedMotion = useReducedMotion()
+  const isTranscribing = status === 'listening' || status === 'processing'
+  const showTranscriptSurface = isTranscribing || isTranscriptEditing
+  const isVoiceSuccess = status === 'idle' && outcome === 'success' && Boolean(ttsCaption)
+  const voiceTitle = status === 'listening' ? '말씀을 듣고 있어요' : status === 'processing' ? '내용을 확인하고 있어요' : '말로 도움 요청하기'
+  const voiceCaption = status === 'listening'
+    ? sttCaption || '필요한 일을 편하게 말씀해 주세요.'
+    : status === 'processing'
+      ? sttCaption || '알맞은 도움을 찾고 있어요.'
+      : ttsCaption || '말씀으로 도움을 요청하세요.'
+  const transcriptHeadline = sttCaption || (status === 'listening' ? '말씀하시는 내용을 받아쓰고 있어요.' : '말씀하신 내용을 확인하고 있어요.')
 
-  // "현재 이용 상태" 카드에 쓸 남은 무료 이용 횟수. null이면 아직 응답을 못 받은
-  // 상태(로딩 중)라 카드에 "확인 중..."을 보여준다. usageApi.js 주석 참고 —
-  // API 명세서에 없는 값이라 지금은 mock으로 채워진다.
-  const [remainingFreeUsage, setRemainingFreeUsage] = useState(null)
-
-  useEffect(() => {
-    let cancelled = false
-    usageApi.getUsageStatus().then((data) => {
-      if (!cancelled) setRemainingFreeUsage(data.remainingFreeUsage)
-    })
-    return () => {
-      cancelled = true
+  const handleVoiceRequest = () => {
+    setIsTranscriptEditing(false)
+    setTranscriptDraft('')
+    startListening()
+  }
+  const handleTranscriptEdit = () => {
+    const draft = sttCaption || transcriptDraft
+    if (isTranscribing) cancelListening()
+    setTranscriptDraft(draft)
+    setIsTranscriptEditing(true)
+  }
+  const handleTranscriptCancel = () => {
+    cancelListening()
+    setTranscriptDraft('')
+    setIsTranscriptEditing(false)
+  }
+  const handleTranscriptSubmit = () => {
+    const text = transcriptDraft.trim()
+    if (!text) return
+    setIsTranscriptEditing(false)
+    sendText(text)
+  }
+  const handleFeatureSelect = (item) => {
+    if (item.id === 'history') {
+      setIsDrawerOpen(true)
+      return
     }
-  }, [])
+    if (item.id === 'voice') {
+      handleVoiceRequest()
+      return
+    }
+    navigate(item.path)
+  }
+  const visibleItems = isMoreOpen ? NAV_ITEMS : NAV_ITEMS.slice(0, 4)
 
-  // sttCaption의 "그때그때 최신값"을 ref에 미러링해둔다. 렌더마다 대입만 하므로
-  // effect 의존성에 넣지 않고도 아래 effect에서 항상 최신 질문 텍스트를 읽을 수 있다.
   const latestSttCaptionRef = useRef(sttCaption)
   latestSttCaptionRef.current = sttCaption
-
-  // 새 답변(ttsCaption)이 들어올 때만 히스토리에 한 쌍을 추가한다. sttCaption을
-  // 의존성에 넣으면, 질문이 막 인식된 시점(응답이 오기 전, ttsCaption은 아직 이전
-  // 값)에도 effect가 돌아 "새 질문 + 이전 답변"이 잘못 짝지어 기록되므로,
-  // ttsCaption 하나만 트리거로 두고 sttCaption은 ref로 그 시점 값만 꺼내 쓴다.
   useEffect(() => {
     if (!ttsCaption) return
-    setHistory((prev) => [
-      ...prev,
-      { id: Date.now(), question: latestSttCaptionRef.current, answer: ttsCaption },
-    ])
-  }, [ttsCaption])
+    setHistory((previous) => [...previous, {
+      id: Date.now(), createdAt: new Date().toISOString(), question: latestSttCaptionRef.current, answer: ttsCaption, outcome,
+    }])
+  }, [ttsCaption, outcome])
 
   return (
-    // AppFrame이 393x852로 고정하므로, 여기서는 실제 뷰포트 높이(min-h-dvh) 대신
-    // 프레임이 준 100%(h-full)를 채운다.
     <AppFrame>
-      {/* 카드가 여러 개 쌓이면 852px 높이를 넘을 수 있어 세로 스크롤을 허용한다
-          (다른 화면들의 overflow-y-auto 패턴과 동일). */}
-      <main
-        className="relative flex h-full flex-col overflow-y-auto"
-        style={{ background: 'var(--color-bg)' }}
-      >
-        {/* 좌측 상단 고정 메뉴 버튼. 채팅 페이지에서도 똑같은 버튼이 필요해
-            공용 컴포넌트(HamburgerMenuButton.jsx)로 뺐다 — 스타일/동작은 이전과 동일. */}
-        <HamburgerMenuButton onClick={() => setIsDrawerOpen(true)} />
+      <main className={`salad-home salad-home--reference flex h-full min-h-0 flex-col ${isMoreOpen ? 'overflow-y-auto' : 'overflow-hidden'}`}>
+        <header className="salad-home__nav flex h-[64px] shrink-0 items-center justify-between px-5">
+          <div className="flex items-center gap-2">
+            <span className="salad-home__mark flex h-8 w-8 items-center justify-center rounded-[10px]">
+              <img src="/manus-storage/cheok-logo-mark_977663d4.png" alt="" className="h-5 w-5" />
+            </span>
+            <span className="text-[18px] font-bold tracking-[-0.04em]">척척</span>
+          </div>
+          <button type="button" onClick={() => setIsDrawerOpen(true)} className="min-h-12 text-[15px] font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3182f6]">
+            도움 기록
+          </button>
+        </header>
 
-        {/* 피드백 반영: 인사말+말하기 버튼+카드 2개를 하나의 세로 스택으로 묶고,
-            margin: auto 0으로 "화면보다 작으면 수직 중앙 정렬, 넘치면 자동으로
-            위 정렬 + 스크롤"을 CSS만으로 구현했다 — flex 컨테이너의 auto 마진은
-            남는 공간을 흡수해 중앙 정렬처럼 보이지만, 콘텐츠가 부모(overflow-y-auto인
-            main)보다 커지면 auto 마진이 0으로 수렴해 자연스럽게 위쪽부터 스크롤된다
-            (JS로 높이를 재는 방식 없이 순수 CSS로 처리). 섹션 간 간격도 기존
-            16px(gap-4)에서 --space-md(24px, 1.5배)로 넉넉하게 늘렸다. */}
-        <div
-          className="flex w-full flex-col px-6 py-6"
-          style={{ margin: 'auto 0', gap: 'var(--space-md)' }}
-        >
-          {/* 인사말. 화면 타이틀 급(--text-title, 26px/700)으로 키워서 첫 시선이
-              여기 먼저 가게 한다 — "무엇"만 accent 컬러로 포인트. */}
-          <div className="text-center">
-            <p
-              className="home-greeting-line-1"
-              style={{ fontSize: 'var(--text-title)', fontWeight: 700, color: 'var(--color-text)' }}
-            >
-              안녕하세요?
-            </p>
-            <p
-              className="home-greeting-line-2"
-              style={{ fontSize: 'var(--text-title)', fontWeight: 700, color: 'var(--color-text)' }}
-            >
-              <span style={{ color: 'var(--color-primary)' }}>무엇</span>을 도와드릴까요?
-            </p>
+        <section className={`salad-home__content flex flex-col px-5 pb-5 pt-4 ${isMoreOpen ? 'min-h-[calc(100%-64px)] flex-none' : 'min-h-0 flex-1'}`}>
+          <AnimatePresence mode="wait" initial={!reducedMotion}>
+            {showTranscriptSurface ? (
+              <motion.div
+                key="transcript"
+                initial={reducedMotion ? false : { opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={reducedMotion ? undefined : { opacity: 0, y: -6 }}
+                transition={{ duration: 0.2 }}
+                className="salad-home__intro salad-home__intro--transcript"
+              >
+                <div className="flex items-center justify-between">
+                  <p className="text-[14px] font-bold">{isTranscriptEditing ? '내용 수정' : '말씀하신 내용'}</p>
+                  {isTranscribing ? <button type="button" onClick={handleTranscriptCancel} className="text-[14px] font-bold">취소</button> : null}
+                </div>
+                {isTranscriptEditing ? (
+                  <textarea autoFocus value={transcriptDraft} onChange={(event) => setTranscriptDraft(event.target.value)} aria-label="받아쓴 음성 문장 수정" className="mt-2 w-full resize-none bg-transparent text-[22px] font-bold leading-8 tracking-[-0.055em] outline-none" />
+                ) : (
+                  <button type="button" onClick={handleTranscriptEdit} className="mt-2 w-full text-left text-[22px] font-bold leading-8 tracking-[-0.055em]">{transcriptHeadline}</button>
+                )}
+                <div className="mt-2 flex justify-between gap-3">
+                  {isTranscriptEditing ? (
+                    <button type="button" onClick={handleTranscriptSubmit} disabled={!transcriptDraft.trim()} className="salad-home__text-submit ml-auto min-h-10 px-4 text-[14px] font-bold text-white disabled:opacity-40">보내기</button>
+                  ) : <p className="text-[14px] font-medium">문장을 누르면 직접 수정할 수 있어요.</p>}
+                </div>
+              </motion.div>
+            ) : (
+              <motion.section
+                key="greeting"
+                initial={reducedMotion ? false : { opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={reducedMotion ? undefined : { opacity: 0, y: -6 }}
+                transition={{ duration: 0.2 }}
+                className="salad-home__greeting"
+              >
+                <p>안녕하세요</p>
+                <h1>오늘 필요한 일을<br />도와드릴게요.</h1>
+              </motion.section>
+            )}
+          </AnimatePresence>
+
+          <motion.button
+            type="button"
+            onClick={handleVoiceRequest}
+            disabled={status === 'processing'}
+            data-state={status}
+            data-success={isVoiceSuccess ? 'true' : 'false'}
+            whileTap={reducedMotion || status === 'processing' ? undefined : { scale: 0.985 }}
+            className="salad-home__voice salad-home__voice--reference relative mt-4 flex shrink-0 items-center overflow-hidden text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3182f6]"
+            style={{ '--voice-level': microphoneLevel }}
+          >
+            <div className="relative z-10">
+              <p className="text-[21px] font-bold tracking-[-0.055em]">{voiceTitle}</p>
+              <p className="mt-2 text-[15px] font-medium leading-6">{voiceCaption}</p>
+            </div>
+            <span className="salad-home__mic salad-home__mic--reference relative z-10 ml-auto flex shrink-0 items-center justify-center rounded-full text-white">
+              <span className="salad-home__audio-ring" aria-hidden="true" />
+              <MicIcon size={38} />
+            </span>
+          </motion.button>
+
+          <div className="mt-5 flex shrink-0 items-center justify-between">
+            <p className="text-[16px] font-bold tracking-[-0.045em]">원하는 도움을 골라보세요</p>
+            <span className="text-[13px] font-medium">6가지 기능</span>
           </div>
 
-          {/* 마이크 카드: 화면의 메인 액션이라 흰 카드가 아니라 accent 컬러로 채운
-              박스로 구분했다. VoiceButton은 다른 화면에서도 재사용하는 공용
-              컴포넌트라 여기서 새로 만들지 않고 그대로 가져다 썼다(모양만 원형에서
-              둥근 박스로 바뀜 — VoiceButton.jsx 참고).
-              새 요청: 이 자리에서 바로 듣기 시작하는 대신 채팅 페이지(/chat)로
-              이동시킨다 — 실제 음성 인식은 그 페이지 진입 시 자동으로 시작된다
-              (ChatScreen.jsx 참고). status는 항상 idle로 남아 "눌러서 말하기"만
-              보이지만, 클릭 즉시 페이지가 전환되어 실제로 보이는 시간은 없다. */}
-          <VoiceButton status={status} onPress={() => navigate('/chat')} />
-
-          {/* 바로가기 카드: 길찾기/기차예매/키오스크 도움 3개 버튼을 유지하되, 흰
-              카드 하나로 감싸 다른 카드들과 톤을 맞췄다. 피드백 반영: 흰 배경이
-              페이지 배경(흰색)에 묻혀 보인다는 지적이라 nav-icons-card 클래스로
-              연한 그린 보더 + hover 시 살짝 떠오르는 효과를 추가했다(index.css 참고).
-              아이콘 뒤 민트색 원형 배경(--color-secondary)은 요청대로 그대로 둔다. */}
-          <Card className="nav-icons-card flex justify-center gap-6">
-            {NAV_ITEMS.map(({ label, path, Icon }) => (
-              <div key={path} className="flex flex-col items-center gap-2">
-                {/* 72px — 공용 최소 규격(56px)보다 조금 키워서 3개뿐인 주요
-                    바로가기가 카드 안에서 눈에 잘 띄게 했다. */}
-                <IconChipButton onClick={() => navigate(path)} size={72} ariaLabel={label}>
-                  <Icon />
-                </IconChipButton>
-                <span style={{ fontSize: 'var(--text-caption)', color: 'var(--color-text)' }}>
-                  {label}
+          <nav className={`salad-home__services salad-home__services--reference mt-3 grid grid-cols-2 gap-3 ${isMoreOpen ? 'salad-home__services--expanded shrink-0' : 'min-h-0 flex-1'}`} aria-label="주요 기능">
+            {visibleItems.map((item, index) => (
+              <motion.button
+                type="button"
+                key={item.id}
+                onClick={() => handleFeatureSelect(item)}
+                whileTap={reducedMotion ? undefined : { scale: 0.98 }}
+                initial={isMoreOpen && index >= 4 && !reducedMotion ? { opacity: 0, y: 22 } : false}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.28, delay: isMoreOpen && index >= 4 ? (index - 4) * 0.08 : 0, ease: [0.23, 1, 0.32, 1] }}
+                className="salad-home__service salad-home__service--reference flex min-h-0 flex-col items-start justify-between text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3182f6]"
+              >
+                <span className="salad-home__service-icon flex items-center justify-center"><item.Icon /></span>
+                <span>
+                  <span className="block text-[18px] font-bold tracking-[-0.055em]">{item.label}</span>
+                  <span className="mt-1 block text-[13px] font-medium leading-5">{item.sub}</span>
                 </span>
-              </div>
+              </motion.button>
             ))}
-          </Card>
-
-          {/* "현재 이용 상태" 카드. remainingFreeUsage는 usageApi.js를 통해 가져오는데,
-              실제 API 명세서에 이 데이터가 정의돼 있지 않아 지금은 mock 값이다
-              (usageApi.js 주석 참고) — 절대 이 컴포넌트 안에서 숫자를 하드코딩하지
-              않고, API 응답 값을 그대로 표시한다. 피드백 반영: usage-status-card
-              클래스로 옅은 배경(--color-bg-alt 재사용) + 왼쪽 accent 보더를 추가해
-              "깔끔하지만 포인트 있는" 느낌을 냈다(index.css 참고). */}
-          <Card className="usage-status-card flex flex-col gap-1">
-            <h2 style={{ fontSize: 'var(--text-heading)', fontWeight: 600, color: 'var(--color-text)' }}>
-              현재 이용 상태
-            </h2>
-            <p style={{ fontSize: 'var(--text-body)', color: 'var(--color-text)' }}>
-              {remainingFreeUsage === null
-                ? '확인 중...'
-                : `이번 달 무료 이용 ${remainingFreeUsage}회 남았어요`}
-            </p>
-            <button
-              type="button"
-              onClick={() => navigate('/usage-limit')}
-              className="mt-1 self-start"
-              style={{ fontSize: 'var(--text-caption)', color: 'var(--color-gray)' }}
-            >
-              이용한도 확인하기
-            </button>
-          </Card>
-        </div>
-
-        <CaptionOverlay sttCaption={sttCaption} ttsCaption={ttsCaption} />
+          </nav>
+          <button
+            type="button"
+            aria-expanded={isMoreOpen}
+            onClick={() => setIsMoreOpen((value) => !value)}
+            className="salad-home__more-button mt-2 flex h-9 shrink-0 w-full items-center justify-center gap-1 text-[14px] font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3182f6]"
+          >
+            <span>{isMoreOpen ? '접기' : '2개 기능 더보기'}</span>
+            <span aria-hidden="true">{isMoreOpen ? '⌃' : '⌄'}</span>
+          </button>
+        </section>
 
         <SidePanel isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} history={history} />
       </main>
@@ -170,33 +200,9 @@ export function HomeScreen() {
   )
 }
 
-// 아래 아이콘들은 새 의존성을 추가하지 않기 위해 직접 그린 최소한의 선 아이콘이다
-// (stroke=currentColor라 버튼의 글자색을 그대로 물려받는다). 햄버거 메뉴 아이콘은
-// HamburgerMenuButton.jsx로 옮겨져서 여기서는 제거했다.
-
-function MapIcon() {
-  return (
-    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M9 20 3.6 17.7A1 1 0 0 1 3 16.8V5.2a1 1 0 0 1 1.4-.9L9 6.5m0 13.5 6-3m-6 3v-13.5m6 13.5 4.6 2.3a1 1 0 0 0 1.4-.9V6.8a1 1 0 0 0-.6-.9L15 3.5m0 13.5v-13.5m0 0L9 6.5" />
-    </svg>
-  )
-}
-
-function TrainIcon() {
-  return (
-    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="5" y="3" width="14" height="12" rx="4" />
-      <path d="M5 11h14M9 19l-2 3M15 19l2 3M9.5 7h.01M14.5 7h.01" />
-    </svg>
-  )
-}
-
-function KioskIcon() {
-  return (
-    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="5" y="2" width="14" height="18" rx="2" />
-      <rect x="8.5" y="5.5" width="7" height="6" rx="0.5" />
-      <path d="M9 17h6" />
-    </svg>
-  )
-}
+function MapIcon() { return <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 20 3.6 17.7A1 1 0 0 1 3 16.8V5.2a1 1 0 0 1 1.4-.9L9 6.5m0 13.5 6-3m-6 3v-13.5m6 13.5 4.6 2.3a1 1 0 0 0 1.4-.9V6.8a1 1 0 0 0-.6-.9L15 3.5m0 13.5v-13.5m0 0L9 6.5" /></svg> }
+function TrainIcon() { return <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="12" rx="4" /><path d="M5 11h14M9 19l-2 3M15 19l2 3M9.5 7h.01M14.5 7h.01" /></svg> }
+function KioskIcon() { return <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="5" y="2" width="14" height="18" rx="2" /><rect x="8.5" y="5.5" width="7" height="6" rx="0.5" /><path d="M9 17h6" /></svg> }
+function YoutubeIcon() { return <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="4" /><path d="m10 9 5 3-5 3V9Z" fill="currentColor" stroke="none" /></svg> }
+function HistoryIcon() { return <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7" /><path d="M3 4v5h5M12 7v5l3.3 2" /></svg> }
+function VoiceIcon() { return <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="15" rx="3" /><path d="M8 9h8M8 13h5M17.5 16.5v-3M16 15h3a1.5 1.5 0 1 1-3 0Z" /></svg> }

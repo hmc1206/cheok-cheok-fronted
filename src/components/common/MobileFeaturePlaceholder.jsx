@@ -1,0 +1,7 @@
+/** Design reminder — an unavailable tool still occupies a clear channel in the control board. */
+import { AppFrame } from './AppFrame'
+import { MobileHeader } from './MobileHeader'
+
+export function MobileFeaturePlaceholder({ title, eyebrow, description, tip, onBack, icon }) {
+  return <AppFrame><main className="control-placeholder flex h-full min-h-0 flex-col overflow-hidden bg-[var(--cb-cream)]"><MobileHeader title={title} onBack={onBack} /><section className="flex flex-1 flex-col px-5 pb-6 pt-7"><p className="text-[12px] font-extrabold tracking-[0.16em] text-[var(--cb-teal)]">{eyebrow}</p><h1 className="mt-3 text-[36px] font-extrabold leading-[1.06] tracking-[-0.08em]">{title}</h1><p className="mt-4 text-[18px] font-medium leading-7 tracking-[-0.045em] text-[var(--cb-slate)]">{description}</p><div className="control-placeholder__signal mt-auto px-5 py-6"><span className="flex h-14 w-14 items-center justify-center bg-[var(--cb-gold)] text-[var(--cb-navy)]">{icon}</span><p className="mt-6 text-[12px] font-extrabold tracking-[0.16em] text-[var(--cb-tomato)]">COMING NEXT</p><p className="mt-2 text-[23px] font-extrabold tracking-[-0.06em]">준비 중인 기능이에요</p><p className="mt-3 text-[16px] font-medium leading-6 tracking-[-0.04em] text-[var(--cb-slate)]">{tip}</p></div></section><footer className="border-t-2 border-[var(--cb-navy)] bg-[var(--cb-cream-2)] px-5 py-4 text-[14px] font-bold leading-5 tracking-[-0.04em]">다른 도움이 필요하면 아래 기능을 선택해 주세요.</footer></main></AppFrame>
+}

@@ -27,9 +27,7 @@ async function refreshAccessToken() {
   return response.data.token
 }
 
-// API 명세서 v2.0 2장 공통 에러 응답: { success: false, error: { code, message }, ttsText }.
-// error.code가 실제 에러코드 위치이고(errorCode처럼 최상위에 있지 않음), MapRouteScreen.jsx
-// 등 나머지 화면들도 전부 error.response.data.error.code로 읽는다 — 여기만 어긋나 있었다.
+// 가이드북 "공통 에러" 섹션: { errorCode, message, ttsText } 포맷을 공통으로 처리.
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -37,7 +35,7 @@ apiClient.interceptors.response.use(
     const payload = error.response?.data
     const originalRequest = error.config
 
-    if (status === 409 && payload?.error?.code === 'SESSION_EXPIRED') {
+    if (status === 409 && payload?.errorCode === 'SESSION_EXPIRED') {
       useVoiceSessionStore.getState().resetSession()
 
       // ASSUMPTION: 인터셉터는 React 트리 밖에서 실행되어 useTTS 훅을 쓸 수 없으므로,

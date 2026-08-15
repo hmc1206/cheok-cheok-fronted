@@ -1,10 +1,15 @@
-// TODO(feature/fe-train-booking): 기획서 4-3장 TrainBookingScreen 구현 예정.
-// core 브랜치에서는 라우팅이 끊기지 않도록 최소 placeholder만 둔다.
+/** Design reminder — train booking uses the same stage system with a different data arrangement. */
+import { useEffect, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { AppFrame } from '../components/common/AppFrame'
+import { MobileHeader } from '../components/common/MobileHeader'
+import { SeniorInput } from '../components/ui/SeniorInput'
+import { resolveTrainAutofill } from '../lib/voiceAutofill'
+import { useVoiceSessionStore } from '../store/voiceSessionStore'
+
 export function TrainBookingScreen() {
-  return (
-    <main className="p-6">
-      <h1 style={{ fontSize: 'var(--font-size-xl)' }}>기차 예매</h1>
-      <p>준비 중입니다.</p>
-    </main>
-  )
+  const navigate = useNavigate(); const location = useLocation(); const voiceSlots = useVoiceSessionStore((state) => state.slots); const voiceData = useVoiceSessionStore((state) => state.data); const voiceTranscript = useVoiceSessionStore((state) => state.transcript)
+  const [departure, setDeparture] = useState(''); const [arrival, setArrival] = useState(''); const [travelDate, setTravelDate] = useState(''); const [voicePrefillNotice, setVoicePrefillNotice] = useState('')
+  useEffect(() => { const voiceState = location.state ?? {}; const autofill = resolveTrainAutofill({ slots: voiceState.slots ?? voiceSlots, data: voiceState.data ?? voiceData, transcript: voiceState.transcript ?? voiceTranscript }); if (autofill.departure) setDeparture((current) => current || autofill.departure); if (autofill.arrival) setArrival((current) => current || autofill.arrival); if (autofill.travelDate) setTravelDate((current) => current || autofill.travelDate); if (autofill.departure || autofill.arrival || autofill.travelDate) setVoicePrefillNotice('음성으로 말씀하신 내용을 입력했어요. 예매 전에 확인해 주세요.') }, [location.state, voiceData, voiceSlots, voiceTranscript])
+  return <AppFrame><main className="control-form-screen flex h-full min-h-0 flex-col overflow-hidden bg-[var(--cb-cream)]"><MobileHeader title="기차 예매" onBack={() => navigate('/home')} /><div className="control-progress grid grid-cols-3"><div className="is-current"><span>01</span><strong>입력</strong></div><div><span>02</span><strong>확인</strong></div><div><span>03</span><strong>예매</strong></div></div><form onSubmit={(event) => event.preventDefault()} className="flex min-h-0 flex-1 flex-col"><section className="px-5 pb-4 pt-5"><p className="text-[12px] font-extrabold tracking-[0.16em] text-[var(--cb-tomato)]">기차 조종</p><h1 className="mt-2 text-[30px] font-extrabold leading-[1.06] tracking-[-0.08em]">어디로<br />가시나요?</h1></section><section className="control-form-screen__body flex-1 px-5 py-4">{voicePrefillNotice ? <p className="control-notice mb-4">{voicePrefillNotice}</p> : null}<div className="control-number-field"><span>01</span><SeniorInput id="train-departure" label="출발지" value={departure} onChange={(event) => setDeparture(event.target.value)} placeholder="예: 서울역" /></div><div className="control-number-field mt-5"><span>02</span><SeniorInput id="train-arrival" label="도착지" value={arrival} onChange={(event) => setArrival(event.target.value)} placeholder="예: 부산역" /></div><div className="control-number-field mt-5"><span>03</span><SeniorInput id="train-date" label="가는 날" value={travelDate} onChange={(event) => setTravelDate(event.target.value)} placeholder="예: 내일 또는 10월 5일" /></div></section><footer className="control-form-screen__hint shrink-0 px-5 py-4"><span>다음 단계</span><p>입력 내용을 바탕으로 예매 단계를 이어갑니다.</p></footer></form></main></AppFrame>
 }
