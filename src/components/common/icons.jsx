@@ -21,3 +21,22 @@ export function MicIcon({ size = 28 }) {
     </svg>
   )
 }
+
+// 음성 파형(waveform) 아이콘. 채팅 페이지 하단 입력바에서 마이크 아이콘과 나란히
+// 쓴다 — 높이가 서로 다른 막대 5개로 "소리"를 표현하는 흔한 관례적 형태.
+export function WaveformIcon({ size = 24 }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      aria-hidden="true"
+    >
+      <path d="M3 12v0M7 8v8M11 4v16M15 8v8M19 12v0" />
+    </svg>
+  )
+}

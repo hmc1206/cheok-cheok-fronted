@@ -1,48 +1,100 @@
 /*
- * 디자인 토큰 (CSS 변수) — 임시값 placeholder.
- * 디자이너 파일이 나오면 이 파일의 값만 교체하면 되고, 컴포넌트 코드는 건드릴 필요가 없다.
- * (기획서 0장 · 가이드북 4장 "테마: CSS 변수 기반 고대비 토글" 기준)
+ * 디자인 토큰 (CSS 변수) — 척척 전체 디자인 개편(feature/fe-redesign) 기준.
+ * "노인 사용자를 위한 절제된(Apple 웹 스타일) 디자인" 브리프의 정확한 값을 그대로 옮겼다.
+ * 컬러는 accent(--color-primary) 단 하나만 쓰고, 본문 텍스트는 16px 밑으로 내려가지
+ * 않는다 — 저시력 사용자 배려. 컴포넌트 코드는 이 파일의 var(--token-name)만 참조하고
+ * 하드코딩된 hex/px 값을 쓰지 않는다.
  */
 :root {
-  /* color */
+  /* ---- 1. Colors ---- */
+  --color-text: #092635;
+
+  /* 유일한 인터랙션/클릭 유도 컬러. 다른 색을 "여기 눌러주세요" 신호로 쓰지 않는다. */
+  --color-primary: #146456;
+  --color-primary-pressed: #0f4c41; /* :active 상태, base보다 ~15% 어둡게 */
+  --color-primary-contrast: #ffffff; /* primary 배경 위 텍스트/아이콘 색 */
+
+  /* 아이콘 뒤 배경 칩, 은은한 강조 표면 전용 — 텍스트 색이나 CTA로는 절대 쓰지 않는다. */
+  --color-secondary: #9ec8b9;
+
   --color-bg: #ffffff;
-  --color-surface: #f5f5f5;
-  --color-text: #1a1a1a;
-  --color-text-muted: #5a5a5a;
-  --color-primary: #2f6fed;
-  --color-primary-contrast: #ffffff;
-  --color-border: #d9d9d9;
-  --color-danger: #d92d20;
+  --color-bg-alt: #f5f7f6; /* secondary를 아주 옅게 탄 톤. 섹션 구분을 테두리 대신 배경색 전환으로 표현 */
 
-  /* typography — 노인 사용자 접근성 고려해 기본값을 크게 잡음 */
-  --font-size-base: 18px;
-  --font-size-lg: 24px;
-  --font-size-xl: 32px;
+  --color-gray: #7d7d7d; /* 보조/비활성 텍스트 */
+  --color-gray-light: #e3e3e3; /* 헤어라인 테두리, 구분선 */
 
-  /* spacing */
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 16px;
-  --space-4: 24px;
-  --space-5: 32px;
+  /* 브리프에는 없지만, 기존 기능(길찾기 필드 에러 등)이 계속 동작하려면 상태 표시용
+     색이 최소 1개 필요하다 — "클릭 유도 accent"가 아니라 "경고/오류 상태" 용도라
+     "accent는 하나만" 원칙과 상충하지 않는다고 판단해 별도 토큰으로 추가했다. */
+  --color-danger: #c0392b;
 
-  /* misc */
-  --radius-base: 8px;
-  --voice-button-size: 160px;
+  /* ---- 2. Typography — Pretendard 전용 ---- */
+  --font-family: 'Pretendard', system-ui, sans-serif;
+
+  --text-hero: 32px; /* weight 700, 스플래시/로그인 헤드라인 */
+  --text-title: 26px; /* weight 700, 화면 타이틀 */
+  --text-heading: 22px; /* weight 600, 섹션 헤더 */
+  --text-body-lg: 20px; /* weight 500, 주요 액션 라벨/핵심 콘텐츠 */
+  --text-body: 18px; /* weight 400, 기본 본문 — 콘텐츠는 이보다 작아지지 않음 */
+  --text-caption: 16px; /* weight 400, 보조/메타 텍스트 — 앱에서 허용하는 최소 크기 */
+
+  --line-height-tight: 1.2; /* 헤드라인 */
+  --line-height-normal: 1.5; /* 본문 */
+
+  /* ---- 3. Spacing (8px 기준) ---- */
+  --space-xs: 8px;
+  --space-sm: 16px;
+  --space-md: 24px;
+  --space-lg: 32px;
+  --space-xl: 48px;
+  --space-section: 64px;
+
+  /* ---- 4. Radius ---- */
+  --radius-sm: 8px; /* 작은 칩, 인라인 태그 */
+  --radius-md: 16px; /* 버튼, 입력창 */
+  --radius-lg: 24px; /* 카드 */
+  --radius-pill: 999px; /* 메인 CTA 버튼 전용 — 필(pill) 모양 자체가 "이게 주요 액션" 신호 */
+
+  /* ---- 5. Elevation — Apple처럼 그림자는 최소한으로만 ---- */
+  --shadow-card: 0 2px 12px rgba(9, 38, 53, 0.06); /* 카드에만 사용 */
+  --shadow-none: none; /* 버튼/텍스트/내비게이션은 기본적으로 플랫 */
+
+  /* ---- 기타(브리프 범위 밖, 기존 기능 유지를 위한 보조 토큰) ---- */
+  --voice-button-size: 160px; /* 마이크 버튼은 화면의 메인 액션이라 IconChip(56px)보다 훨씬 크게 유지 */
   --focus-ring: 3px solid var(--color-primary);
+
+  /* 홈 화면 바로가기 카드(nav-icons-card)의 연한 테두리색. --color-primary와 같은
+     RGB를 그대로 쓰고 투명도만 낮췄다(CSS 변수는 자체적으로 alpha를 섞을 수 없어
+     별도 토큰으로 뺐다) — 라이트/고대비 테마 모두에서 accent와 같은 색 계열을
+     유지하려고 테마별로 다시 정의한다. */
+  --color-primary-soft-border: rgba(20, 100, 86, 0.15);
 }
 
 /*
  * 고대비 테마 — themeStore.highContrast가 true일 때 ThemeProvider가
  * document.documentElement의 data-theme 속성을 "high-contrast"로 바꿔 적용된다.
- * 실제 색상값은 디자이너 파일 적용 시 확정, 지금은 접근성 최소 기준의 임시값만 넣는다.
+ * 새 팔레트로 넘어와도 이 토글 기능 자체는 계속 동작해야 하므로, 같은 토큰 이름으로
+ * 고대비용 값만 다시 정의한다.
  */
 :root[data-theme='high-contrast'] {
   --color-bg: #000000;
-  --color-surface: #111111;
+  --color-bg-alt: #111111;
   --color-text: #ffffff;
-  --color-text-muted: #e0e0e0;
+  --color-gray: #e0e0e0;
+  --color-gray-light: #ffffff;
   --color-primary: #ffd60a;
+  --color-primary-pressed: #e0bd00;
   --color-primary-contrast: #000000;
-  --color-border: #ffffff;
+  --color-secondary: #4d5d55;
+
+  /* 라이트 테마의 --shadow-card(어두운 rgba 그림자)는 검은 배경 위에서는 거의
+     안 보인다. 다크(고대비) 테마에서는 그림자 대신 옅은 흰색 테두리로 카드가
+     "떠 보이는" 느낌을 낸다(요청사항: "다크 테마에서는 그림자보다 미세한
+     테두리나 밝기 대비로 표현"). */
+  --shadow-card: 0 0 0 1px rgba(255, 255, 255, 0.14);
+
+  /* --color-primary가 고대비 테마에서 초록(#146456)이 아니라 노랑(#ffd60a)이라,
+     --color-primary-soft-border도 같은 노랑 RGB(255,214,10)로 다시 정의해야
+     팔레트가 어긋나지 않는다. */
+  --color-primary-soft-border: rgba(255, 214, 10, 0.25);
 }
