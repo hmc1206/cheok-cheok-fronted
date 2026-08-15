@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { notificationApi } from '../api/notificationApi'
 import { settingsApi } from '../api/settingsApi'
 import { AppFrame } from '../components/common/AppFrame'
-import { BottomTabBar } from '../components/common/BottomTabBar'
 import { Card } from '../components/common/Card'
+import { ChevronLeftIcon } from '../components/common/icons'
 import { ToggleSwitch } from '../components/common/ToggleSwitch'
 
 // 햄버거 메뉴("설정")에서 진입하는 설정 화면. 요구사항 문서 2번(설정 화면) 기준으로
@@ -12,10 +12,14 @@ import { ToggleSwitch } from '../components/common/ToggleSwitch'
 // 처리방침)은 후속 요청으로 통째로 삭제했다 — PrivacyPolicyScreen.jsx/그 라우트도
 // 더 이상 어디서도 연결되지 않아 같이 삭제했다(App.jsx 참고).
 //
-// 하단 탭바(홈/이용 상태/설정): 이 앱은 원래 햄버거+사이드패널 내비게이션만 쓰고
-// 있었는데, 요구사항 문서가 이 화면 전용으로 하단 탭바를 명시적으로 요청했다.
-// 앱 전체 내비게이션을 바꾸는 건 이번 작업 범위 밖이라(사용자 확인 완료) 새
-// 컴포넌트(BottomTabBar.jsx)를 만들어 이 화면에서만 마운트했다.
+// 상단 뒤로가기 버튼: 이 화면은 원래 하단 탭바(홈/이용 상태/설정, BottomTabBar.jsx)
+// 로 내비게이션했는데, 후속 요청으로 탭바를 완전히 제거하고 다른 화면들
+// (구독 신청, 허용 앱 편집 등)과 같은 상단 "<" 뒤로가기 버튼 패턴으로 통일했다
+// (사용자 확인). navigate(-1)을 써서 "설정 진입 직전 화면"으로 돌아가게 한다 —
+// 햄버거 패널에서 들어왔든 어디서 들어왔든 항상 정확히 원래 있던 곳으로
+// 돌아간다(고정된 '/home'이 아니라 브라우저 히스토리 기반). 탭바는 이제 이
+// 화면 하나만 쓰고 있어서(다른 화면 영향 없음) BottomTabBar.jsx 컴포넌트 자체도
+// 완전히 안 쓰는 코드가 되어 같이 삭제했다.
 //
 // 데이터: "보호자 모니터링"/"허용 앱·사이트 관리" row는 설명 텍스트 + 이동 버튼일
 // 뿐이라 별도 API가 필요 없다. "음성 안내/민감 행동 확인 알림/광고 시청 알림" 3개
@@ -63,16 +67,24 @@ export function SettingsScreen() {
 
   return (
     <AppFrame>
-      <main
-        className="relative flex h-full flex-col overflow-y-auto"
-        style={{ background: 'var(--color-bg)' }}
-      >
-        {/* 하단 탭바(64px)에 콘텐츠가 가리지 않도록, 스크롤 영역 자체에 여유
-            패딩을 준다 — 다른 화면들의 px-6 py-16 관례에 맞추되 아래쪽만 늘림. */}
-        <div className="flex flex-col gap-6 px-6 pb-24 pt-16">
-          <h1 style={{ fontSize: 'var(--text-title)', fontWeight: 700, color: 'var(--color-text)' }}>
-            설정
-          </h1>
+      <main className="flex h-full flex-col overflow-y-auto" style={{ background: 'var(--color-bg)' }}>
+        <div className="flex flex-col gap-6 px-6 pb-10 pt-6">
+          {/* 다른 화면들(구독 신청, 허용 앱 편집 등)과 동일한 상단 뒤로가기 패턴.
+              navigate(-1)이라 "/settings로 들어오기 직전 화면"으로 정확히 돌아간다. */}
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              aria-label="뒤로 가기"
+              className="flex items-center justify-center"
+              style={{ width: 44, height: 44, color: 'var(--color-text)' }}
+            >
+              <ChevronLeftIcon />
+            </button>
+            <h1 style={{ fontSize: 'var(--text-title)', fontWeight: 700, color: 'var(--color-text)' }}>
+              설정
+            </h1>
+          </div>
 
           <SettingsSection title="보호 및 안전">
             <Card className="flex flex-col">
@@ -148,8 +160,6 @@ export function SettingsScreen() {
             </Card>
           </SettingsSection>
         </div>
-
-        <BottomTabBar />
       </main>
     </AppFrame>
   )

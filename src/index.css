@@ -73,31 +73,27 @@ button {
   cursor: pointer;
 }
 
-/* 전역 커스텀 스크롤바 — 브라우저 기본 스크롤바(보통 15~17px)가 이 앱의 스크롤
-   영역(설정/홈 등 overflow-y-auto 화면)에서 너무 두껍고 눈에 띈다는 피드백 반영.
-   두께는 6px로 확정(사용자 확인). 스크롤바 "썸(thumb) 길이"는 브라우저가 콘텐츠
-   비율로 자동 계산하는 값이라 CSS로 직접 짧게 고정할 수 없어서, 두께/색만 옅게
-   낮춰 시각적으로 덜 두드러지게 하는 방식으로 처리했다.
-   - Firefox: scrollbar-width/scrollbar-color로 지원.
-   - Chrome/Safari/Edge(webkit 계열): ::-webkit-scrollbar 계열 의사요소로 지원.
-   전역 * 선택자에 걸어서 앱 안 모든 스크롤 영역에 동일하게 적용한다. */
+/* 전역 스크롤바 숨김 — 1차로 6px 두께의 커스텀 스크롤바(scrollbar-width: thin +
+   ::-webkit-scrollbar 6px)를 시도했으나, 재요청 시점에 다시 확인해보니 코드 자체는
+   문제없이 전역(* 선택자)에 들어가 있었다(충돌하는 다른 규칙도 없었음) — 즉 CSS
+   버그가 아니라, 이 세션 내내 켜둔 dev server + 재사용된 브라우저 탭 때문에 변경
+   전 CSS를 보고 있었을 가능성이 컸다. 그리고 "썸(thumb) 길이"는 애초에 브라우저가
+   콘텐츠 비율로 자동 계산하는 값이라 두께를 아무리 줄여도 CSS만으로는 "짧게"
+   고정할 수 없는 근본적 한계가 있었다. 그래서 두께를 더 조정하는 대신 스크롤 자체
+   (터치/휠 스크롤, 앵커 이동)는 그대로 두고 스크롤바만 시각적으로 완전히 숨기는
+   방식으로 바꿨다(사용자 확인) — 어떤 브라우저/화면 크기에서도 "두껍다/길다"는
+   지적이 원천적으로 재발하지 않는다.
+   - Firefox: scrollbar-width: none.
+   - IE/구형 Edge: -ms-overflow-style: none (혹시 모를 폴백, 실질적으로는 영향 없음).
+   - Chrome/Safari/신 Edge(webkit 계열): ::-webkit-scrollbar { display: none }.
+   전역 * 선택자에 걸어서 앱 안 모든 스크롤 영역(설정 화면 포함)에 동일하게 적용한다. */
 * {
-  scrollbar-width: thin;
-  scrollbar-color: var(--color-gray-light) transparent;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 *::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-*::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-*::-webkit-scrollbar-thumb {
-  background-color: var(--color-gray-light);
-  border-radius: var(--radius-pill);
+  display: none;
 }
 
 /* 세컨더리(고스트) 버튼 — 디자인 브리프의 "Secondary/ghost button" 규칙을 그대로 적용:

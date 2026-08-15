@@ -47,20 +47,21 @@ export function SubscriptionScreen() {
         style={{ background: 'var(--color-bg)' }}
       >
         <div className="flex flex-col gap-6 px-6 pb-10 pt-6">
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => navigate(-1)}
-              aria-label="뒤로 가기"
-              className="flex items-center justify-center"
-              style={{ width: 44, height: 44, color: 'var(--color-text)' }}
-            >
-              <ChevronLeftIcon />
-            </button>
-            <h1 style={{ fontSize: 'var(--text-title)', fontWeight: 700, color: 'var(--color-text)' }}>
-              구독 신청 화면
-            </h1>
-          </div>
+          {/* 후속 요청: "구독 신청 화면" 타이틀 텍스트를 없애고, 뒤로가기 버튼
+              바로 아래에 "월 구독 신청" 소제목이 오도록 구조를 바꿨다 — 뒤로가기
+              버튼만 남기고(다른 화면들과 같은 44px 아이콘 버튼), 원래 타이틀
+              자리에 있던 h1을 삭제했다. 그 아래 섹션(h2 "월 구독 신청")은
+              DOM 순서상 원래도 바로 다음 형제였어서 위치 이동 없이 자연스럽게
+              최상단으로 올라온다. */}
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            aria-label="뒤로 가기"
+            className="flex items-center justify-center"
+            style={{ width: 44, height: 44, color: 'var(--color-text)' }}
+          >
+            <ChevronLeftIcon />
+          </button>
 
           <section className="flex flex-col gap-1">
             <h2 style={{ fontSize: 'var(--text-heading)', fontWeight: 600, color: 'var(--color-text)' }}>
