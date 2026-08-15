@@ -5,6 +5,7 @@ import { AppFrame } from '../components/common/AppFrame'
 import { IconChipButton } from '../components/common/Button'
 import { Card } from '../components/common/Card'
 import { CaptionOverlay } from '../components/common/CaptionOverlay'
+import { HamburgerMenuButton } from '../components/common/HamburgerMenuButton'
 import { VoiceButton } from '../components/common/VoiceButton'
 import { SidePanel } from '../components/home/SidePanel'
 import { useVoiceAssistant } from '../hooks/useVoiceAssistant'
@@ -25,7 +26,9 @@ const NAV_ITEMS = [
 
 export function HomeScreen() {
   const navigate = useNavigate()
-  const { status, sttCaption, ttsCaption, startListening } = useVoiceAssistant()
+  // startListening은 더 이상 여기서 쓰지 않는다 — 마이크 버튼이 이제 /chat으로
+  // 이동만 시키고, 실제 음성 인식은 그 페이지에서 자동으로 시작된다.
+  const { status, sttCaption, ttsCaption } = useVoiceAssistant()
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [history, setHistory] = useState([])
 
@@ -71,27 +74,9 @@ export function HomeScreen() {
         className="relative flex h-full flex-col overflow-y-auto"
         style={{ background: 'var(--color-bg)' }}
       >
-        {/* 좌측 상단 고정 메뉴 버튼. 요청사항: 초록 배경 칩을 없애고 아이콘만 남기되,
-            클릭 영역은 접근성 때문에 44px 이상 유지해야 해서 IconChipButton(배경 있는
-            칩 스타일) 대신 배경/테두리/그림자 없는 순수 버튼을 쓴다 — 보이는 아이콘은
-            22px지만 버튼 자체 크기(44px)만큼 보이지 않는 padding으로 클릭 영역을
-            넓혀뒀다. onClick/aria-label 등 기능은 그대로. */}
-        <button
-          type="button"
-          onClick={() => setIsDrawerOpen(true)}
-          aria-label="메뉴 열기"
-          className="absolute left-4 top-4 z-20 flex items-center justify-center"
-          style={{
-            width: 44,
-            height: 44,
-            background: 'transparent',
-            border: 'none',
-            boxShadow: 'none',
-            color: 'var(--color-text)',
-          }}
-        >
-          <MenuIcon />
-        </button>
+        {/* 좌측 상단 고정 메뉴 버튼. 채팅 페이지에서도 똑같은 버튼이 필요해
+            공용 컴포넌트(HamburgerMenuButton.jsx)로 뺐다 — 스타일/동작은 이전과 동일. */}
+        <HamburgerMenuButton onClick={() => setIsDrawerOpen(true)} />
 
         {/* 피드백 반영: 인사말+말하기 버튼+카드 2개를 하나의 세로 스택으로 묶고,
             margin: auto 0으로 "화면보다 작으면 수직 중앙 정렬, 넘치면 자동으로
@@ -124,10 +109,12 @@ export function HomeScreen() {
           {/* 마이크 카드: 화면의 메인 액션이라 흰 카드가 아니라 accent 컬러로 채운
               박스로 구분했다. VoiceButton은 다른 화면에서도 재사용하는 공용
               컴포넌트라 여기서 새로 만들지 않고 그대로 가져다 썼다(모양만 원형에서
-              둥근 박스로 바뀜 — VoiceButton.jsx 참고, 클릭/상태 로직은 불변).
-              상태 텍스트("눌러서 말하기" 등)는 이제 박스 바깥이 아니라 VoiceButton
-              내부에 아이콘과 함께 표시되므로, 여기서 따로 캡션을 그리지 않는다. */}
-          <VoiceButton status={status} onPress={startListening} />
+              둥근 박스로 바뀜 — VoiceButton.jsx 참고).
+              새 요청: 이 자리에서 바로 듣기 시작하는 대신 채팅 페이지(/chat)로
+              이동시킨다 — 실제 음성 인식은 그 페이지 진입 시 자동으로 시작된다
+              (ChatScreen.jsx 참고). status는 항상 idle로 남아 "눌러서 말하기"만
+              보이지만, 클릭 즉시 페이지가 전환되어 실제로 보이는 시간은 없다. */}
+          <VoiceButton status={status} onPress={() => navigate('/chat')} />
 
           {/* 바로가기 카드: 길찾기/기차예매/키오스크 도움 3개 버튼을 유지하되, 흰
               카드 하나로 감싸 다른 카드들과 톤을 맞췄다. 피드백 반영: 흰 배경이
@@ -184,15 +171,8 @@ export function HomeScreen() {
 }
 
 // 아래 아이콘들은 새 의존성을 추가하지 않기 위해 직접 그린 최소한의 선 아이콘이다
-// (stroke=currentColor라 버튼의 글자색을 그대로 물려받는다).
-
-function MenuIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-      <path d="M4 6h16M4 12h16M4 18h16" />
-    </svg>
-  )
-}
+// (stroke=currentColor라 버튼의 글자색을 그대로 물려받는다). 햄버거 메뉴 아이콘은
+// HamburgerMenuButton.jsx로 옮겨져서 여기서는 제거했다.
 
 function MapIcon() {
   return (
