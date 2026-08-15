@@ -2,6 +2,7 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { ThemeProvider } from './components/common/ThemeProvider'
 import { AuthCallbackScreen } from './screens/AuthCallbackScreen'
 import { HomeScreen } from './screens/HomeScreen'
+import { KioskCaptureScreen } from './screens/KioskCaptureScreen'
 import { KioskLiveScreen } from './screens/KioskLiveScreen'
 import { LoginPage } from './screens/LoginPage'
 import { MapRouteScreen } from './screens/MapRouteScreen'
@@ -29,7 +30,11 @@ function App() {
           <Route path="/home" element={<HomeScreen />} />
           <Route path="/map" element={<MapRouteScreen />} />
           <Route path="/train" element={<TrainBookingScreen />} />
-          <Route path="/kiosk" element={<KioskLiveScreen />} />
+          {/* 메가커피 전용 "촬영 기반" 새 키오스크 안내 화면(이번 작업 범위).
+              기존 실시간 연속 인식 화면(맘스터치 포함)은 /kiosk-legacy에 그대로 남겨,
+              맘스터치 코드/기능을 건드리지 않으면서도 계속 테스트할 수 있게 했다. */}
+          <Route path="/kiosk" element={<KioskCaptureScreen />} />
+          <Route path="/kiosk-legacy" element={<KioskLiveScreen />} />
           <Route path="/youtube" element={<YoutubePlayerScreen />} />
           <Route path="/auth/callback" element={<AuthCallbackScreen />} />
         </Routes>
