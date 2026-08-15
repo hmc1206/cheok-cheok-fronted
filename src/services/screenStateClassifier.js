@@ -18,6 +18,33 @@ import { fuzzyIncludes, normalizeText } from './textMatch'
  * @property {number} weight - 이 키워드가 발견됐을 때 더해지는 점수(가중치)
  */
 
+// 두 정규화 문자열의 길이 비율이 이 값보다 작으면(=한쪽이 훨씬 짧으면) fuzzyIncludes의
+// "포함" 판정을 매칭으로 인정하지 않는다.
+const MIN_LENGTH_RATIO_FOR_MATCH = 0.5
+
+/**
+ * services/textMatch.js의 fuzzyIncludes(공용 - 기존 실시간 엔진도 그대로 사용 중이라
+ * 수정하지 않는다)는 "짧은 문자열이 긴 문자열에 포함되는지"만 본다. 이 프로젝트의
+ * 상태 판별 키워드에는 "신용카드를 투입구에 끝까지 넣으시고"처럼 아주 긴 문장이 있는데,
+ * 그 안에 "신용카드"라는 흔한 단어가 우연히 통째로 포함되어 있으면 fuzzyIncludes가
+ * "매칭"으로 보고 전혀 다른 화면과 잘못 연결되는 문제가 실제로 있었다(테스트로 확인).
+ * 그래서 여기서는 fuzzyIncludes 결과에 "두 문자열 길이가 어느 정도 비슷할 때만 인정"하는
+ * 가드를 한 겹 더 씌운다. "결제하기"/"결제 하기"처럼 원래 의도한 오인식 흡수는 길이가
+ * 비슷하므로 계속 통과하고, "신용카드" vs 15자짜리 문장처럼 길이 차이가 큰 우연한 포함만
+ * 걸러진다.
+ * @param {string} normalizedText
+ * @param {string} normalizedKeyword
+ */
+export function isReasonableMatch(normalizedText, normalizedKeyword) {
+  if (!fuzzyIncludes(normalizedText, normalizedKeyword)) return false
+
+  const shorterLength = Math.min(normalizedText.length, normalizedKeyword.length)
+  const longerLength = Math.max(normalizedText.length, normalizedKeyword.length)
+  if (longerLength === 0) return false
+
+  return shorterLength / longerLength >= MIN_LENGTH_RATIO_FOR_MATCH
+}
+
 /**
  * @param {Array<{text: string}>} words - OCR로 인식된 단어 목록(하나의 촬영 이미지 전체)
  * @param {Record<string, StateKeyword[]>} stateKeywordMap - 상태값 -> 키워드 배열
@@ -39,8 +66,9 @@ export function classifyScreenState(words, stateKeywordMap, threshold) {
 
     for (const keyword of keywords) {
       const normalizedKeyword = normalizeText(keyword.text)
-      // OCR 오인식(공백/특수문자/대소문자 차이)을 흡수하기 위해 정규화 후 fuzzy 매칭한다.
-      const isMatched = normalizedTexts.some((text) => fuzzyIncludes(text, normalizedKeyword))
+      // OCR 오인식(공백/특수문자/대소문자 차이)을 흡수하기 위해 정규화 후 fuzzy 매칭하되,
+      // 길이가 크게 다른 우연한 포함은 매칭으로 인정하지 않는다(위 isReasonableMatch 참고).
+      const isMatched = normalizedTexts.some((text) => isReasonableMatch(text, normalizedKeyword))
 
       if (isMatched) {
         matchedKeywords.push(keyword.text)

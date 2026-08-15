@@ -14,6 +14,7 @@ export function InstructionPanel({
   onNextCapture,
   onSameCaptureNext,
   onExit,
+  warningMessage,
 }) {
   const progressPercent = totalSteps > 0 ? Math.round(((stepIndex + 1) / totalSteps) * 100) : 0
   const isFirstStep = stepIndex <= 0
@@ -61,6 +62,14 @@ export function InstructionPanel({
       <div className="w-full bg-neutral-800 h-2 rounded-full overflow-hidden">
         <div className="bg-yellow-400 h-full transition-all duration-300 ease-out" style={{ width: `${progressPercent}%` }} />
       </div>
+
+      {/* 맘스터치 STEP6처럼 브랜드/스텝별 검증 결과 경고가 있을 때만 표시(예: 목표와
+          다른 버거가 선택된 것 같을 때). data 파일에서 계산한 문구를 그대로 받아 보여준다. */}
+      {warningMessage && (
+        <div className="bg-red-500/15 border-2 border-red-400 rounded-xl px-3 py-2 text-red-200 text-sm font-bold leading-snug">
+          ⚠️ {warningMessage}
+        </div>
+      )}
 
       {/* 핵심 안내 문구 - 고령자도 읽기 쉽게 크게 */}
       <div className="flex-1 flex flex-col justify-center gap-2 min-h-0">

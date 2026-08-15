@@ -19,7 +19,38 @@
  * - 스탬프 화면: "스탬프 적립" + 010- 숫자 키패드 + "적립" 버튼
  * - CJ ONE 화면: "CJ ONE 포인트를 적립하시겠습니까?" + 예/아니요
  * - 일회용품 화면: "일회용품 필요여부를 선택(체크)해주세요" + 4개 체크박스 + "선택완료"
+ *
+ * 브랜드 자동판별(메가커피/맘스터치 공용 카메라 화면) 도입으로 이 파일에도
+ * MEGA_BRAND_KEYWORDS(브랜드 판별용)와 각 스텝의 brand 필드가 추가됐다. 화면 상태
+ * 판별(MEGA_STATE_KEYWORDS)과는 목적이 다른 별도 키워드 세트이니 혼동하지 말 것.
  */
+
+import { KIOSK_BRAND } from '../types/kiosk'
+
+// ─────────────────────────────────────────────────────────────────────────
+// 브랜드 판별용 키워드 (recognition/detectKioskBrand.js에서 사용)
+// ─────────────────────────────────────────────────────────────────────────
+
+/**
+ * 메가커피 "브랜드"를 판별하는 키워드. 화면 상태(START/MENU/...)와 무관하게, 촬영 이미지
+ * 아무 곳에서나 이 단어들이 보이면 메가커피 키오스크라는 신호로 쓴다.
+ * 고유 브랜드명(로고 문구)은 높은 가중치, 다른 브랜드와 겹칠 수 있는 일반 단어는
+ * 낮은 가중치를 준다(요구사항: 결제하기/주문담기/세트 등 공통 단어로 확정 금지).
+ */
+export const MEGA_BRAND_KEYWORDS = [
+  { text: '메가엠지씨커피', weight: 0.4 },
+  { text: '메가MGC커피', weight: 0.4 },
+  { text: 'MEGA MGC COFFEE', weight: 0.4 },
+  { text: 'MEGA COFFEE', weight: 0.35 },
+  { text: 'LANGUAGE', weight: 0.08 },
+  { text: '신메뉴', weight: 0.06 },
+  { text: '추천메뉴', weight: 0.06 },
+  { text: '디카페인', weight: 0.08 },
+  { text: '장바구니 조회', weight: 0.1 },
+  { text: '주문담기', weight: 0.05 },
+  { text: '메가쿠폰', weight: 0.08 },
+  { text: '스탬프 적립', weight: 0.08 },
+]
 
 // ─────────────────────────────────────────────────────────────────────────
 // 화면 상태(state) 정의
@@ -179,7 +210,7 @@ function keywordTexts(state) {
 // ─────────────────────────────────────────────────────────────────────────
 
 /** @type {MegaFlowStep[]} */
-export const MEGA_FLOW_STEPS = [
+const MEGA_FLOW_STEPS_RAW = [
   // STEP 1. 주문 시작
   {
     id: 'step-1-start',
@@ -340,6 +371,11 @@ export const MEGA_FLOW_STEPS = [
     ],
   },
 ]
+
+// 각 스텝에 brand 필드를 부여한다(공용 KioskFlowStep 타입 - 브랜드 자동판별 도입으로 추가됨).
+// 배열 리터럴 안의 12개 객체를 일일이 고치는 대신 여기서 한 번에 부여해 실수를 줄인다.
+/** @type {import('../types/kiosk').KioskFlowStep[]} */
+export const MEGA_FLOW_STEPS = MEGA_FLOW_STEPS_RAW.map((step) => ({ ...step, brand: KIOSK_BRAND.MEGA }))
 
 /** flow에서 id로 스텝을 찾는다. */
 export function getMegaFlowStep(stepId) {
