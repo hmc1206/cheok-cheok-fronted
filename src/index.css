@@ -73,6 +73,33 @@ button {
   cursor: pointer;
 }
 
+/* 전역 커스텀 스크롤바 — 브라우저 기본 스크롤바(보통 15~17px)가 이 앱의 스크롤
+   영역(설정/홈 등 overflow-y-auto 화면)에서 너무 두껍고 눈에 띈다는 피드백 반영.
+   두께는 6px로 확정(사용자 확인). 스크롤바 "썸(thumb) 길이"는 브라우저가 콘텐츠
+   비율로 자동 계산하는 값이라 CSS로 직접 짧게 고정할 수 없어서, 두께/색만 옅게
+   낮춰 시각적으로 덜 두드러지게 하는 방식으로 처리했다.
+   - Firefox: scrollbar-width/scrollbar-color로 지원.
+   - Chrome/Safari/Edge(webkit 계열): ::-webkit-scrollbar 계열 의사요소로 지원.
+   전역 * 선택자에 걸어서 앱 안 모든 스크롤 영역에 동일하게 적용한다. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-gray-light) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: var(--color-gray-light);
+  border-radius: var(--radius-pill);
+}
+
 /* 세컨더리(고스트) 버튼 — 디자인 브리프의 "Secondary/ghost button" 규칙을 그대로 적용:
    투명 배경 + primary 2px 테두리, 필(pill) 모양, 56px 최소 터치 영역(노인 사용자
    접근성 — 웹 표준 44px보다 크게), 클릭 시 살짝 어두워지며 눌리는 느낌(scale). */

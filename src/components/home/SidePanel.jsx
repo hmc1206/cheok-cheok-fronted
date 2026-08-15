@@ -6,13 +6,14 @@ import { useNavigate } from 'react-router-dom'
 export function SidePanel({ isOpen, onClose, history }) {
   const navigate = useNavigate()
 
-  const handleOpenNotificationSettings = () => {
-    onClose() // 드로어를 닫고 나서 이동 — 뒤로가기로 돌아왔을 때 드로어가 열린 채로 남지 않게.
-    navigate('/notification-settings')
-  }
-
-  // "설정"/"월 구독 신청" 진입 항목. 위 알람 설정 버튼과 같은 이유로 onClose를
-  // 먼저 호출한다.
+  // "설정"/"월 구독 신청" 진입 항목. onClose를 먼저 호출해 드로어를 닫고 나서
+  // 이동한다 — 뒤로가기로 돌아왔을 때 드로어가 열린 채로 남지 않게.
+  //
+  // 원래 여기 "알람 설정"(→ /notification-settings) 버튼이 따로 있었는데, 후속
+  // 요청으로 그 화면의 유일한 토글("전체 알림")을 /settings 화면의 "음성 및 알림"
+  // 섹션 안으로 옮기면서 이 버튼과 /notification-settings 라우트 자체를 없앴다
+  // (SettingsScreen.jsx, App.jsx 참고) — 그래서 여기 더 이상 "알람 설정" 항목이
+  // 없다.
   const handleOpenSettings = () => {
     onClose()
     navigate('/settings')
@@ -55,12 +56,8 @@ export function SidePanel({ isOpen, onClose, history }) {
           </button>
         </div>
 
-        {/* /notification-settings, /settings, /subscription으로 이동 — 셋 다
-            같은 세컨더리 버튼 스타일(.quick-action-button)을 써서 앱 전체 버튼
-            톤과 통일. */}
-        <button type="button" onClick={handleOpenNotificationSettings} className="quick-action-button w-full">
-          알람 설정
-        </button>
+        {/* /settings, /subscription으로 이동 — 둘 다 같은 세컨더리 버튼 스타일
+            (.quick-action-button)을 써서 앱 전체 버튼 톤과 통일. */}
         <button type="button" onClick={handleOpenSettings} className="quick-action-button w-full">
           설정
         </button>

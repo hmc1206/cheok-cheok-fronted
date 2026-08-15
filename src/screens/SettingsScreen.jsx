@@ -1,18 +1,16 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { notificationApi } from '../api/notificationApi'
 import { settingsApi } from '../api/settingsApi'
 import { AppFrame } from '../components/common/AppFrame'
 import { BottomTabBar } from '../components/common/BottomTabBar'
 import { Card } from '../components/common/Card'
 import { ToggleSwitch } from '../components/common/ToggleSwitch'
 
-// package.json의 "version"은 0.0.0(초기값)이라 사용자에게 보여줄 의미 있는 값이
-// 아니다. 요구사항 문서에 나온 예시값("예: 1.0.0")을 그대로 표시용 상수로 쓴다 —
-// 실제 배포 버전 관리 정책이 정해지면 이 상수를 그 값으로 바꾸면 된다.
-const DISPLAY_VERSION = '1.0.0'
-
 // 햄버거 메뉴("설정")에서 진입하는 설정 화면. 요구사항 문서 2번(설정 화면) 기준으로
-// 3개 섹션(보호 및 안전 / 음성 및 알림 / 앱 정보)을 구성한다.
+// 2개 섹션(보호 및 안전 / 음성 및 알림)을 구성한다. "앱 정보" 섹션(버전, 개인정보
+// 처리방침)은 후속 요청으로 통째로 삭제했다 — PrivacyPolicyScreen.jsx/그 라우트도
+// 더 이상 어디서도 연결되지 않아 같이 삭제했다(App.jsx 참고).
 //
 // 하단 탭바(홈/이용 상태/설정): 이 앱은 원래 햄버거+사이드패널 내비게이션만 쓰고
 // 있었는데, 요구사항 문서가 이 화면 전용으로 하단 탭바를 명시적으로 요청했다.
@@ -23,14 +21,24 @@ const DISPLAY_VERSION = '1.0.0'
 // 뿐이라 별도 API가 필요 없다. "음성 안내/민감 행동 확인 알림/광고 시청 알림" 3개
 // 토글은 API 명세서에 없는 기능이라 settingsApi.js의 mock으로 조회/저장한다
 // (사용자 확인: 명세서에 없는 기능은 mock으로 우선 구현).
+//
+// "전체 알림" 토글: 원래 햄버거 패널 "알림 설정"(별도 화면, /notification-settings)
+// 에 있던 유일한 토글이었는데, 후속 요청으로 이 화면의 "음성 및 알림" 섹션 안으로
+// 옮겼다(사용자 확인: 별도 섹션 대신 기존 섹션에 통합). 화면/라우트는 없앴지만
+// 데이터 소스(notificationApi.js, mock 저장 방식)는 그대로 재사용해 기존 토글
+// 상태/저장 로직이 손실되지 않게 했다.
 export function SettingsScreen() {
   const navigate = useNavigate()
   const [settings, setSettings] = useState(null)
+  const [notificationEnabled, setNotificationEnabled] = useState(null)
 
   useEffect(() => {
     let cancelled = false
     settingsApi.getSettings().then((data) => {
       if (!cancelled) setSettings(data)
+    })
+    notificationApi.getSettings().then((data) => {
+      if (!cancelled) setNotificationEnabled(data.enabled)
     })
     return () => {
       cancelled = true
@@ -43,6 +51,14 @@ export function SettingsScreen() {
   const handleToggle = (key) => (nextValue) => {
     setSettings((prev) => ({ ...prev, [key]: nextValue }))
     settingsApi.updateSetting(key, nextValue)
+  }
+
+  // "전체 알림"은 settingsApi가 아니라 notificationApi가 관리하는 별개의 mock
+  // 저장소라 다른 함수로 분리했다 — NotificationSettingsScreen.jsx가 쓰던 것과
+  // 완전히 같은 API 호출이라 저장 형식(enabled)도 그대로다.
+  const handleToggleNotification = (nextEnabled) => {
+    setNotificationEnabled(nextEnabled)
+    notificationApi.updateSettings({ enabled: nextEnabled })
   }
 
   return (
@@ -114,16 +130,20 @@ export function SettingsScreen() {
                   )
                 }
               />
-            </Card>
-          </SettingsSection>
-
-          <SettingsSection title="앱 정보">
-            <Card className="flex flex-col">
-              <SettingsRow label="버전" value={DISPLAY_VERSION} />
               <RowDivider />
+              {/* 햄버거 패널에 있던 "알림 설정" 화면의 유일한 토글("전체 알림")을
+                  옮겨왔다 — 위 3개와 나란히 네 번째 토글로 둔다. */}
               <SettingsRow
-                label="개인정보 처리방침"
-                action={{ label: '보기', onClick: () => navigate('/settings/privacy-policy') }}
+                label="전체 알림"
+                toggle={
+                  notificationEnabled !== null && (
+                    <ToggleSwitch
+                      checked={notificationEnabled}
+                      onChange={handleToggleNotification}
+                      ariaLabel="전체 알림 켜기/끄기"
+                    />
+                  )
+                }
               />
             </Card>
           </SettingsSection>
@@ -173,10 +193,16 @@ function SettingsRow({ label, description, value, toggle, action }) {
       )}
       {toggle}
       {action && (
+        // quick-action-button 기본 폰트 크기(--text-body-lg, 20px)가 이 좁은 row
+        // 버튼("보기"/"편집")엔 너무 커 보인다는 피드백으로 --text-caption(16px)
+        // 으로 줄였다 — 이 앱의 접근성 최소 기준(본문 16px 미만 금지, tokens.css
+        // 참고)에 걸리지 않는 선에서 고를 수 있는 가장 작은 값이라 이걸로 확정
+        // (사용자 확인). 터치 영역(min-height 56px)은 그대로 둬서 접근성은 유지.
         <button
           type="button"
           onClick={action.onClick}
           className="quick-action-button flex-shrink-0 whitespace-nowrap"
+          style={{ fontSize: 'var(--text-caption)' }}
         >
           {action.label}
         </button>
