@@ -11,6 +11,18 @@ export function SidePanel({ isOpen, onClose, history }) {
     navigate('/notification-settings')
   }
 
+  // "설정"/"월 구독 신청" 진입 항목. 위 알람 설정 버튼과 같은 이유로 onClose를
+  // 먼저 호출한다.
+  const handleOpenSettings = () => {
+    onClose()
+    navigate('/settings')
+  }
+
+  const handleOpenSubscription = () => {
+    onClose()
+    navigate('/subscription')
+  }
+
   return (
     <>
       {/* 오버레이: 뒤쪽을 어둡게 덮고, 바깥(오버레이) 클릭 시 닫히게 한다.
@@ -43,10 +55,17 @@ export function SidePanel({ isOpen, onClose, history }) {
           </button>
         </div>
 
-        {/* /notification-settings로 이동 — 세컨더리 버튼 스타일(.quick-action-button)을
-            그대로 써서 앱 전체 버튼 톤과 통일. */}
+        {/* /notification-settings, /settings, /subscription으로 이동 — 셋 다
+            같은 세컨더리 버튼 스타일(.quick-action-button)을 써서 앱 전체 버튼
+            톤과 통일. */}
         <button type="button" onClick={handleOpenNotificationSettings} className="quick-action-button w-full">
           알람 설정
+        </button>
+        <button type="button" onClick={handleOpenSettings} className="quick-action-button w-full">
+          설정
+        </button>
+        <button type="button" onClick={handleOpenSubscription} className="quick-action-button w-full">
+          월 구독 신청
         </button>
 
         <div className="flex flex-col gap-2">

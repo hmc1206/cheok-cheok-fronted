@@ -1,13 +1,18 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { MicPermissionGate } from './components/common/MicPermissionGate'
 import { ThemeProvider } from './components/common/ThemeProvider'
+import { AllowedAppsEditScreen } from './screens/AllowedAppsEditScreen'
 import { AuthCallbackScreen } from './screens/AuthCallbackScreen'
 import { ChatScreen } from './screens/ChatScreen'
+import { GuardianMonitoringScreen } from './screens/GuardianMonitoringScreen'
 import { HomeScreen } from './screens/HomeScreen'
 import { KioskLiveScreen } from './screens/KioskLiveScreen'
 import { LoginPage } from './screens/LoginPage'
 import { MapRouteScreen } from './screens/MapRouteScreen'
 import { NotificationSettingsScreen } from './screens/NotificationSettingsScreen'
+import { PrivacyPolicyScreen } from './screens/PrivacyPolicyScreen'
+import { SettingsScreen } from './screens/SettingsScreen'
+import { SubscriptionScreen } from './screens/SubscriptionScreen'
 import { TrainBookingScreen } from './screens/TrainBookingScreen'
 import { UsageLimitScreen } from './screens/UsageLimitScreen'
 import { YoutubePlayerScreen } from './screens/YoutubePlayerScreen'
@@ -46,6 +51,13 @@ function App() {
           <Route path="/notification-settings" element={<NotificationSettingsScreen />} />
           {/* TODO: 이용 한도 상세 화면 — 아직 기획/디자인 없음, 라우팅 스텁만 연결 */}
           <Route path="/usage-limit" element={<UsageLimitScreen />} />
+          {/* 햄버거 메뉴 "설정"/"월 구독 신청" 진입 화면군 (SidePanel.jsx 참고) */}
+          <Route path="/settings" element={<SettingsScreen />} />
+          <Route path="/settings/allowed-apps" element={<AllowedAppsEditScreen />} />
+          {/* TODO: 실제 보호자 모니터링/개인정보 처리방침 화면·문서 확정 전까지 라우팅 스텁 */}
+          <Route path="/settings/guardian-monitoring" element={<GuardianMonitoringScreen />} />
+          <Route path="/settings/privacy-policy" element={<PrivacyPolicyScreen />} />
+          <Route path="/subscription" element={<SubscriptionScreen />} />
         </Routes>
       </BrowserRouter>
     </ThemeProvider>
