@@ -10,6 +10,7 @@ import { KioskLiveScreen } from './screens/KioskLiveScreen'
 import { LoginPage } from './screens/LoginPage'
 import { MapRouteScreen } from './screens/MapRouteScreen'
 import { SettingsScreen } from './screens/SettingsScreen'
+import { SplashScreen } from './screens/SplashScreen'
 import { SubscriptionScreen } from './screens/SubscriptionScreen'
 import { TrainBookingScreen } from './screens/TrainBookingScreen'
 import { UsageLimitScreen } from './screens/UsageLimitScreen'
@@ -26,6 +27,13 @@ import { YoutubePlayerScreen } from './screens/YoutubePlayerScreen'
 // "/"를 LoginPage로, 로그인 이후 진입하는 실제 홈 화면은 "/home"으로 옮긴다.
 // "/login"은 apiClient 인터셉터 등 기존에 하드코딩된 참조가 있어 같은
 // LoginPage를 가리키는 별칭으로 그대로 남겨둔다.
+//
+// 스플래시 화면 추가: "/"가 LoginPage를 직접 가리키던 걸 SplashScreen으로
+// 바꿨다 — SplashScreen이 일정 시간 후 자체적으로 /login으로 이동시킨다
+// (SplashScreen.jsx 참고). "/login"은 그대로 LoginPage를 가리키므로, 이미
+// 인증된 사용자가 세션 안에서 다시 "/login"에 직접 접근하는 기존 흐름(예:
+// apiClient 401 처리 시 재로그인 유도)은 스플래시를 다시 거치지 않는다 —
+// 스플래시는 "/"(앱의 첫 진입점)에만 있다.
 function App() {
   return (
     <ThemeProvider>
@@ -36,7 +44,7 @@ function App() {
             둘 필요는 없다. */}
         <MicPermissionGate />
         <Routes>
-          <Route path="/" element={<LoginPage />} />
+          <Route path="/" element={<SplashScreen />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/home" element={<HomeScreen />} />
           {/* 홈 화면 "눌러서 말하기" 카드에서 진입하는 음성 채팅 페이지 */}
