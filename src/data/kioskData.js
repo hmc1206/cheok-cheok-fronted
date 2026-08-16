@@ -1,68 +1,159 @@
-export const CATEGORIES = [
-  { id: 'popular', label: '인기메뉴' },
-  { id: 'burger', label: '버거' },
-  { id: 'boneless', label: '순살치킨' },
-  { id: 'boneChicken', label: '뼈치킨' },
-  { id: 'drink', label: '음료' },
-  { id: 'set', label: '세트' },
-  { id: 'side', label: '사이드' },
+const footerHotspots = (y) => [
+  { id: 'home', label: '처음으로', x: 0, y, width: 16.67, height: 100 - y, action: 'HOME' },
+  { id: 'zoom', label: '화면확대', x: 16.67, y, width: 16.66, height: 100 - y, action: 'ACCESS_ZOOM' },
+  { id: 'contrast', label: '고대비', x: 33.33, y, width: 16.67, height: 100 - y, action: 'ACCESS_CONTRAST' },
+  { id: 'low-screen', label: '낮은화면', x: 50, y, width: 16.67, height: 100 - y, action: 'ACCESS_LOW' },
+  { id: 'voice', label: '음성안내', x: 66.67, y, width: 16.66, height: 100 - y, action: 'ACCESS_VOICE' },
+  { id: 'staff', label: '직원호출', x: 83.33, y, width: 16.67, height: 100 - y, action: 'ACCESS_STAFF' },
 ]
 
-export const SET_PRODUCTS = [
-  { name: '모코코 썸머 바캉스세트', price: 22500, tone: 'green' },
-  { name: '스트레스 빠삭세트(순살)', price: 18300, tone: 'gold', badge: 'NEW' },
-  { name: '치버세트', price: 17500, tone: 'orange' },
-  { name: '떡강정세트', price: 10100, tone: 'red', target: true },
-  { name: '매직쫑 싸이버거 싱글세트', price: 22600, tone: 'yellow' },
-  { name: '매직쫑 싸이버거 커플세트', price: 29900, tone: 'amber' },
-  { name: '후덕쪽싱글세트', price: 22100, tone: 'brown' },
-  { name: '후덕쪽커플세트', price: 29700, tone: 'deep-red' },
-]
+export const KIOSK_SCREENS = {
+  1: {
+    width: 941,
+    height: 1672,
+    alt: '맘스터치 키오스크 시작 화면',
+    guide: '주문을 시작하려면 매장 또는 포장 버튼을 눌러주세요.',
+    hotspots: [
+      { id: 'korean', label: '한국어 선택', x: 8.5, y: 70.9, width: 18.8, height: 4.7, action: 'SET_LANGUAGE' },
+      { id: 'english', label: '영어 선택', x: 31.3, y: 70.9, width: 18.8, height: 4.7, action: 'SET_LANGUAGE' },
+      { id: 'chinese', label: '중국어 선택', x: 53.5, y: 70.9, width: 18.8, height: 4.7, action: 'SET_LANGUAGE' },
+      { id: 'japanese', label: '일본어 선택', x: 76.5, y: 70.9, width: 16.5, height: 4.7, action: 'SET_LANGUAGE' },
+      { id: 'dine-in', label: '매장 주문', x: 8.6, y: 83.6, width: 38.8, height: 6.4, action: 'SELECT_DINE_IN' },
+      { id: 'take-out', label: '포장 주문', x: 52.6, y: 83.6, width: 38.8, height: 6.4, action: 'SELECT_TAKE_OUT' },
+      ...footerHotspots(91.7),
+    ],
+  },
+  2: {
+    width: 941,
+    height: 1672,
+    alt: '맘스터치 인기메뉴 화면',
+    guide: '상단의 세트 메뉴를 눌러주세요.',
+    hotspots: [
+      { id: 'set-category', label: '세트 카테고리', x: 30, y: 11, width: 22.5, height: 4.8, action: 'OPEN_SET_CATEGORY' },
+      ...footerHotspots(91.9),
+    ],
+  },
+  3: {
+    width: 941,
+    height: 1672,
+    alt: '맘스터치 세트 메뉴 화면',
+    guide: '떡강정세트를 눌러주세요.',
+    hotspots: [
+      { id: 'back', label: '이전 화면', x: 0, y: 7, width: 7.5, height: 7, action: 'BACK' },
+      { id: 'tteokgangjeong-set', label: '떡강정세트 선택', x: 6.5, y: 35.5, width: 27.5, height: 18.5, action: 'SELECT_TTEOKGANGJEONG_SET' },
+      ...footerHotspots(93.1),
+    ],
+  },
+  4: {
+    width: 1024,
+    height: 1536,
+    alt: '싸이버거 요청사항 선택 화면',
+    guide: '싸이버거 요청사항에서 요청 없음을 눌러주세요.',
+    hotspots: [
+      { id: 'request-none', label: '싸이버거 요청 없음', x: 12.1, y: 40.8, width: 36.3, height: 14, action: 'SELECT_DEFAULT_BURGER_REQUEST', value: '요청-없음' },
+      { id: 'request-no-onion', label: '싸이버거 양파 제외', x: 51.3, y: 40.8, width: 36.5, height: 14, action: 'SELECT_DEFAULT_BURGER_REQUEST', value: '요청-양파제외' },
+      { id: 'request-no-pickle', label: '싸이버거 피클 제외', x: 12.1, y: 56.7, width: 36.3, height: 14, action: 'SELECT_DEFAULT_BURGER_REQUEST', value: '요청-피클제외' },
+      { id: 'request-no-pickle-onion', label: '싸이버거 피클과 양파 제외', x: 51.3, y: 56.7, width: 36.5, height: 14, action: 'SELECT_DEFAULT_BURGER_REQUEST', value: '요청-피클,양파제외' },
+      ...footerHotspots(91.4),
+    ],
+  },
+  5: {
+    width: 864,
+    height: 1821,
+    alt: '떡강정세트 치킨과 버거 옵션 화면',
+    guide: '필수 버거에서 아라비아따치즈버거를 눌러주세요.',
+    hotspots: [
+      { id: 'back', label: '이전 화면', x: 0, y: 0, width: 15, height: 5.8, action: 'BACK' },
+      { id: 'arabbiatta-burger', label: '아라비아따치즈버거 선택', x: 76.2, y: 57.8, width: 17.7, height: 15, action: 'SELECT_ARABIATTA_BURGER' },
+      ...footerHotspots(92.9),
+    ],
+  },
+  6: {
+    width: 941,
+    height: 1672,
+    alt: '아라비아따치즈버거 요청사항 선택 화면',
+    guide: '요청 없음을 누른 뒤 아래로 스크롤해주세요.',
+    hotspots: [
+      { id: 'back', label: '이전 화면', x: 0, y: 0, width: 15, height: 6, action: 'BACK' },
+      { id: 'request-none', label: '아라비아따치즈버거 요청 없음', x: 12.2, y: 38.3, width: 36.5, height: 13.2, action: 'SELECT_ARABIATTA_REQUEST', value: '요청-없음' },
+      { id: 'request-no-onion', label: '아라비아따치즈버거 양파 제외', x: 51.5, y: 38.3, width: 36.5, height: 13.2, action: 'SELECT_ARABIATTA_REQUEST', value: '요청-양파제외' },
+      { id: 'scroll-down', label: '음료 옵션으로 이동', x: 89, y: 28, width: 11, height: 38, action: 'SCROLL_TO_DRINK_OPTIONS' },
+      ...footerHotspots(92.7),
+    ],
+  },
+  7: {
+    width: 864,
+    height: 1821,
+    alt: '떡강정세트 음료와 추가 소스 옵션 화면',
+    guide: '펩시콜라제로를 누른 뒤 주문담기를 눌러주세요.',
+    hotspots: [
+      { id: 'back', label: '이전 화면', x: 0, y: 0, width: 15, height: 5.5, action: 'BACK' },
+      { id: 'pepsi', label: '펩시콜라 선택', x: 3.4, y: 24.8, width: 27.8, height: 19.5, action: 'SELECT_DRINK', value: '펩시콜라' },
+      { id: 'pepsi-zero', label: '펩시콜라제로 선택', x: 35.9, y: 24.8, width: 27.4, height: 19.5, action: 'SELECT_DRINK', value: '펩시콜라제로' },
+      { id: 'cider', label: '사이다 선택', x: 68.2, y: 24.8, width: 27.6, height: 19.5, action: 'SELECT_DRINK', value: '사이다' },
+      { id: 'no-sauce', label: '추가 소스 선택 없음', x: 3.4, y: 51.3, width: 21.2, height: 16, action: 'SELECT_SAUCE', value: '선택없음' },
+      { id: 'moms-sauce', label: '맘스양념소스 선택', x: 26.3, y: 51.3, width: 22, height: 16, action: 'SELECT_SAUCE', value: '맘스양념소스' },
+      { id: 'ranch-sauce', label: '랜치소스 선택', x: 51.3, y: 51.3, width: 21.4, height: 16, action: 'SELECT_SAUCE', value: '랜치소스' },
+      { id: 'cheese-mayo-sauce', label: '매콤치즈마요소스 선택', x: 76.6, y: 51.3, width: 20, height: 17, action: 'SELECT_SAUCE', value: '매콤치즈마요소스' },
+      { id: 'scroll-up', label: '버거 옵션으로 돌아가기', x: 57.2, y: 86.2, width: 12.5, height: 6.8, action: 'SCROLL_TO_BURGER_OPTIONS' },
+      { id: 'add-to-cart', label: '주문담기', x: 69.7, y: 86.2, width: 30.3, height: 6.8, action: 'ADD_TO_CART' },
+      ...footerHotspots(93),
+    ],
+  },
+  8: {
+    width: 1024,
+    height: 1536,
+    alt: '떡강정세트가 담긴 장바구니 화면',
+    guide: '주문 내용을 확인하고 결제하기를 눌러주세요.',
+    hotspots: [
+      { id: 'decrease', label: '수량 줄이기', x: 5.7, y: 83.8, width: 5.7, height: 3.7, action: 'CHANGE_QUANTITY', value: -1 },
+      { id: 'increase', label: '수량 늘리기', x: 16.4, y: 83.8, width: 5.7, height: 3.7, action: 'CHANGE_QUANTITY', value: 1 },
+      { id: 'delete', label: '장바구니 상품 삭제', x: 55, y: 87.2, width: 10.5, height: 6.3, action: 'DELETE_ITEM' },
+      { id: 'checkout', label: '결제하기', x: 65.5, y: 87.2, width: 34.5, height: 6.3, action: 'OPEN_CHECKOUT' },
+      ...footerHotspots(93.5),
+    ],
+  },
+  9: {
+    width: 864,
+    height: 1821,
+    alt: '주문 확인과 결제수단 선택 화면',
+    guide: '주문 내용을 확인하고 신용카드를 눌러주세요.',
+    hotspots: [
+      { id: 'back', label: '이전 화면', x: 0, y: 0, width: 15, height: 5.5, action: 'BACK' },
+      { id: 'edit-options', label: '옵션수정', x: 76.5, y: 19.2, width: 18, height: 3.4, action: 'EDIT_OPTIONS' },
+      { id: 'credit-card', label: '신용카드 결제', x: 3.2, y: 71.3, width: 17.2, height: 10, action: 'SELECT_CREDIT_CARD' },
+      { id: 'coupon', label: 'E쿠폰 또는 선불카드', x: 21.8, y: 71.3, width: 17.4, height: 10, action: 'PAYMENT_UNAVAILABLE' },
+      { id: 'gift-card', label: '상품권', x: 40.6, y: 71.3, width: 17.4, height: 10, action: 'PAYMENT_UNAVAILABLE' },
+      { id: 'payco', label: '페이코', x: 59.5, y: 71.3, width: 17.4, height: 10, action: 'PAYMENT_UNAVAILABLE' },
+      { id: 'kakao-pay', label: '카카오페이', x: 78.2, y: 71.3, width: 18.3, height: 10, action: 'PAYMENT_UNAVAILABLE' },
+      { id: 'naver-pay', label: '네이버페이', x: 3.2, y: 82.1, width: 17.2, height: 10, action: 'PAYMENT_UNAVAILABLE' },
+      { id: 'shinhan-pay', label: '신한 SOL페이', x: 21.8, y: 82.1, width: 17.4, height: 10, action: 'PAYMENT_UNAVAILABLE' },
+      ...footerHotspots(93.7),
+    ],
+  },
+  10: {
+    width: 864,
+    height: 1821,
+    alt: '신용카드 삽입 안내 화면',
+    guide: '신용카드를 투입구에 끝까지 넣어주세요.',
+    hotspots: [
+      { id: 'back', label: '이전 화면', x: 0, y: 0, width: 15, height: 5.5, action: 'CANCEL_PAYMENT' },
+      { id: 'modal-cancel', label: '카드 삽입 취소', x: 40, y: 57.5, width: 20, height: 3.2, action: 'CANCEL_PAYMENT' },
+      { id: 'cancel', label: '결제 취소', x: 9, y: 80, width: 38, height: 7.4, action: 'CANCEL_PAYMENT' },
+      ...footerHotspots(92.7),
+    ],
+  },
+}
 
-export const POPULAR_PRODUCTS = [
-  SET_PRODUCTS[0],
-  { name: '내슈빌핫치킨버거', price: 6100, tone: 'red', kind: 'burger', badge: 'NEW' },
-  { name: '(행사)가득싸치킨(순살)', price: 13100, tone: 'orange', kind: 'chicken' },
-  { name: '(행사)핫치즈빅치킨(순살)', price: 15700, tone: 'deep-red', kind: 'chicken' },
-  SET_PRODUCTS[1],
-  { name: '밀크스파클', price: 2800, tone: 'gray', kind: 'drink', soldOut: true },
-  SET_PRODUCTS[2],
-  SET_PRODUCTS[4],
-  { name: '당근빵(2조각)', price: 2600, tone: 'orange', kind: 'side', badge: 'NEW' },
-]
+export const DRINK_HIGHLIGHTS = {
+  펩시콜라: { x: 3.4, y: 24.8, width: 27.8, height: 19.5 },
+  펩시콜라제로: { x: 35.9, y: 24.8, width: 27.4, height: 19.5 },
+  사이다: { x: 68.2, y: 24.8, width: 27.6, height: 19.5 },
+}
 
-export const CHICKEN_OPTIONS = [
-  { id: '케이준떡강정S', label: '케이준떡강정S 1개', price: 0, calories: 581, tone: 'red' },
-  { id: '간장마늘떡강정S', label: '간장마늘떡강정S 1개', price: 200, calories: 594, tone: 'brown' },
-]
-
-export const BURGER_OPTIONS = [
-  { id: '싸이버거', label: '싸이버거', price: 0, calories: 594, tone: 'gold' },
-  { id: '불고기버거', label: '불고기버거', price: 0, calories: 601, tone: 'brown' },
-  { id: '인크레더블버거', label: '인크레더블버거', price: 1200, calories: 791, tone: 'yellow' },
-  { id: '싸이콰트로치즈버거', label: '싸이콰트로치즈버거', price: 1800, calories: 991, tone: 'orange' },
-  { id: '아라비아따치즈버거', label: '아라비아따치즈버거', price: 2500, calories: 791, tone: 'red' },
-]
-
-export const DRINK_OPTIONS = [
-  { id: '펩시콜라', label: '펩시콜라', price: 0, calories: 135, tone: 'cola' },
-  { id: '펩시콜라제로', label: '펩시콜라제로', price: 0, calories: 0, tone: 'zero' },
-  { id: '사이다', label: '사이다', price: 0, calories: 135, tone: 'clear' },
-]
-
-export const SAUCE_OPTIONS = [
-  { id: '선택없음', label: '선택없음', price: 0, calories: 0, tone: 'none' },
-  { id: '맘스양념소스', label: '맘스양념소스(소포장)', price: 1000, calories: 101, tone: 'red' },
-  { id: '랜치소스', label: '랜치소스(소포장)', price: 1000, calories: 127, tone: 'cream' },
-  { id: '매콤치즈마요소스', label: '매콤치즈마요소스(소포장)', price: 1000, calories: 130, tone: 'orange' },
-]
-
-export const PAYMENT_METHODS = [
-  { id: 'card', label: '신용카드', icon: '▰' },
-  { id: 'coupon', label: 'E쿠폰/선불카드', icon: '◫' },
-  { id: 'gift', label: '상품권', icon: '%' },
-  { id: 'payco', label: '페이코', icon: 'PAYCO' },
-  { id: 'kakao', label: '카카오페이', icon: 'pay' },
-  { id: 'naver', label: '네이버페이', icon: 'N pay' },
-  { id: 'shinhan', label: '신한 SOL페이', icon: 'SOL' },
-]
+export const SAUCE_HIGHLIGHTS = {
+  선택없음: { x: 3.4, y: 51.3, width: 21.2, height: 12.8 },
+  맘스양념소스: { x: 26.3, y: 51.3, width: 22, height: 12.8 },
+  랜치소스: { x: 51.3, y: 51.3, width: 21.4, height: 12.8 },
+  매콤치즈마요소스: { x: 76.6, y: 51.3, width: 20, height: 12.8 },
+}
