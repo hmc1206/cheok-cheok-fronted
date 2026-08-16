@@ -10,11 +10,12 @@ import { HomeScreen } from './screens/HomeScreen'
 import { KioskLiveScreen } from './screens/KioskLiveScreen'
 import { LoginPage } from './screens/LoginPage'
 import { MapRouteScreen } from './screens/MapRouteScreen'
+import { NearbyPlaceScreen } from './screens/NearbyPlaceScreen'
 import { SettingsScreen } from './screens/SettingsScreen'
 import { SplashScreen } from './screens/SplashScreen'
 import { SubscriptionScreen } from './screens/SubscriptionScreen'
-import { TrainBookingScreen } from './screens/TrainBookingScreen'
 import { UsageLimitScreen } from './screens/UsageLimitScreen'
+import { WeatherScreen } from './screens/WeatherScreen'
 import { YoutubePlayerScreen } from './screens/YoutubePlayerScreen'
 
 // 기획서 2장 라우트 표를 그대로 반영한 라우터 뼈대.
@@ -58,7 +59,13 @@ function App() {
           {/* 홈 화면 "눌러서 말하기" 카드에서 진입하는 음성 채팅 페이지 */}
           <Route path="/chat" element={<ChatScreen />} />
           <Route path="/map" element={<MapRouteScreen />} />
-          <Route path="/train" element={<TrainBookingScreen />} />
+          {/* 기차 예매(TRAIN_BOOKING)를 대체한 신규 기능. 제출 로직이 아예 없던
+              미완성 스텁이라 화면/라우트/intent 매핑을 통째로 지우고 이 자리를
+              대신한다(git 히스토리에 그대로 남아있어 필요하면 복원 가능). */}
+          <Route path="/nearby-place" element={<NearbyPlaceScreen />} />
+          {/* 홈 화면 5번째 타일("말로 질문"을 대체한 "오늘의 날씨") + 음성으로
+              날씨를 물었을 때(WEATHER_INFO intent) 공통으로 연결되는 화면. */}
+          <Route path="/weather" element={<WeatherScreen />} />
           <Route path="/kiosk" element={<KioskLiveScreen />} />
           <Route path="/youtube" element={<YoutubePlayerScreen />} />
           <Route path="/auth/callback" element={<AuthCallbackScreen />} />

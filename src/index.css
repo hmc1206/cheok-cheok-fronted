@@ -263,7 +263,12 @@ button:not(:disabled) {
   background: #fff;
   border-bottom-color: #e5e8eb;
 }
-.control-progress > div {
+/* div: 길찾기 화면의 장식용 ProgressStrip. button: 영상 도움 화면의 실제로 눌리는
+   모드 탭(ModeTabStrip) — 상호작용만 다르고 시각적으로는 완전히 같아야 하므로
+   같은 규칙을 button에도 그대로 적용한다(안 그러면 button은 브라우저 기본
+   스타일을 그대로 물려받아 높이가 낮고 글자만 두꺼워 보이는 문제가 생긴다). */
+.control-progress > div,
+.control-progress > button {
   display: flex;
   min-height: 46px;
   align-items: center;
@@ -274,11 +279,14 @@ button:not(:disabled) {
   font-size: 0.78rem;
   font-weight: 800;
   letter-spacing: -0.03em;
+  background: transparent;
 }
-.control-progress > div:last-child {
+.control-progress > div:last-child,
+.control-progress > button:last-child {
   border-right: 0;
 }
-.control-progress > div span {
+.control-progress > div span,
+.control-progress > button span {
   font-size: 0.66rem;
   letter-spacing: 0.08em;
 }

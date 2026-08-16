@@ -33,12 +33,3 @@ export function resolveMapAutofill({ slots, data, transcript } = {}) {
   }
 }
 
-export function resolveTrainAutofill({ slots, data, transcript } = {}) {
-  const sources = [slots, data?.slots, data]
-  const parsed = parseRouteTranscript(transcript)
-  return {
-    departure: firstText(sources, ['departure', 'origin', 'from', 'startName', 'start']) || parsed.startName,
-    arrival: firstText(sources, ['arrival', 'destination', 'to', 'goalName', 'goal']) || parsed.goalName,
-    travelDate: firstText(sources, ['travelDate', 'date', 'departureDate', 'reservationDate']),
-  }
-}

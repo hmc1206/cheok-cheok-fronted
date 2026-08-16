@@ -6,7 +6,10 @@ import { AppFrame } from '../components/common/AppFrame'
 import { ExecutingPanel } from '../components/common/ExecutingPanel'
 import { MobileHeader } from '../components/common/MobileHeader'
 import { ProgressStrip } from '../components/common/ProgressStrip'
+import { SeniorButton } from '../components/ui/SeniorButton'
 import { SeniorInput } from '../components/ui/SeniorInput'
+import { useVoiceAssistant } from '../hooks/useVoiceAssistant'
+import { useVoiceAutoLaunch } from '../hooks/useVoiceAutoLaunch'
 import { useTTS } from '../hooks/useTTS'
 import { openDeepLinkWithWebFallback } from '../lib/deepLink'
 import { resolveMapAutofill } from '../lib/voiceAutofill'
@@ -27,13 +30,41 @@ import { useVoiceSessionStore } from '../store/voiceSessionStore'
 // 시작되는 하나의 호출 안에 자연스럽게 포함된다.
 const STEP_LABELS = ['입력', '실행']
 
+// 후속 요청: "말로 도움 요청하기"(음성)로 "서울역에서 부산역까지" 같은 발화가 들어와도
+// 이 화면이 자동으로 반응하게 한다(명세서 MAP_ROUTE intent). 음성 응답도 결국
+// 이 화면의 "입력(출발지/목적지 채우기)"과 "실행(딥링크 열기)"이라는 같은 두 단계를
+// 거치므로, 기존 수동 입력 흐름(로컬 stage state, executeSearch, ProgressStrip 등)을
+// 새로 만들지 않고 그대로 재사용한다 — 다만 음성 쪽은 서버가 이미 만들어준 딥링크를
+// 그대로 쓰므로(아래 참고) routesApi 호출 없이 곧장 stage를 'executing'으로 옮긴다.
 export function MapRouteScreen() {
   const navigate = useNavigate()
   const location = useLocation()
   const { speak } = useTTS()
+
+  // 음성 대화(멀티턴)를 이 화면에서 이어가기 위한 훅. HomeScreen 등 다른 화면에서
+  // 시작된 대화든, 이 화면에서 ASK_ORIGIN에 답하며 이어가는 대화든 전부 같은
+  // POST /voice/process 파이프라인을 탄다 — 새 API를 만들지 않는다.
+  const { sendText, ttsCaption, outcome } = useVoiceAssistant()
+  const intent = useVoiceSessionStore((state) => state.intent)
+  const voiceStep = useVoiceSessionStore((state) => state.step)
   const voiceSlots = useVoiceSessionStore((state) => state.slots)
   const voiceData = useVoiceSessionStore((state) => state.data)
   const voiceTranscript = useVoiceSessionStore((state) => state.transcript)
+  const voiceQuickReplies = useVoiceSessionStore((state) => state.quickReplies)
+  // 홈 화면 등 다른 화면에서 보낸 요청으로 이 화면에 막 도착한 경우, 이 훅
+  // 인스턴스는 그 응답을 직접 받은 적이 없어 로컬 ttsCaption이 비어있다(날씨
+  // 화면 구현 중 발견한 버그, WeatherScreen.jsx와 동일한 원인/수정 — 스토어의
+  // ttsText를 우선 신뢰한다).
+  const voiceTtsText = useVoiceSessionStore((state) => state.ttsText)
+  const resetSession = useVoiceSessionStore((state) => state.resetSession)
+
+  // voiceSessionStore는 앱 전역 스토어라 다른 화면(영상 도움/기차예매)이 마지막에
+  // 남긴 값이 남아있을 수 있다 — intent가 MAP_ROUTE일 때만 그 세션 데이터를 이
+  // 화면 것으로 인정한다(영상 도움 화면의 isSearchSession/isPlaySession과 동일한
+  // 원칙).
+  const isVoiceMapSession = intent === 'MAP_ROUTE'
+  // 목적지만 말한 경우(예: "아들 집 가는 길 알려줘") 서버가 출발지를 되묻는 단계.
+  const isAskOrigin = isVoiceMapSession && voiceStep === 'ASK_ORIGIN'
 
   const [startName, setStartName] = useState('')
   const [goalName, setGoalName] = useState('')
@@ -43,12 +74,10 @@ export function MapRouteScreen() {
   const [canRetry, setCanRetry] = useState(false)
   const [voicePrefillNotice, setVoicePrefillNotice] = useState('')
 
-  // 화면 흐름 자체를 나타내는 상태. 'input'일 땐 입력 폼이, 'executing'일 땐
-  // 로딩 문구 화면이 보인다 — 예전의 3단계 ProgressStrip과 달리 이제 실제로
-  // 화면 전환에 쓰이는 진짜 상태값이다(예전엔 ProgressStrip이 current=1로
-  // 고정된 장식용 UI였고 실행 중에도 같은 입력 화면 위에서 버튼만 스피너로
-  // 바뀌었다).
-  const [step, setStep] = useState('input')
+  // 화면 흐름 자체를 나타내는 상태. 'input'일 땐 입력 폼(또는 ASK_ORIGIN 확인
+  // 카드)이, 'executing'일 땐 로딩 문구 화면이 보인다. 음성 스토어의 step(ASK_
+  // ORIGIN/DONE 등)과 이름이 겹치지 않도록 이 로컬 상태는 stage로 부른다.
+  const [stage, setStage] = useState('input')
 
   // 실행 중(비동기 API 호출 진행 중) 화면을 벗어나면(뒤로가기 등) 컴포넌트가
   // 언마운트된 뒤에도 API 응답이 늦게 도착해 setState를 시도할 수 있다 —
@@ -71,8 +100,43 @@ export function MapRouteScreen() {
     }
   }, [])
 
+  const clearErrors = useCallback(() => {
+    setStartError('')
+    setGoalError('')
+    setGeneralError('')
+    setCanRetry(false)
+  }, [])
+
+  // 음성 인식 결과를 이 화면의 입력값으로 채운다. 두 가지 경로로 들어온다:
+  //  1) HomeScreen 등에서 처음 "서울역에서 부산역까지" 라고 말해 이 화면으로
+  //     막 이동해온 경우 — navigate(state)로 최신 slots/data/transcript가 온다.
+  //  2) 이미 이 화면에 있는 상태로 대화가 이어지는 경우(ASK_ORIGIN에 답하는 등)
+  //     — location.state는 그대로지만 voiceSessionStore 값이 바뀐다.
+  // 그래서 location.state와 스토어 값을 모두 의존성에 넣고, location.state가
+  // 있으면 그걸 우선한다(방금 도착한 새 응답이 스토어보다 더 최신일 수 있어서).
+  //
+  // requestFailed: useVoiceAssistant 훅이 GEOCODE_NOT_FOUND 등으로 이 화면에
+  // "강제 이동"시킨 경우(사용자 확인 — 명세서 2-2장) 표시하는 별도 안내. 이땐
+  // 자동 실행 대신 수동 입력을 유도해야 하므로 프리필 안내 문구도 다르게 보여준다.
+  // (requestFailed는 날씨 화면과 공유하는 공통 플래그 이름 — hooks/useVoiceAssistant.js
+  // 의 ERROR_FORCE_NAVIGATE_ROUTES 참고.)
   useEffect(() => {
     const voiceState = location.state ?? {}
+
+    if (voiceState.requestFailed) {
+      const { startName: spokenStart, goalName: spokenGoal } = resolveMapAutofill({
+        slots: voiceState.slots,
+        data: null,
+        transcript: voiceState.transcript,
+      })
+      if (spokenStart) setStartName((current) => current || spokenStart)
+      if (spokenGoal) setGoalName((current) => current || spokenGoal)
+      // 사용자 확인(2026-08): 일부만 인식된 경우 그 값은 살려두고, "위치를 찾지
+      // 못했다"는 안내를 기존 음성 프리필 배너와 같은 스타일로 보여준다.
+      setVoicePrefillNotice('위치를 찾지 못했어요. 직접 입력해 주세요.')
+      return
+    }
+
     const { startName: spokenStart, goalName: spokenGoal } = resolveMapAutofill({
       slots: voiceState.slots ?? voiceSlots,
       data: voiceState.data ?? voiceData,
@@ -85,21 +149,44 @@ export function MapRouteScreen() {
     }
   }, [location.state, voiceData, voiceSlots, voiceTranscript])
 
-  const clearErrors = useCallback(() => {
-    setStartError('')
-    setGoalError('')
-    setGeneralError('')
-    setCanRetry(false)
-  }, [])
+  // 음성으로 출발지·목적지가 이미 확정된 경우(step: DONE) 자동 실행.
+  // 서버가 DONE 응답에 naverMapAppUrl/naverMapWebUrl을 이미 조립해서 내려주므로
+  // (명세서 1-1장), 수동 입력 흐름과 달리 routesApi.getNaverMapLink를 다시 부를
+  // 필요가 없다 — 이 앱은 그 값을 그대로 딥링크 실행에만 쓴다. 실제 딥링크 실행 +
+  // 중복 실행 방지는 useVoiceAutoLaunch로 뺐다(내 주변 병원·약국 찾기 화면과
+  // 공유 — hooks/useVoiceAutoLaunch.js 참고).
+  useVoiceAutoLaunch({
+    isActive: isVoiceMapSession && voiceStep === 'DONE',
+    appUrl: voiceData?.naverMapAppUrl,
+    webUrl: voiceData?.naverMapWebUrl,
+    onLaunch: () => {
+      // 입력창도 함께 채워둔다 — 화면 흐름상 "실행" 단계로 곧장 넘어가지만, 사용자가
+      // 뒤로가기로 "입력" 단계에 돌아왔을 때 값이 비어있지 않게 하기 위함이다.
+      const { startName: autoStart, goalName: autoGoal } = resolveMapAutofill({
+        slots: voiceSlots,
+        data: voiceData,
+        transcript: voiceTranscript,
+      })
+      if (autoStart) setStartName((current) => current || autoStart)
+      if (autoGoal) setGoalName((current) => current || autoGoal)
 
-  // 실제 검증+실행을 담당하는 핵심 함수. "네이버 지도 열기"(최초 제출)와
-  // "다시 시도"(재시도) 둘 다 이 함수를 그대로 재사용한다.
+      clearErrors()
+      setStage('executing')
+      // ttsText 음성 안내는 useVoiceAssistant().applyResponse가 모든 응답에 대해
+      // 이미 자동으로 재생한다 — 여기서 또 speak를 부르면 같은 문구가 중복 재생된다
+      // (수동 제출 흐름은 voice/process를 안 타서 자체적으로 speak를 부르는 것과의
+      // 차이점).
+    },
+  })
+
+  // 실제 검증+실행을 담당하는 핵심 함수(수동 입력 전용). "네이버 지도 열기"(최초
+  // 제출)와 "다시 시도"(재시도) 둘 다 이 함수를 그대로 재사용한다.
   const executeSearch = useCallback(async () => {
     const trimmedStart = startName.trim()
     const trimmedGoal = goalName.trim()
 
     clearErrors()
-    setStep('executing')
+    setStage('executing')
 
     try {
       // 이 호출 하나가 "장소가 실제 존재하는지 확인"과 "딥링크 생성"을 동시에
@@ -114,11 +201,7 @@ export function MapRouteScreen() {
       speak(`${trimmedStart}에서 ${trimmedGoal}까지 경로를 네이버 지도에서 열어드릴게요.`)
       openDeepLinkWithWebFallback(naverMapAppUrl, naverMapWebUrl)
 
-      // 후속 요청으로 "딥링크를 연 뒤 홈으로 자동 이동"하던 걸 없앴다(사용자
-      // 확인) — 네이버 지도 앱/웹이 열려도 우리 앱은 실행 화면에 그대로
-      // 남아있는다. step을 따로 바꾸지 않는 이유: 여기 들어올 때 이미
-      // 'executing'이라 그대로 두면 되고, ExecutingPanel의 점 애니메이션도
-      // 계속 반복된다(사용자 확인 — 완료 시점을 별도 문구로 구분하지 않음).
+      // 딥링크를 연 뒤에도 화면은 실행 화면에 그대로 남아있는다(사용자 확인).
       // 화면에서 벗어나고 싶으면 사용자가 상단 뒤로가기를 직접 눌러야 한다.
     } catch (error) {
       if (!isMountedRef.current) return
@@ -126,7 +209,7 @@ export function MapRouteScreen() {
       // 검증 실패(또는 그 외 실패) 시 사용자 확인: 실행 화면에 머무르지 않고
       // 입력 단계로 자동 복귀해서, 문제가 된 입력창 바로 아래에 에러를 보여준다
       // (예전과 동일한 표시 위치 — 화면만 다시 입력 단계로 돌아왔을 뿐).
-      setStep('input')
+      setStage('input')
 
       const code = error.response?.data?.error?.code
       const field = error.response?.data?.error?.field
@@ -170,23 +253,41 @@ export function MapRouteScreen() {
   // 상단 뒤로가기 목적지는 현재 단계에 따라 달라진다(사용자 확인). 실행
   // 화면(네이버 지도를 이미 열었을 수도, 아직 응답을 기다리는 중일 수도 있는
   // 상태)에서는 홈으로 바로 나가지 않고 입력 단계로 돌아와 다시 검색할 수
-  // 있게 한다 — 입력 단계에서는 기존과 동일하게 홈으로 나간다.
+  // 있게 한다. ASK_ORIGIN 확인 카드에서는 그 대화 자체를 접고(resetSession)
+  // 평소의 수동 입력 폼으로 돌아간다 — 입력 단계에서는 기존과 동일하게 홈으로
+  // 나간다.
   const handleBack = () => {
-    if (step === 'executing') {
-      setStep('input')
+    if (stage === 'executing') {
+      setStage('input')
+      return
+    }
+    if (isAskOrigin) {
+      resetSession()
       return
     }
     navigate('/home')
   }
 
+  const displayMode = stage === 'executing' ? 'executing' : isAskOrigin ? 'ask-origin' : 'input'
+
   return (
     <AppFrame>
       <main className="control-form-screen flex h-full min-h-0 flex-col overflow-hidden bg-[var(--cb-cream)]">
         <MobileHeader title="길 찾기" onBack={handleBack} />
-        <ProgressStrip labels={STEP_LABELS} current={step === 'executing' ? 2 : 1} />
+        <ProgressStrip labels={STEP_LABELS} current={displayMode === 'executing' ? 2 : 1} />
 
-        {step === 'executing' ? (
+        {displayMode === 'executing' ? (
           <ExecutingPanel label="실행하는 중" description="네이버 지도에서 경로를 확인하고 있어요." />
+        ) : displayMode === 'ask-origin' ? (
+          // 목적지만 말한 경우 서버가 출발지를 되묻는 확인 카드. "네"/"아니요"를
+          // 이 화면에서 직접 분기하지 않고, 버튼의 value를 그대로 /voice/process에
+          // 다시 보내 다음 응답(추가 질문이든 DONE이든)에 맡긴다 — 영상 도움
+          // 화면의 quickReplies 처리와 동일한 원칙.
+          <AskOriginPanel
+            headline={voiceTtsText ?? ttsCaption ?? '지금 계신 곳에서 출발할까요?'}
+            quickReplies={voiceQuickReplies}
+            onReply={(value) => sendText(value)}
+          />
         ) : (
           <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
             <section className="px-5 pb-4 pt-5">
@@ -198,6 +299,15 @@ export function MapRouteScreen() {
             </section>
 
             <section className="control-form-screen__body flex-1 px-5 py-4">
+              {/* 이미 /map 화면에 있는 상태로 음성 대화가 실패한 경우(예: ASK_ORIGIN에
+                  답한 뒤 위치를 못 찾음) — useVoiceAssistant의 outcome/ttsCaption을
+                  그대로 보여준다. 다른 화면으로 강제 이동해야 하는 경우는 훅에서
+                  이미 처리되므로(위 주석 참고) 이 화면에 남아있는 경우만 여기서 다룬다. */}
+              {outcome === 'error' && ttsCaption ? (
+                <p role="alert" className="control-notice mb-4">
+                  {ttsCaption}
+                </p>
+              ) : null}
               {voicePrefillNotice ? <p className="control-notice mb-4">{voicePrefillNotice}</p> : null}
               <div className="control-number-field">
                 <span>01</span>
@@ -250,5 +360,30 @@ export function MapRouteScreen() {
         )}
       </main>
     </AppFrame>
+  )
+}
+
+// ASK_ORIGIN 확인 카드. 영상 도움 화면의 VideoConfirmPanel과 달리 썸네일 미리보기가
+// 없어 훨씬 단순하다 — 안내 문구 + quickReplies 버튼만 있으면 된다. quickReplies의
+// 정확한 value 문자열이 아직 명세서에 리터럴로 나와있지 않아(프로즈 설명만 있음)
+// 특정 값("네"처럼)을 가정해 분기하지 않고, 첫 번째 항목을 주 버튼(primary)으로,
+// 나머지를 보조 버튼으로 그린다 — 서버가 준 순서를 그대로 신뢰한다.
+function AskOriginPanel({ headline, quickReplies, onReply }) {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col justify-end px-5 py-6">
+      <p className="text-[22px] font-extrabold leading-[1.35] tracking-[-0.04em]">{headline}</p>
+      <div className="mt-6 flex flex-col gap-2">
+        {(quickReplies ?? []).map((reply, index) => (
+          <SeniorButton
+            key={reply.value}
+            type="button"
+            variant={index === 0 ? 'primary' : 'secondary'}
+            onClick={() => onReply(reply.value)}
+          >
+            {reply.label}
+          </SeniorButton>
+        ))}
+      </div>
+    </div>
   )
 }
