@@ -63,6 +63,11 @@ export function YoutubePlayerScreen() {
   const data = useVoiceSessionStore((state) => state.data)
   const quickReplies = useVoiceSessionStore((state) => state.quickReplies)
   const resetSession = useVoiceSessionStore((state) => state.resetSession)
+  // 홈 화면 등 다른 화면에서 보낸 요청("미스트롯 틀어줘" 등)으로 이 화면에 막
+  // 도착한 경우, 이 훅 인스턴스는 그 응답을 직접 받은 적이 없어 로컬 ttsCaption이
+  // 비어있다(날씨 화면 구현 중 발견한 버그, WeatherScreen.jsx와 동일한 원인/수정
+  // — 스토어의 ttsText를 우선 신뢰한다).
+  const voiceTtsText = useVoiceSessionStore((state) => state.ttsText)
 
   // 두 흐름이 각자 타이핑 중인 값을 잃지 않도록 입력값은 모드별로 따로 둔다
   // (탭을 오갈 때 이미 입력해둔 글자가 사라지지 않게 — 노인 사용자에게는 다시
@@ -218,7 +223,7 @@ export function YoutubePlayerScreen() {
           <VideoList videos={searchResults} onSelect={handleSelectVideo} />
         ) : mode === 'search-confirm' ? (
           <VideoConfirmPanel
-            headline={ttsCaption || '이 영상이 맞나요?'}
+            headline={voiceTtsText ?? ttsCaption ?? '이 영상이 맞나요?'}
             video={{
               title: selectedVideo.title,
               thumbnailUrl: selectedVideo.thumbnailUrl,
@@ -236,7 +241,7 @@ export function YoutubePlayerScreen() {
           />
         ) : mode === 'play-confirm' ? (
           <VideoConfirmPanel
-            headline={ttsCaption || '이 영상이 맞나요?'}
+            headline={voiceTtsText ?? ttsCaption ?? '이 영상이 맞나요?'}
             video={{ title: data.title, thumbnailUrl: data.thumbnailUrl, channel: data.channelName }}
             // 명세서 10-1장대로, 버튼을 누르면 그 버튼의 value를 그대로
             // /voice/process에 다시 보낸다 — "네"/"아니요" 각각을 이 화면에서

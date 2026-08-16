@@ -51,6 +51,11 @@ export function MapRouteScreen() {
   const voiceData = useVoiceSessionStore((state) => state.data)
   const voiceTranscript = useVoiceSessionStore((state) => state.transcript)
   const voiceQuickReplies = useVoiceSessionStore((state) => state.quickReplies)
+  // 홈 화면 등 다른 화면에서 보낸 요청으로 이 화면에 막 도착한 경우, 이 훅
+  // 인스턴스는 그 응답을 직접 받은 적이 없어 로컬 ttsCaption이 비어있다(날씨
+  // 화면 구현 중 발견한 버그, WeatherScreen.jsx와 동일한 원인/수정 — 스토어의
+  // ttsText를 우선 신뢰한다).
+  const voiceTtsText = useVoiceSessionStore((state) => state.ttsText)
   const resetSession = useVoiceSessionStore((state) => state.resetSession)
 
   // voiceSessionStore는 앱 전역 스토어라 다른 화면(영상 도움/기차예매)이 마지막에
@@ -110,13 +115,15 @@ export function MapRouteScreen() {
   // 그래서 location.state와 스토어 값을 모두 의존성에 넣고, location.state가
   // 있으면 그걸 우선한다(방금 도착한 새 응답이 스토어보다 더 최신일 수 있어서).
   //
-  // voiceRouteFailed: useVoiceAssistant 훅이 GEOCODE_NOT_FOUND 등으로 이 화면에
+  // requestFailed: useVoiceAssistant 훅이 GEOCODE_NOT_FOUND 등으로 이 화면에
   // "강제 이동"시킨 경우(사용자 확인 — 명세서 2-2장) 표시하는 별도 안내. 이땐
   // 자동 실행 대신 수동 입력을 유도해야 하므로 프리필 안내 문구도 다르게 보여준다.
+  // (requestFailed는 날씨 화면과 공유하는 공통 플래그 이름 — hooks/useVoiceAssistant.js
+  // 의 ERROR_FORCE_NAVIGATE_ROUTES 참고.)
   useEffect(() => {
     const voiceState = location.state ?? {}
 
-    if (voiceState.voiceRouteFailed) {
+    if (voiceState.requestFailed) {
       const { startName: spokenStart, goalName: spokenGoal } = resolveMapAutofill({
         slots: voiceState.slots,
         data: null,
@@ -277,7 +284,7 @@ export function MapRouteScreen() {
           // 다시 보내 다음 응답(추가 질문이든 DONE이든)에 맡긴다 — 영상 도움
           // 화면의 quickReplies 처리와 동일한 원칙.
           <AskOriginPanel
-            headline={ttsCaption || '지금 계신 곳에서 출발할까요?'}
+            headline={voiceTtsText ?? ttsCaption ?? '지금 계신 곳에서 출발할까요?'}
             quickReplies={voiceQuickReplies}
             onReply={(value) => sendText(value)}
           />
