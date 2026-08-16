@@ -182,7 +182,7 @@ export function KioskCaptureScreen() {
                 <StateSelector stateLabels={stateLabelsForSelector} onSelect={capture.selectStateManually} onClose={capture.closeStateSelector} />
               )}
 
-              {/* 개발 모드 전용 디버그 패널 - 운영 화면에는 표시되지 않는다(요구사항 10장) */}
+              {/* 개발 모드 전용 디버그 패널 - 운영 화면에는 표시되지 않는다(요구사항 10장)
               {import.meta.env.DEV && (
                 <AROverlayDebugPanel
                   phase={capture.phase}
@@ -193,7 +193,7 @@ export function KioskCaptureScreen() {
                   lastAnalysisMs={capture.lastAnalysisMs}
                   ocrReady={capture.ocrReady}
                 />
-              )}
+              )} */}
             </div>
 
             <div className="h-[28%] w-full">
