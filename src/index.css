@@ -11,6 +11,23 @@ input {
   font: inherit;
 }
 
+/* 스크롤바 숨김 처리 — 마우스 스크롤 시 화면 우측에 나타나는 스크롤바
+   인디케이터를 전체 페이지 기준으로 완전히 숨긴다. 스크롤 동작(휠/터치)
+   자체는 이 규칙과 무관하게 그대로 살아있다 — 여기서 건드리는 건 스크롤바의
+   시각적 표시뿐이다.
+   - Firefox: scrollbar-width: none.
+   - 구형 Edge/IE: -ms-overflow-style: none.
+   - Chrome/Safari/신 Edge(webkit 계열): ::-webkit-scrollbar에 display: none.
+   전역 * 선택자에 걸어서 앱 안 모든 스크롤 영역에 동일하게 적용한다. */
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+*::-webkit-scrollbar {
+  display: none;
+}
+
 button:focus-visible,
 input:focus-visible,
 a:focus-visible {
