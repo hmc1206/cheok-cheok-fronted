@@ -109,10 +109,12 @@ export function MapRouteScreen() {
       speak(`${trimmedStart}에서 ${trimmedGoal}까지 경로를 네이버 지도에서 열어드릴게요.`)
       openDeepLinkWithWebFallback(naverMapAppUrl, naverMapWebUrl)
 
-      // 사용자 확인: 딥링크를 연 뒤엔 우리 앱 화면을 홈으로 자동으로 돌려보낸다
-      // — 어차피 화면은 네이버 지도 앱/웹으로 넘어가므로, 우리 쪽 화면은 다음에
-      // 돌아왔을 때 검색 결과가 아니라 홈이 보이는 게 자연스럽다.
-      navigate('/home')
+      // 후속 요청으로 "딥링크를 연 뒤 홈으로 자동 이동"하던 걸 없앴다(사용자
+      // 확인) — 네이버 지도 앱/웹이 열려도 우리 앱은 실행 화면에 그대로
+      // 남아있는다. step을 따로 바꾸지 않는 이유: 여기 들어올 때 이미
+      // 'executing'이라 그대로 두면 되고, ExecutingPanel의 점 애니메이션도
+      // 계속 반복된다(사용자 확인 — 완료 시점을 별도 문구로 구분하지 않음).
+      // 화면에서 벗어나고 싶으면 사용자가 상단 뒤로가기를 직접 눌러야 한다.
     } catch (error) {
       if (!isMountedRef.current) return
 
@@ -145,7 +147,7 @@ export function MapRouteScreen() {
         speak(text)
       }
     }
-  }, [startName, goalName, speak, clearErrors, navigate])
+  }, [startName, goalName, speak, clearErrors])
 
   const handleSubmit = (event) => {
     event.preventDefault()
@@ -160,10 +162,22 @@ export function MapRouteScreen() {
 
   const disabled = !startName.trim() || !goalName.trim()
 
+  // 상단 뒤로가기 목적지는 현재 단계에 따라 달라진다(사용자 확인). 실행
+  // 화면(네이버 지도를 이미 열었을 수도, 아직 응답을 기다리는 중일 수도 있는
+  // 상태)에서는 홈으로 바로 나가지 않고 입력 단계로 돌아와 다시 검색할 수
+  // 있게 한다 — 입력 단계에서는 기존과 동일하게 홈으로 나간다.
+  const handleBack = () => {
+    if (step === 'executing') {
+      setStep('input')
+      return
+    }
+    navigate('/home')
+  }
+
   return (
     <AppFrame>
       <main className="control-form-screen flex h-full min-h-0 flex-col overflow-hidden bg-[var(--cb-cream)]">
-        <MobileHeader title="길 찾기" onBack={() => navigate('/home')} />
+        <MobileHeader title="길 찾기" onBack={handleBack} />
         <ProgressStrip current={step === 'executing' ? 2 : 1} />
 
         {step === 'executing' ? (
