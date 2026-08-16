@@ -10,6 +10,10 @@ import { useTTS } from './useTTS'
 // intent -> 라우팅 대상 화면. 서버 응답의 intent 값과 1:1로 매칭된다 (기획서 3-1장).
 const INTENT_ROUTES = {
   YOUTUBE_PLAY: '/youtube',
+  // "02 바로 실행하기"(영상 하나를 특정) 외에 "01 검색하기"(키워드로 목록 검색)도
+  // 같은 화면(YoutubePlayerScreen)으로 라우팅한다 — 화면 안에서 intent로 두 흐름을
+  // 구분한다(YoutubePlayerScreen.jsx의 mode 계산 참고).
+  YOUTUBE_SEARCH: '/youtube',
   MAP_ROUTE: '/map',
   TRAIN_BOOKING: '/train',
 }
