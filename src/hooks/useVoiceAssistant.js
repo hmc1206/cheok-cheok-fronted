@@ -15,11 +15,16 @@ const INTENT_ROUTES = {
   // 구분한다(YoutubePlayerScreen.jsx의 mode 계산 참고).
   YOUTUBE_SEARCH: '/youtube',
   MAP_ROUTE: '/map',
-  TRAIN_BOOKING: '/train',
+  // TODO(backend): "내 주변 병원·약국 찾기"용 intent — API 명세서에 아직 정의돼
+  // 있지 않다(코드베이스 전체 확인 완료, 백엔드 확인 필요). 명세서 본문에서 예로
+  // 든 이름을 그대로 가정해뒀다 — 실제 intent 이름이 확정되면 이 키만 바꾸면 된다.
+  // 백엔드가 이 intent를 아직 보내지 않아도 이 매핑 자체는 무해하다(안 쓰이면
+  // 그냥 죽어있는 항목일 뿐).
+  NEARBY_PLACE: '/nearby-place',
 }
 
 /**
- * "노인 전용 AI 비서"의 핵심 훅. HomeScreen뿐 아니라 MapRoute/TrainBooking/Youtube
+ * "노인 전용 AI 비서"의 핵심 훅. HomeScreen뿐 아니라 MapRoute/NearbyPlace/Youtube
  * 화면에서도 재사용해 같은 화면에서 대화를 이어가거나(멀티턴), intent가 바뀌면
  * 자동으로 다른 화면으로 라우팅한다.
  */

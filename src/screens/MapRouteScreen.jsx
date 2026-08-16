@@ -9,6 +9,7 @@ import { ProgressStrip } from '../components/common/ProgressStrip'
 import { SeniorButton } from '../components/ui/SeniorButton'
 import { SeniorInput } from '../components/ui/SeniorInput'
 import { useVoiceAssistant } from '../hooks/useVoiceAssistant'
+import { useVoiceAutoLaunch } from '../hooks/useVoiceAutoLaunch'
 import { useTTS } from '../hooks/useTTS'
 import { openDeepLinkWithWebFallback } from '../lib/deepLink'
 import { resolveMapAutofill } from '../lib/voiceAutofill'
@@ -144,34 +145,32 @@ export function MapRouteScreen() {
   // 음성으로 출발지·목적지가 이미 확정된 경우(step: DONE) 자동 실행.
   // 서버가 DONE 응답에 naverMapAppUrl/naverMapWebUrl을 이미 조립해서 내려주므로
   // (명세서 1-1장), 수동 입력 흐름과 달리 routesApi.getNaverMapLink를 다시 부를
-  // 필요가 없다 — 이 앱은 그 값을 그대로 딥링크 실행에만 쓴다.
-  // 같은 DONE 응답으로 두 번 실행되지 않도록(리렌더/재구독) ref로 마지막에 실행한
-  // app_url을 기억해둔다(YoutubePlayerScreen의 launchedAppUrlRef와 동일한 패턴).
-  const autoLaunchedAppUrlRef = useRef(null)
-  useEffect(() => {
-    if (!isVoiceMapSession || voiceStep !== 'DONE') return
-    const appUrl = voiceData?.naverMapAppUrl
-    if (!appUrl || autoLaunchedAppUrlRef.current === appUrl) return
-    autoLaunchedAppUrlRef.current = appUrl
+  // 필요가 없다 — 이 앱은 그 값을 그대로 딥링크 실행에만 쓴다. 실제 딥링크 실행 +
+  // 중복 실행 방지는 useVoiceAutoLaunch로 뺐다(내 주변 병원·약국 찾기 화면과
+  // 공유 — hooks/useVoiceAutoLaunch.js 참고).
+  useVoiceAutoLaunch({
+    isActive: isVoiceMapSession && voiceStep === 'DONE',
+    appUrl: voiceData?.naverMapAppUrl,
+    webUrl: voiceData?.naverMapWebUrl,
+    onLaunch: () => {
+      // 입력창도 함께 채워둔다 — 화면 흐름상 "실행" 단계로 곧장 넘어가지만, 사용자가
+      // 뒤로가기로 "입력" 단계에 돌아왔을 때 값이 비어있지 않게 하기 위함이다.
+      const { startName: autoStart, goalName: autoGoal } = resolveMapAutofill({
+        slots: voiceSlots,
+        data: voiceData,
+        transcript: voiceTranscript,
+      })
+      if (autoStart) setStartName((current) => current || autoStart)
+      if (autoGoal) setGoalName((current) => current || autoGoal)
 
-    // 입력창도 함께 채워둔다 — 화면 흐름상 "실행" 단계로 곧장 넘어가지만, 사용자가
-    // 뒤로가기로 "입력" 단계에 돌아왔을 때 값이 비어있지 않게 하기 위함이다.
-    const { startName: autoStart, goalName: autoGoal } = resolveMapAutofill({
-      slots: voiceSlots,
-      data: voiceData,
-      transcript: voiceTranscript,
-    })
-    if (autoStart) setStartName((current) => current || autoStart)
-    if (autoGoal) setGoalName((current) => current || autoGoal)
-
-    clearErrors()
-    setStage('executing')
-    // ttsText 음성 안내는 useVoiceAssistant().applyResponse가 모든 응답에 대해
-    // 이미 자동으로 재생한다 — 여기서 또 speak를 부르면 같은 문구가 중복 재생된다
-    // (수동 제출 흐름은 voice/process를 안 타서 자체적으로 speak를 부르는 것과의
-    // 차이점).
-    openDeepLinkWithWebFallback(appUrl, voiceData?.naverMapWebUrl)
-  }, [isVoiceMapSession, voiceStep, voiceData, voiceSlots, voiceTranscript, clearErrors])
+      clearErrors()
+      setStage('executing')
+      // ttsText 음성 안내는 useVoiceAssistant().applyResponse가 모든 응답에 대해
+      // 이미 자동으로 재생한다 — 여기서 또 speak를 부르면 같은 문구가 중복 재생된다
+      // (수동 제출 흐름은 voice/process를 안 타서 자체적으로 speak를 부르는 것과의
+      // 차이점).
+    },
+  })
 
   // 실제 검증+실행을 담당하는 핵심 함수(수동 입력 전용). "네이버 지도 열기"(최초
   // 제출)와 "다시 시도"(재시도) 둘 다 이 함수를 그대로 재사용한다.
