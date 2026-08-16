@@ -3,12 +3,35 @@
  * a waveform-led voice card, a calm two-by-two help grid, and no low-contrast critical copy.
  */
 @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
+/* 스플래시 화면(SplashScreen.jsx) "척척" 타이틀 전용 폰트. 요청받은 대로 불러오지만,
+   앱 전체 font-family(위 Pretendard 스택)는 그대로 두고 스플래시 타이틀에만
+   .splash-title 클래스로 좁혀서 적용한다 — 로드 실패 시 Pretendard로 자동
+   fallback되도록 font-family 목록에 Pretendard를 그대로 남겨둔다. */
+@import url('https://static.toss.im/tps/main.css');
+@import url('https://static.toss.im/tps/others.css');
 @import 'tailwindcss';
 @import './styles/tokens.css';
 
 button,
 input {
   font: inherit;
+}
+
+/* 스크롤바 숨김 처리 — 마우스 스크롤 시 화면 우측에 나타나는 스크롤바
+   인디케이터를 전체 페이지 기준으로 완전히 숨긴다. 스크롤 동작(휠/터치)
+   자체는 이 규칙과 무관하게 그대로 살아있다 — 여기서 건드리는 건 스크롤바의
+   시각적 표시뿐이다.
+   - Firefox: scrollbar-width: none.
+   - 구형 Edge/IE: -ms-overflow-style: none.
+   - Chrome/Safari/신 Edge(webkit 계열): ::-webkit-scrollbar에 display: none.
+   전역 * 선택자에 걸어서 앱 안 모든 스크롤 영역에 동일하게 적용한다. */
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+*::-webkit-scrollbar {
+  display: none;
 }
 
 button:focus-visible,
@@ -40,6 +63,39 @@ a:focus-visible {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* 스플래시 화면(SplashScreen.jsx) "척척" 텍스트 전용 폰트. 요청대로 Toss
+   Product Sans를 불러오되, 앱 전체 폰트(위 * 규칙의 Pretendard 스택)는
+   그대로 두고 이 클래스가 붙은 요소에만 좁혀서 적용한다 — 로드 실패 시
+   지정한 순서대로 Pretendard로 자동 폴백된다. */
+.splash-title {
+  font-family: 'Toss Product Sans', 'Pretendard', sans-serif;
+}
+
+/* "척척" 타이틀이 아래에서 위로 슬라이드업되며 나타나는 애니메이션. 위
+   senior-rise-in(8px, 다른 화면들의 은은한 등장 모션용)보다 이동 거리를
+   키워서(24px) 스플래시 순간의 "슬라이드업" 느낌이 분명하게 보이도록 했다. */
+@keyframes splash-title-rise {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 스플래시 -> 로그인 전환 시 부드럽게 사라지는 페이드아웃. SplashScreen.jsx가
+   타이머로 이 클래스를 붙이면 opacity가 0으로 전환되고, 그 transition이 끝나는
+   시점에 맞춰 라우팅한다(setTimeout 300ms와 이 transition-duration을 반드시
+   같은 값으로 맞춰야 한다 — SplashScreen.jsx 주석 참고). prefers-reduced-motion
+   환경에서는 위 전역 규칙이 transition-duration을 0.01ms로 강제해 사실상 즉시
+   전환된다.  */
+.splash-fade-out {
+  opacity: 0;
+  transition: opacity 300ms ease-out;
 }
 
 /* Reference home — keeps five visual zones inside a 375 × 812 phone canvas. */

@@ -6,6 +6,7 @@ import { AppFrame } from '../components/common/AppFrame'
 import { MobileHeader } from '../components/common/MobileHeader'
 import { SeniorButton } from '../components/ui/SeniorButton'
 import { ToggleSwitch } from '../components/common/ToggleSwitch'
+import { useHistoryStore } from '../store/historyStore'
 
 // 홈 화면 헤더의 설정 아이콘에서 진입하는 설정 화면(HomeScreen.jsx 참고). 요구사항
 // 문서 2번(설정 화면) 기준 2개 섹션(보호 및 안전 / 음성 및 알림)을 B안(feat/senior-
@@ -20,10 +21,18 @@ import { ToggleSwitch } from '../components/common/ToggleSwitch'
 // 대신, 이전에 이미 확정했던 대로 이 화면의 "음성 및 알림" 섹션 네 번째 항목으로
 // 통합하고 옛 화면/라우트는 삭제했다(App.jsx 참고) — 데이터 소스(notificationApi.js)
 // 는 그대로 재사용해 저장 로직이 손실되지 않았다.
+//
+// "도움 기록": 원래 홈 화면 헤더 버튼 + SidePanel 드로어로 봤는데(요청사항:
+// "도움기록 기능을 설정 안으로 넣고") 이 화면의 한 섹션으로 옮겼다. 홈 화면
+// (HomeScreen.jsx)과 이 화면이 서로 다른 라우트(별개 컴포넌트 트리)라 로컬
+// state로는 기록을 공유할 수 없어서, historyStore.js(Zustand)로 빼서 홈에서
+// 쌓고 여기서 읽는다. ChatScreen.jsx가 여전히 SidePanel을 별도로 쓰고 있어
+// SidePanel.jsx 자체는 삭제하지 않았다(거긴 손대지 않음, 이번 요청 범위 밖).
 export function SettingsScreen() {
   const navigate = useNavigate()
   const [settings, setSettings] = useState(null)
   const [notificationEnabled, setNotificationEnabled] = useState(null)
+  const history = useHistoryStore((state) => state.history)
 
   useEffect(() => {
     let cancelled = false
@@ -71,6 +80,10 @@ export function SettingsScreen() {
               ›
             </span>
           </button>
+
+          <SettingsSection title="도움 기록">
+            <HistoryList history={history} />
+          </SettingsSection>
 
           <SettingsSection title="보호 및 안전">
             <SettingsRow
@@ -201,4 +214,42 @@ function SettingsRow({ label, description, value, toggle, action }) {
 
 function RowDivider() {
   return <div className="border-t" style={{ borderColor: 'var(--cb-line)' }} />
+}
+
+// SidePanel.jsx가 예전에 하던 렌더링(최신순 정렬, 시간+질문+답변)을 그대로
+// 옮겨왔다 — 데이터 소스만 로컬 props에서 historyStore로 바뀌었을 뿐 표시
+// 방식은 동일하다.
+function HistoryList({ history }) {
+  if (history.length === 0) {
+    return (
+      <p className="px-4 py-4 text-[14px] font-medium text-[var(--cb-slate)]">
+        아직 대화 기록이 없어요.
+      </p>
+    )
+  }
+
+  return (
+    <ul>
+      {[...history].reverse().map((entry, index) => (
+        <li key={entry.id}>
+          {index > 0 && <div className="border-t" style={{ borderColor: 'var(--cb-line)' }} />}
+          <div className="flex flex-col gap-1 px-4 py-4">
+            <time className="text-[12px] font-medium text-[var(--cb-slate)]">
+              {formatTimestamp(entry.createdAt ?? entry.id)}
+            </time>
+            <p className="text-[16px] font-bold leading-6 tracking-[-0.03em] text-[var(--cb-navy)]">
+              {entry.question || '음성 질문을 확인하고 있어요.'}
+            </p>
+            <p className="text-[14px] font-medium leading-5 text-[var(--cb-slate)]">{entry.answer}</p>
+          </div>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function formatTimestamp(value) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '방금 전'
+  return new Intl.DateTimeFormat('ko-KR', { hour: 'numeric', minute: '2-digit' }).format(date)
 }

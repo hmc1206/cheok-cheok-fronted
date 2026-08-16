@@ -4,16 +4,18 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { AppFrame } from '../components/common/AppFrame'
 import { MicIcon } from '../components/common/icons'
-import { SidePanel } from '../components/home/SidePanel'
+import { useHistoryStore } from '../store/historyStore'
 import { useVoiceAssistant } from '../hooks/useVoiceAssistant'
 import { useMicrophoneLevel } from '../hooks/useMicrophoneLevel'
 
+// "도움 기록"은 더 이상 홈 화면 드로어가 아니라 설정 화면(SettingsScreen.jsx)
+// 안의 한 섹션이라, 여기 바로가기 그리드에서는 뺐다(요청사항: "도움기록 기능을
+// 설정 안으로 넣고") — 5개로 줄어서 "1개 기능 더보기"로 문구도 같이 바뀐다.
 const NAV_ITEMS = [
   { id: 'map', label: '길 찾기', sub: '목적지까지 편하게', path: '/map', Icon: MapIcon },
   { id: 'train', label: '기차 예매', sub: '출발과 도착 확인', path: '/train', Icon: TrainIcon },
   { id: 'kiosk', label: '키오스크', sub: '화면을 보며 따라하기', path: '/kiosk', Icon: KioskIcon },
   { id: 'youtube', label: '영상 도움', sub: '보고 싶은 영상 찾기', path: '/youtube', Icon: YoutubeIcon },
-  { id: 'history', label: '도움 기록', sub: '이전 질문 다시 보기', Icon: HistoryIcon },
   { id: 'voice', label: '말로 질문', sub: '바로 음성으로 물어보기', Icon: VoiceIcon },
 ]
 
@@ -21,8 +23,7 @@ export function HomeScreen() {
   const navigate = useNavigate()
   const { status, sttCaption, ttsCaption, outcome, startListening, cancelListening, sendText } = useVoiceAssistant()
   const microphoneLevel = useMicrophoneLevel(status === 'listening')
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
-  const [history, setHistory] = useState([])
+  const addHistoryEntry = useHistoryStore((state) => state.addEntry)
   const [isTranscriptEditing, setIsTranscriptEditing] = useState(false)
   const [transcriptDraft, setTranscriptDraft] = useState('')
   const [isMoreOpen, setIsMoreOpen] = useState(false)
@@ -61,10 +62,6 @@ export function HomeScreen() {
     sendText(text)
   }
   const handleFeatureSelect = (item) => {
-    if (item.id === 'history') {
-      setIsDrawerOpen(true)
-      return
-    }
     if (item.id === 'voice') {
       handleVoiceRequest()
       return
@@ -77,10 +74,10 @@ export function HomeScreen() {
   latestSttCaptionRef.current = sttCaption
   useEffect(() => {
     if (!ttsCaption) return
-    setHistory((previous) => [...previous, {
+    addHistoryEntry({
       id: Date.now(), createdAt: new Date().toISOString(), question: latestSttCaptionRef.current, answer: ttsCaption, outcome,
-    }])
-  }, [ttsCaption, outcome])
+    })
+  }, [ttsCaption, outcome, addHistoryEntry])
 
   return (
     <AppFrame>
@@ -92,25 +89,20 @@ export function HomeScreen() {
             </span>
             <span className="text-[18px] font-bold tracking-[-0.04em]">척척</span>
           </div>
-          <div className="flex items-center gap-3">
-            {/* 설정 화면 진입점. 이 디자인(B안)에는 예전 햄버거 메뉴가 없어져서
-                (SidePanel.jsx는 이제 "도움 기록" 전용 드로어), 요구사항 문서가
-                요구한 "설정"/"월 구독 신청" 두 개의 별도 진입점 중 설정은 여기
-                작은 아이콘 버튼으로 새로 만들었다. 구독 신청은 이 좁은 헤더에
-                아이콘을 더 넣으면 복잡해 보여서, 대신 설정 화면 맨 위에 배너
-                형태로 넣었다(SettingsScreen.jsx 참고) — 홈에서 2탭이면 닿는다. */}
-            <button
-              type="button"
-              onClick={() => navigate('/settings')}
-              aria-label="설정"
-              className="flex h-9 w-9 items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3182f6]"
-            >
-              <SettingsIcon />
-            </button>
-            <button type="button" onClick={() => setIsDrawerOpen(true)} className="min-h-12 text-[15px] font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3182f6]">
-              도움 기록
-            </button>
-          </div>
+          {/* 설정 화면 진입점(=햄버거 아이콘). "도움 기록"이 설정 화면 안으로
+              옮겨가면서(요청사항) 이 버튼 하나가 설정+도움 기록+구독 신청까지
+              전부 아우르는 메뉴 진입점이 됐다 — 그래서 아이콘도 기존 톱니바퀴
+              대신 더 널리 "메뉴"로 통하는 햄버거(줄 세 개) 모양으로 바꿨다.
+              여전히 별도 드로어를 열지 않고 /settings로 바로 이동한다(그
+              화면 자체가 이제 이 메뉴 역할을 한다). */}
+          <button
+            type="button"
+            onClick={() => navigate('/settings')}
+            aria-label="메뉴"
+            className="flex h-9 w-9 items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3182f6]"
+          >
+            <HamburgerIcon />
+          </button>
         </header>
 
         <section className={`salad-home__content flex flex-col px-5 pb-5 pt-4 ${isMoreOpen ? 'min-h-[calc(100%-64px)] flex-none' : 'min-h-0 flex-1'}`}>
@@ -176,7 +168,7 @@ export function HomeScreen() {
 
           <div className="mt-5 flex shrink-0 items-center justify-between">
             <p className="text-[16px] font-bold tracking-[-0.045em]">원하는 도움을 골라보세요</p>
-            <span className="text-[13px] font-medium">6가지 기능</span>
+            <span className="text-[13px] font-medium">5가지 기능</span>
           </div>
 
           <nav className={`salad-home__services salad-home__services--reference mt-3 grid grid-cols-2 gap-3 ${isMoreOpen ? 'salad-home__services--expanded shrink-0' : 'min-h-0 flex-1'}`} aria-label="주요 기능">
@@ -205,12 +197,10 @@ export function HomeScreen() {
             onClick={() => setIsMoreOpen((value) => !value)}
             className="salad-home__more-button mt-2 flex h-9 shrink-0 w-full items-center justify-center gap-1 text-[14px] font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3182f6]"
           >
-            <span>{isMoreOpen ? '접기' : '2개 기능 더보기'}</span>
+            <span>{isMoreOpen ? '접기' : '1개 기능 더보기'}</span>
             <span aria-hidden="true">{isMoreOpen ? '⌃' : '⌄'}</span>
           </button>
         </section>
-
-        <SidePanel isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} history={history} />
       </main>
     </AppFrame>
   )
@@ -220,6 +210,5 @@ function MapIcon() { return <svg width="23" height="23" viewBox="0 0 24 24" fill
 function TrainIcon() { return <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="12" rx="4" /><path d="M5 11h14M9 19l-2 3M15 19l2 3M9.5 7h.01M14.5 7h.01" /></svg> }
 function KioskIcon() { return <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="5" y="2" width="14" height="18" rx="2" /><rect x="8.5" y="5.5" width="7" height="6" rx="0.5" /><path d="M9 17h6" /></svg> }
 function YoutubeIcon() { return <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="4" /><path d="m10 9 5 3-5 3V9Z" fill="currentColor" stroke="none" /></svg> }
-function HistoryIcon() { return <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7" /><path d="M3 4v5h5M12 7v5l3.3 2" /></svg> }
 function VoiceIcon() { return <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="15" rx="3" /><path d="M8 9h8M8 13h5M17.5 16.5v-3M16 15h3a1.5 1.5 0 1 1-3 0Z" /></svg> }
-function SettingsIcon() { return <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82A1.65 1.65 0 0 0 3 13.09H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" /></svg> }
+function HamburgerIcon() { return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg> }
