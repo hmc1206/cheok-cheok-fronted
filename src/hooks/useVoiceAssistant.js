@@ -79,11 +79,35 @@ export function useVoiceAssistant({ onResult } = {}) {
           speak(ttsText)
         }
         setOutcome('error')
+
+        // MAP_ROUTE 전용 예외 처리(사용자 확인 — 다른 intent는 실패 시 화면 이동
+        // 없이 현재 화면에서 안내만 띄우는 게 지금까지의 공통 동작이지만, 길찾기는
+        // "자동화가 불가능하면 길찾기 입력 화면으로 이동시켜 수동 입력을 유도"가
+        // 명세서에 명시돼 있어 이 브랜치만 예외로 둔다). 예: 홈 화면에서 곧바로
+        // "서울역에서 OO까지" 라고 말했는데 위치를 못 찾은 경우에도, 사용자가
+        // 길찾기 화면에 들어가 있지 않았다면 강제로 이동시켜 직접 입력할 수 있게
+        // 한다. 에러 응답 바디에 intent가 없을 수도 있어(길찾기 수동 입력의 REST
+        // 에러와 같은 { error: { code, ... } } 형태로 올 가능성이 명세서에 언급돼
+        // 있음), GEOCODE_NOT_FOUND 코드 자체도 "길찾기 관련 실패"의 신호로 함께
+        // 인정한다 — 이 코드는 길찾기 수동 입력(routesApi)의 에러 코드와 동일하다.
+        const errorIntent = error.response?.data?.intent
+        const errorCode = error.response?.data?.error?.code
+        if (errorIntent === 'MAP_ROUTE' || errorCode === 'GEOCODE_NOT_FOUND') {
+          if (location.pathname !== '/map') {
+            navigate('/map', {
+              state: {
+                voiceRouteFailed: true,
+                slots: error.response?.data?.slots,
+                transcript: payload.text ?? '',
+              },
+            })
+          }
+        }
       } finally {
         setStatus('idle')
       }
     },
-    [applyResponse, speak, userId],
+    [applyResponse, location.pathname, navigate, speak, userId],
   )
 
   const startListening = useCallback(async () => {
