@@ -15,21 +15,29 @@ const INTENT_ROUTES = {
   // 구분한다(YoutubePlayerScreen.jsx의 mode 계산 참고).
   YOUTUBE_SEARCH: '/youtube',
   MAP_ROUTE: '/map',
-  // TODO(backend): "내 주변 병원·약국 찾기"용 intent — API 명세서에 아직 정의돼
-  // 있지 않다(코드베이스 전체 확인 완료, 백엔드 확인 필요). 명세서 본문에서 예로
-  // 든 이름을 그대로 가정해뒀다 — 실제 intent 이름이 확정되면 이 키만 바꾸면 된다.
-  // 백엔드가 이 intent를 아직 보내지 않아도 이 매핑 자체는 무해하다(안 쓰이면
-  // 그냥 죽어있는 항목일 뿐).
-  NEARBY_PLACE: '/nearby-place',
+  // 근처 병원·약국 찾기(명세서 v2.0 5장) — intent 이름은 SEARCH_MEDICAL이 맞다고
+  // 실제 명세서로 확인됨(이전에 NEARBY_PLACE로 가정해뒀던 걸 정정).
+  SEARCH_MEDICAL: '/nearby-place',
   WEATHER_INFO: '/weather',
 }
 
 // intent별 실패 시 강제 이동 대상. 다른 intent는 실패해도 화면 이동 없이 지금
-// 화면에서 안내(ttsText 캡션+음성)만 띄우는 게 공통 동작이지만, 길찾기/날씨처럼
-// "자동화 실패 시 관련 입력 화면으로 이동시켜 사용자가 직접 이어갈 수 있게"
-// 하라고 명세서에 명시된 intent만 여기 등록한다(길찾기 GEOCODE_NOT_FOUND는 이미
-// 사용자 확인을 거쳐 구현돼 있던 것이고, 날씨 3개 코드는 이번에 같은 패턴으로
-// 확장하기로 확인받았다). 값은 에러 응답의 errorCode -> 이동할 경로.
+// 화면에서 안내(ttsText 캡션+음성)만 띄우는 게 공통 동작이지만, 길찾기/날씨/
+// 병원·약국처럼 "자동화 실패 시 관련 입력 화면으로 이동시켜 사용자가 직접
+// 이어갈 수 있게" 하라고 명세서에 명시된 intent만 여기 등록한다. 값은 에러
+// 응답의 errorCode -> 이동할 경로.
+//
+// 주의: GEOCODE_NOT_FOUND는 명세서 9장 공통 에러코드표에 있어 여러 intent
+// (MAP_ROUTE뿐 아니라 SEARCH_MEDICAL도 좌표 확인에 실패하면 같은 코드를 쓸 수
+// 있음)가 공유할 수 있는데, 에러 응답 자체엔 어떤 intent였는지 알려주는 필드가
+// 없다(명세서 2장 공통 에러 응답 형태 참고) — 그래서 기본값은 지금까지처럼
+// '/map'으로 두되, 병원·약국 찾기처럼 다른 화면으로 보내야 하는 호출부는
+// processUtterance에 fallbackRoute를 직접 넘겨서 이 기본 테이블보다 우선하도록
+// 했다(아래 processUtterance 참고). 다만 홈 화면의 범용 음성 입력("병원
+// 찾아줘"라고 마이크로만 말한 경우)처럼 fallbackRoute를 넘길 수 없는 경로는
+// 여전히 이 기본값('/map')을 따른다 — SEARCH_MEDICAL은 좌표 기반 조회라
+// GEOCODE_NOT_FOUND보다는 EXTERNAL_API_FAIL 등이 더 흔할 것으로 예상되지만,
+// 실제로 발생 빈도가 높다면 백엔드와 다시 확인이 필요하다.
 const ERROR_FORCE_NAVIGATE_ROUTES = {
   GEOCODE_NOT_FOUND: '/map',
   WEATHER_LOCATION_NOT_FOUND: '/weather',
@@ -84,7 +92,7 @@ export function useVoiceAssistant({ onResult } = {}) {
   )
 
   const processUtterance = useCallback(
-    async (payload) => {
+    async (payload, { fallbackRoute } = {}) => {
       setStatus('processing')
       setOutcome('idle')
       setErrorCode(null)
@@ -112,13 +120,16 @@ export function useVoiceAssistant({ onResult } = {}) {
         setErrorCode(errorCode ?? null)
 
         // intent별 강제 이동(사용자 확인 — 다른 intent는 실패 시 화면 이동 없이
-        // 현재 화면에서 안내만 띄우는 게 공통 동작이지만, 길찾기/날씨는 "자동화
-        // 실패 시 관련 입력 화면으로 이동시켜 사용자가 직접 이어갈 수 있게"가
-        // 명세서에 명시돼 있어 예외로 둔다 — ERROR_FORCE_NAVIGATE_ROUTES 참고).
-        // 예: 홈 화면에서 곧바로 "서울역에서 OO까지"라고 말했는데 위치를 못 찾은
-        // 경우에도, 사용자가 길찾기 화면에 들어가 있지 않았다면 강제로 이동시켜
-        // 직접 입력할 수 있게 한다 — 날씨도 동일한 원칙.
-        const targetPath = ERROR_FORCE_NAVIGATE_ROUTES[errorCode]
+        // 현재 화면에서 안내만 띄우는 게 공통 동작이지만, 길찾기/날씨/병원·약국은
+        // "자동화 실패 시 관련 입력 화면으로 이동시켜 사용자가 직접 이어갈 수
+        // 있게"가 명세서에 명시돼 있어 예외로 둔다). 예: 홈 화면에서 곧바로
+        // "서울역에서 OO까지"라고 말했는데 위치를 못 찾은 경우에도, 사용자가
+        // 길찾기 화면에 들어가 있지 않았다면 강제로 이동시켜 직접 입력할 수
+        // 있게 한다. 호출부가 명시적으로 fallbackRoute를 넘겼으면 그걸 공통
+        // 코드 테이블(ERROR_FORCE_NAVIGATE_ROUTES)보다 우선한다(위 그 상수의
+        // 주석 참고 — GEOCODE_NOT_FOUND처럼 여러 intent가 같은 코드를 공유할 때
+        // 필요).
+        const targetPath = fallbackRoute ?? ERROR_FORCE_NAVIGATE_ROUTES[errorCode]
         if (targetPath && location.pathname !== targetPath) {
           navigate(targetPath, {
             state: {
@@ -173,12 +184,16 @@ export function useVoiceAssistant({ onResult } = {}) {
   }, [stopListening])
 
   // 음성 없이 텍스트로 입력하는 경우(화면 내 텍스트 입력창)에도 같은 파이프라인을 태운다.
+  // requestOptions.fallbackRoute: 이 요청이 실패했을 때 강제 이동할 경로를 호출부가
+  // 직접 지정하고 싶을 때 쓴다(예: 병원·약국 찾기 화면에서 보낸 요청은 실패해도
+  // 항상 이 화면으로 돌아와야 하므로 '/nearby-place'를 넘김) — 안 넘기면 기존처럼
+  // ERROR_FORCE_NAVIGATE_ROUTES 공통 테이블을 따른다.
   const sendText = useCallback(
-    (text, extra = {}) => {
+    (text, extra = {}, requestOptions = {}) => {
       setSttCaption(text)
       setTtsCaption('')
       setOutcome('idle')
-      return processUtterance({ text, ...extra })
+      return processUtterance({ text, ...extra }, requestOptions)
     },
     [processUtterance],
   )
