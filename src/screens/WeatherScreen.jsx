@@ -8,7 +8,7 @@ import { ProgressStrip } from '../components/common/ProgressStrip'
 import { SeniorButton } from '../components/ui/SeniorButton'
 import { SeniorInput } from '../components/ui/SeniorInput'
 import { useVoiceAssistant } from '../hooks/useVoiceAssistant'
-import { getCurrentPositionOnce } from '../lib/geolocation'
+import { getCurrentPositionOrNull } from '../lib/geolocation'
 import { useVoiceSessionStore } from '../store/voiceSessionStore'
 
 // "오늘의 날씨"(홈 화면 5번째 타일, 예전 "말로 질문"을 대체) + 음성으로 "오늘 서울
@@ -98,9 +98,11 @@ export function WeatherScreen() {
   // 실어 재요청한다. GPS 실패해도(권한 거부 등) 좌표 없이 그대로 보낸다 — 서버가
   // 다시 ASK_LOCATION으로 되물을 뿐 프론트가 막을 이유가 없다.
   const handleCurrentLocationReply = async (replyValue) => {
-    const coords = await getCurrentPositionOnce()
+    const coords = await getCurrentPositionOrNull()
     if (!isMountedRef.current) return
-    const extra = coords ? { latitude: coords.lat, longitude: coords.lng } : {}
+    // coords가 이미 { latitude, longitude } 형태라(lib/geolocation.js) 별도
+    // 필드명 변환 없이 그대로 넘긴다.
+    const extra = coords ?? {}
     lastRetryPayloadRef.current = { text: replyValue, ...extra }
     sendText(replyValue, extra)
   }

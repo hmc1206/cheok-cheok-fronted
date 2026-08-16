@@ -101,7 +101,7 @@ export function NearbyPlaceScreen() {
     if (geoStatus === 'granted' && coords) {
       let cancelled = false
       nearbyPlaceApi
-        .getNearbyPlaceLink({ lat: coords.lat, lng: coords.lng, category })
+        .getNearbyPlaceLink({ latitude: coords.latitude, longitude: coords.longitude, category })
         .then((result) => {
           if (cancelled || !isMountedRef.current) return
           setStage('executing')

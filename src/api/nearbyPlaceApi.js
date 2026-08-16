@@ -21,12 +21,13 @@ const CATEGORY_LABEL = {
 }
 
 export const nearbyPlaceApi = {
-  getNearbyPlaceLink: ({ lat: _lat, lng: _lng, category }) =>
+  getNearbyPlaceLink: ({ latitude: _latitude, longitude: _longitude, category }) =>
     new Promise((resolve) => {
       const label = CATEGORY_LABEL[category] ?? category
-      // 실제 좌표(lat/lng)는 진짜 백엔드가 생기면 요청 바디에 실려야 하지만,
-      // mock에는 검색 결과에 영향을 줄 서버가 없어 URL에 반영하지 않는다 —
-      // 그래도 인자로는 받아둬서(위) 실제 연동 시 호출부를 안 바꿔도 되게 한다.
+      // 실제 좌표(latitude/longitude — lib/geolocation.js, 날씨 API 요청 필드명과
+      // 통일)는 진짜 백엔드가 생기면 요청 바디에 실려야 하지만, mock에는 검색
+      // 결과에 영향을 줄 서버가 없어 URL에 반영하지 않는다 — 그래도 인자로는
+      // 받아둬서(위) 실제 연동 시 호출부를 안 바꿔도 되게 한다.
       setTimeout(() => {
         resolve({
           naverMapAppUrl: `nmap://search?query=${encodeURIComponent(`내 주변 ${label}`)}&appname=com.chuckchuck.app`,

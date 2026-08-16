@@ -7,7 +7,7 @@ import { MicIcon } from '../components/common/icons'
 import { useHistoryStore } from '../store/historyStore'
 import { useVoiceAssistant } from '../hooks/useVoiceAssistant'
 import { useMicrophoneLevel } from '../hooks/useMicrophoneLevel'
-import { getCurrentPositionOnce } from '../lib/geolocation'
+import { getCurrentPositionOrNull } from '../lib/geolocation'
 
 // "도움 기록"은 더 이상 홈 화면 드로어가 아니라 설정 화면(SettingsScreen.jsx)
 // 안의 한 섹션이라, 여기 바로가기 그리드에서는 뺐다(요청사항: "도움기록 기능을
@@ -61,9 +61,11 @@ export function HomeScreen() {
   const [isWeatherRequesting, setIsWeatherRequesting] = useState(false)
   const handleWeatherRequest = async () => {
     setIsWeatherRequesting(true)
-    const coords = await getCurrentPositionOnce()
+    const coords = await getCurrentPositionOrNull()
     setIsWeatherRequesting(false)
-    sendText('오늘 날씨 알려줘', coords ? { latitude: coords.lat, longitude: coords.lng } : {})
+    // coords가 이미 { latitude, longitude } 형태라(lib/geolocation.js) 별도
+    // 필드명 변환 없이 그대로 넘긴다.
+    sendText('오늘 날씨 알려줘', coords ?? {})
   }
   const handleTranscriptEdit = () => {
     const draft = sttCaption || transcriptDraft
