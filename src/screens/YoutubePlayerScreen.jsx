@@ -2,16 +2,21 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AppFrame } from '../components/common/AppFrame'
+import { ExecutingPanel } from '../components/common/ExecutingPanel'
 import { MobileHeader } from '../components/common/MobileHeader'
+import { ProgressStrip } from '../components/common/ProgressStrip'
 import { SeniorButton } from '../components/ui/SeniorButton'
 import { SeniorInput } from '../components/ui/SeniorInput'
 import { useVoiceAssistant } from '../hooks/useVoiceAssistant'
 import { openDeepLinkWithWebFallback } from '../lib/deepLink'
 import { useVoiceSessionStore } from '../store/voiceSessionStore'
 
-// 점(.) 하나가 늘어나는 간격(ms). 길찾기 실행 화면(MapRouteScreen.jsx)과 같은
-// 값을 재사용한다(사용자 확인 — "로딩 UI는 길찾기와 동일한 패턴 재사용").
-const LOADING_DOT_INTERVAL_MS = 500
+// 길찾기 화면(MapRouteScreen.jsx)과 완전히 같은 "입력/실행" 2단계 탭 구조로
+// 통일한다(후속 요청) — 검색을 기다리는 동안(loading)/영상 미리보기를 확인하는
+// 동안(confirm)/유튜브를 연 뒤에도 화면에 머무는 동안(done)까지 전부 "실행"
+// 탭 하나에 속한다. 탭 인디케이터는 입력이냐 아니냐로만 나뉘고, 그 안에서
+// 무엇을 보여줄지는 mode가 세분화해서 결정한다.
+const STEP_LABELS = ['입력', '실행']
 
 // "영상 도움" 신규 구현. API 명세서 v2.0 3장(YOUTUBE_PLAY) + 2장(공통 진입점)
 // 기준으로, 텍스트 입력도 음성과 완전히 같은 파이프라인(POST /voice/process)을
@@ -21,6 +26,10 @@ const LOADING_DOT_INTERVAL_MS = 500
 // 유튜브 검색결과 페이지 자체를 앱/웹으로 열어준다 — 어느 쪽이든 실제 영상
 // 목록은 우리 화면이 아니라 유튜브 쪽에서 보여준다(명세서 1장 "인앱 재생 아님"
 // 원칙과 동일).
+//
+// 공통 컴포넌트 재사용: 상단 탭 인디케이터(ProgressStrip)와 점(.) 반복 로딩
+// 애니메이션(ExecutingPanel)은 길찾기 화면에서 처음 만든 걸 그대로 가져다
+// 쓴다(components/common/) — 여기서 새로 만들지 않았다(요청사항).
 export function YoutubePlayerScreen() {
   const navigate = useNavigate()
   const { status, sendText } = useVoiceAssistant()
@@ -85,9 +94,13 @@ export function YoutubePlayerScreen() {
     <AppFrame>
       <main className="control-form-screen flex h-full min-h-0 flex-col overflow-hidden bg-[var(--cb-cream)]">
         <MobileHeader title="영상 도움" onBack={handleBack} />
+        <ProgressStrip labels={STEP_LABELS} current={mode === 'input' ? 1 : 2} />
 
         {mode === 'loading' || mode === 'done' ? (
-          <ExecutingPanel label={mode === 'done' ? '유튜브를 여는 중' : '검색하는 중'} />
+          <ExecutingPanel
+            label={mode === 'done' ? '유튜브를 여는 중' : '검색하는 중'}
+            description="잠시만 기다려 주세요."
+          />
         ) : mode === 'confirm' ? (
           <ConfirmPanel data={data} quickReplies={quickReplies} onReply={(value) => sendText(value)} />
         ) : (
@@ -129,59 +142,40 @@ export function YoutubePlayerScreen() {
   )
 }
 
-// 길찾기 실행 화면(MapRouteScreen.jsx의 ExecutingPanel)과 완전히 같은 방식의
-// 점(.) 반복 애니메이션 — 검색을 기다리는 동안(loading)과 유튜브를 연 뒤에도
-// 계속 이 화면에 머무는 동안(done) 둘 다에 재사용한다. label만 다르게 받는다.
-function ExecutingPanel({ label }) {
-  const [dotCount, setDotCount] = useState(0)
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setDotCount((previous) => (previous + 1) % 4)
-    }, LOADING_DOT_INTERVAL_MS)
-    return () => clearInterval(interval)
-  }, [])
-
-  return (
-    <div className="flex flex-1 flex-col items-center justify-center px-5">
-      <p className="relative text-[24px] font-extrabold tracking-[-0.04em]">
-        <span className="invisible" aria-hidden="true">
-          {label}...
-        </span>
-        <span className="absolute left-0 top-0">
-          {label}
-          {'.'.repeat(dotCount)}
-        </span>
-      </p>
-      <p className="mt-4 text-[15px] font-medium leading-6 text-[var(--cb-slate)]">
-        잠시만 기다려 주세요.
-      </p>
-    </div>
-  )
-}
-
 // CONFIRM 단계 — 서버가 특정한 영상 미리보기(제목/썸네일/채널명) + quickReplies.
 // 명세서 10-1장대로, 버튼을 누르면 그 버튼의 value를 그대로 /voice/process에
 // 다시 보낸다(onReply prop) — "네"/"아니요" 각각을 이 화면에서 직접 분기하지
 // 않고 서버 응답에 맡긴다.
+//
+// 반응형 처리(후속 요청, 이 화면 한정 — AppFrame 자체는 안 건드림): 썸네일
+// 이미지에 aspect-video + w-full을 줘서 컨테이너 폭에 맞춰 비율을 유지한 채
+// 늘어나거나 줄어들게 했다(고정 px 높이였다면 좁은 화면에서 이미지가 찌그러지거나
+// 넘칠 수 있었음). 제목/채널명 텍스트도 break-words로 감싸 긴 단어가 카드 밖으로
+// 넘치지 않게 했다.
 function ConfirmPanel({ data, quickReplies, onReply }) {
   return (
-    <div className="flex min-h-0 flex-1 flex-col px-5 py-5">
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 py-5">
       <p className="text-[15px] font-medium leading-6 text-[var(--cb-slate)]">이 영상이 맞나요?</p>
 
       <div className="mt-3 overflow-hidden rounded-2xl border" style={{ borderColor: 'var(--cb-line)' }}>
         {data.thumbnailUrl ? (
-          <img src={data.thumbnailUrl} alt={data.title ?? '영상 미리보기'} className="w-full object-cover" />
+          <img
+            src={data.thumbnailUrl}
+            alt={data.title ?? '영상 미리보기'}
+            className="aspect-video w-full object-cover"
+          />
         ) : null}
         <div className="p-4">
-          <p className="text-[19px] font-extrabold leading-6 tracking-[-0.04em]">{data.title}</p>
+          <p className="break-words text-[19px] font-extrabold leading-6 tracking-[-0.04em]">{data.title}</p>
           {data.channelName ? (
-            <p className="mt-1 text-[14px] font-medium text-[var(--cb-slate)]">{data.channelName}</p>
+            <p className="mt-1 break-words text-[14px] font-medium text-[var(--cb-slate)]">
+              {data.channelName}
+            </p>
           ) : null}
         </div>
       </div>
 
-      <div className="mt-auto flex flex-col gap-2">
+      <div className="mt-auto flex flex-col gap-2 pt-4">
         {(quickReplies ?? []).map((reply) => (
           <SeniorButton
             key={reply.value}

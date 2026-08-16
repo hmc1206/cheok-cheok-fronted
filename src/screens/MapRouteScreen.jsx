@@ -3,15 +3,20 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { routesApi } from '../api/routesApi'
 import { AppFrame } from '../components/common/AppFrame'
+import { ExecutingPanel } from '../components/common/ExecutingPanel'
 import { MobileHeader } from '../components/common/MobileHeader'
+import { ProgressStrip } from '../components/common/ProgressStrip'
 import { SeniorInput } from '../components/ui/SeniorInput'
 import { useTTS } from '../hooks/useTTS'
 import { openDeepLinkWithWebFallback } from '../lib/deepLink'
 import { resolveMapAutofill } from '../lib/voiceAutofill'
 import { useVoiceSessionStore } from '../store/voiceSessionStore'
 
-// 점(.) 하나가 늘어나는 간격(ms). 사용자 확인: 500ms(점 3개까지 차는데 1.5초).
-const LOADING_DOT_INTERVAL_MS = 500
+// 후속 요청으로 영상 도움 화면(YoutubePlayerScreen.jsx)도 같은 "입력/실행" 2단계
+// 탭 구조를 쓰게 되면서, 이 화면이 처음 만들었던 상단 탭 인디케이터(ProgressStrip)
+// 와 점(.) 반복 로딩 애니메이션(ExecutingPanel)을 공용 컴포넌트로 옮겼다(요청사항:
+// "새로 만들지 말고 공통 컴포넌트로 분리해서 재사용") — 로직/타이밍은 전혀
+// 바뀌지 않았고, components/common/으로 옮겨서 두 화면이 같은 구현을 공유한다.
 
 // 예전엔 "입력 -> 확인 -> 실행" 3단계였는데, API 명세서를 다시 확인해보니 "출발지/
 // 목적지가 실제 존재하는 장소인지 확인"하는 절차가 geocoding 전용 별도 엔드포인트가
@@ -20,7 +25,7 @@ const LOADING_DOT_INTERVAL_MS = 500
 // 근거가 없었다(사용자 확인 후 "입력 -> 실행" 2단계로 정리). "확인"에 해당하던
 // 검증은 여전히 일어나지만, 입력 단계에서 제출한 그 즉시 실행 단계로 넘어가면서
 // 시작되는 하나의 호출 안에 자연스럽게 포함된다.
-const STEPS = ['입력', '실행']
+const STEP_LABELS = ['입력', '실행']
 
 export function MapRouteScreen() {
   const navigate = useNavigate()
@@ -178,10 +183,10 @@ export function MapRouteScreen() {
     <AppFrame>
       <main className="control-form-screen flex h-full min-h-0 flex-col overflow-hidden bg-[var(--cb-cream)]">
         <MobileHeader title="길 찾기" onBack={handleBack} />
-        <ProgressStrip current={step === 'executing' ? 2 : 1} />
+        <ProgressStrip labels={STEP_LABELS} current={step === 'executing' ? 2 : 1} />
 
         {step === 'executing' ? (
-          <ExecutingPanel />
+          <ExecutingPanel label="실행하는 중" description="네이버 지도에서 경로를 확인하고 있어요." />
         ) : (
           <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
             <section className="px-5 pb-4 pt-5">
@@ -245,52 +250,5 @@ export function MapRouteScreen() {
         )}
       </main>
     </AppFrame>
-  )
-}
-
-function ProgressStrip({ current }) {
-  return (
-    <div className="control-progress grid grid-cols-2" aria-label="길찾기 진행 단계">
-      {STEPS.map((label, index) => (
-        <div key={label} className={index + 1 === current ? 'is-current' : ''}>
-          <span>0{index + 1}</span>
-          <strong>{label}</strong>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-// "실행" 단계 화면. 점(.)이 하나씩 늘어나다가(최대 3개) 다시 0개로 돌아가는
-// 걸 반복하는 타이핑 애니메이션 — 이 컴포넌트가 마운트돼 있는 동안(=step이
-// 'executing'인 동안)에만 인터벌이 돌고, step이 바뀌어 언마운트되면 자동으로
-// 정리된다(별도 조건 분기 없이 useEffect cleanup에 맡김).
-function ExecutingPanel() {
-  const [dotCount, setDotCount] = useState(0)
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setDotCount((previous) => (previous + 1) % 4) // 0 -> 1 -> 2 -> 3 -> 0 반복
-    }, LOADING_DOT_INTERVAL_MS)
-    return () => clearInterval(interval)
-  }, [])
-
-  return (
-    <div className="flex flex-1 flex-col items-center justify-center px-5">
-      {/* 점 개수만큼 너비가 바뀌어도 "실행하는 중" 글자가 화면 안에서 좌우로
-          흔들리지 않도록, 점 3개 폭을 항상 확보해두는 뒤쪽 placeholder 텍스트
-          위에 실제 텍스트를 겹쳐 그린다(둘 다 같은 폭의 모노스페이스 숫자가
-          아니라 점이라 폭이 미세하게 다를 수 있어, 이 방식이 레이아웃 흔들림
-          없이 가장 간단하다). */}
-      <p className="relative text-[24px] font-extrabold tracking-[-0.04em]">
-        <span className="invisible" aria-hidden="true">
-          실행하는 중...
-        </span>
-        <span className="absolute left-0 top-0">실행하는 중{'.'.repeat(dotCount)}</span>
-      </p>
-      <p className="mt-4 text-[15px] font-medium leading-6 text-[var(--cb-slate)]">
-        네이버 지도에서 경로를 확인하고 있어요.
-      </p>
-    </div>
   )
 }
