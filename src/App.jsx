@@ -1,6 +1,7 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { MicPermissionGate } from './components/common/MicPermissionGate'
 import { ThemeProvider } from './components/common/ThemeProvider'
+import { useAuthStore } from './store/authStore'
 import { AllowedAppsEditScreen } from './screens/AllowedAppsEditScreen'
 import { AuthCallbackScreen } from './screens/AuthCallbackScreen'
 import { ChatScreen } from './screens/ChatScreen'
@@ -35,14 +36,21 @@ import { YoutubePlayerScreen } from './screens/YoutubePlayerScreen'
 // apiClient 401 처리 시 재로그인 유도)은 스플래시를 다시 거치지 않는다 —
 // 스플래시는 "/"(앱의 첫 진입점)에만 있다.
 function App() {
+  // 로그인 여부(토큰 존재)로 마이크 권한 확인 시점을 미룬다. 원래는 앱이 뜨자마자
+  // (스플래시/로그인 화면 위에도) 항상 확인했는데, 마이크 권한 모달이 스플래시의
+  // 첫인상 애니메이션 위에 바로 겹쳐 보이는 문제가 있어(사용자 확인) 로그인 이후로
+  // 미뤘다 — 실제로 마이크를 쓰는 기능(음성 비서)도 전부 로그인 후 화면에만
+  // 있어서, 로그인 전에는 물어볼 이유도 없었다.
+  const token = useAuthStore((state) => state.token)
+
   return (
     <ThemeProvider>
       <BrowserRouter>
         {/* 앱 최상단 마운트 지점 — 라우트가 바뀌어도 다시 만들어지지 않도록 Routes
             바깥에 딱 한 번만 둔다. 마이크 권한 상태는 전역(Zustand)이라 여기 위치는
-            "앱 로드 시 한 번 확인"이라는 타이밍 요구사항 때문일 뿐, 화면별로 따로
+            "로그인 후 한 번 확인"이라는 타이밍 요구사항 때문일 뿐, 화면별로 따로
             둘 필요는 없다. */}
-        <MicPermissionGate />
+        {token && <MicPermissionGate />}
         <Routes>
           <Route path="/" element={<SplashScreen />} />
           <Route path="/login" element={<LoginPage />} />
