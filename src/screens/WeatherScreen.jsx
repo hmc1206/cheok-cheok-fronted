@@ -195,45 +195,60 @@ export function WeatherScreen() {
             ) : null}
           </div>
         ) : (
-          // mode === 'result'
+          // mode === 'result'. 길찾기/병원·약국 찾기와 같은 "실행" 단계 화면이지만
+          // 그 둘은 결과가 곧장 외부 앱(네이버 지도)으로 넘어가는 반면 날씨는 이
+          // 화면 자체가 결과를 보여줘야 해서, 구독 신청 화면(SubscriptionScreen.jsx)
+          // 의 SectionCard 카드 패턴을 참고해 항목별로 나눴다(사용자 확인 — 날씨
+          // 상태/기온·습도/옷차림 안내 3장). 강수확률·풍속은 이번 요청에 명시된
+          // 4항목(상태/기온/습도/옷차림)에는 없지만, 삭제하기보다 기온·습도 카드
+          // 안에 작은 보조 정보로 남겨두기로 확인받았다.
           <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 py-6">
             {/* 명세서 11-2: ttsText는 즉시 읽어주고(useVoiceAssistant가 이미 자동
                 재생함) 같은 문구를 화면에도 큰 글자로 함께 보여준다. */}
             <p className="text-[22px] font-extrabold leading-[1.4] tracking-[-0.04em]">{voiceTtsText ?? ttsCaption}</p>
 
-            <div className="mt-5 flex items-center gap-4 rounded-2xl border p-5" style={{ borderColor: 'var(--cb-line)' }}>
-              <span className="text-[var(--cb-teal)]">{ConditionIcon ? <ConditionIcon size={48} /> : null}</span>
-              <div>
-                <p className="text-[17px] font-bold text-[var(--cb-slate)]">{voiceData?.conditionText ?? condition?.label}</p>
+            <SectionCard title="오늘 날씨" className="mt-5">
+              <div className="flex items-center gap-3">
+                <span className="text-[var(--cb-teal)]">{ConditionIcon ? <ConditionIcon size={40} /> : null}</span>
+                <p className="text-[22px] font-extrabold tracking-[-0.03em]">{voiceData?.conditionText ?? condition?.label}</p>
+              </div>
+            </SectionCard>
+
+            <SectionCard title="기온·습도" className="mt-4">
+              <div className="flex items-end justify-between">
                 {voiceData?.currentTemperature != null ? (
                   <p className="text-[44px] font-extrabold leading-none tracking-[-0.04em]">
                     {Math.round(voiceData.currentTemperature)}°
                   </p>
                 ) : (
-                  <p className="text-[32px] font-extrabold leading-none tracking-[-0.04em]">
+                  <p className="text-[36px] font-extrabold leading-none tracking-[-0.04em]">
                     {voiceData?.minimumTemperature != null ? Math.round(voiceData.minimumTemperature) : '-'}° ~{' '}
                     {voiceData?.maximumTemperature != null ? Math.round(voiceData.maximumTemperature) : '-'}°
                   </p>
                 )}
+                <p className="text-[20px] font-bold text-[var(--cb-slate)]">
+                  습도 {voiceData?.humidity != null ? `${voiceData.humidity}%` : '-'}
+                </p>
               </div>
-            </div>
+              {/* 강수확률/풍속 — 이번 요청 4항목엔 없지만 작은 보조 정보로 유지(사용자 확인). */}
+              <p className="mt-2 text-[13px] font-medium text-[var(--cb-slate)]">
+                강수 확률 {voiceData?.precipitationProbability != null ? `${voiceData.precipitationProbability}%` : '-'}
+                {' · '}
+                풍속 {voiceData?.windSpeed != null ? `${voiceData.windSpeed}m/s` : '-'}
+              </p>
+            </SectionCard>
 
-            <div className="mt-3 grid grid-cols-3 gap-2">
-              <WeatherStatTile label="습도" value={voiceData?.humidity != null ? `${voiceData.humidity}%` : '-'} />
-              <WeatherStatTile
-                label="강수 확률"
-                value={voiceData?.precipitationProbability != null ? `${voiceData.precipitationProbability}%` : '-'}
-              />
-              <WeatherStatTile label="풍속" value={voiceData?.windSpeed != null ? `${voiceData.windSpeed}m/s` : '-'} />
-            </div>
-
-            {voiceData?.umbrellaRecommended ? (
-              <div className="mt-4 flex items-center gap-3 rounded-2xl p-4" style={{ background: 'var(--cb-navy)' }}>
-                <UmbrellaIcon />
-                <p className="text-[16px] font-extrabold text-white">{voiceData.advice}</p>
-              </div>
-            ) : voiceData?.advice ? (
-              <p className="mt-4 text-[15px] font-medium leading-6 text-[var(--cb-slate)]">{voiceData.advice}</p>
+            {/* 옷차림 안내 — 명세서 7장 data 필드 표에 advice가 "복장 및 외출 안내"로
+                이미 정의돼 있어(사용자에게 확인/보고 완료), 기온 구간별 옷차림을
+                프론트에서 새로 판단하는 로직 없이 이 필드를 그대로 쓴다. 옷차림은
+                실행 여부를 좌우하는 핵심 정보라 accent 카드로 강조한다. */}
+            {voiceData?.advice ? (
+              <SectionCard title="옷차림 안내" className="mt-4" accent>
+                <div className="flex items-center gap-3">
+                  <UmbrellaIcon />
+                  <p className="text-[17px] font-extrabold leading-6">{voiceData.advice}</p>
+                </div>
+              </SectionCard>
             ) : null}
 
             {voiceData?.location?.name ? (
@@ -268,12 +283,21 @@ function RegionInputForm({ value, onChange, onSubmit }) {
   )
 }
 
-function WeatherStatTile({ label, value }) {
+// 구독 신청 화면(SubscriptionScreen.jsx)의 SectionCard와 같은 시각 스타일 —
+// 흰 배경 rounded-2xl 카드 + 작은 제목 라벨. 화면마다 항목이 달라 컴포넌트를
+// 공유하진 않았지만(공유하기엔 지금 두 화면뿐이라 과한 추상화), 톤앤매너는
+// 의도적으로 그대로 맞췄다. accent=true면 "옷차림 안내"처럼 실행에 중요한
+// 카드를 --cb-gold 배경으로 살짝 강조한다(SubscriptionScreen의 "현재 이용
+// 상태" 카드와 동일한 용도).
+function SectionCard({ title, children, className = '', accent = false }) {
   return (
-    <div className="rounded-2xl border px-3 py-4 text-center" style={{ borderColor: 'var(--cb-line)' }}>
-      <p className="text-[13px] font-bold text-[var(--cb-slate)]">{label}</p>
-      <p className="mt-1 text-[19px] font-extrabold tracking-[-0.03em]">{value}</p>
-    </div>
+    <section
+      className={`rounded-2xl border p-4 ${className}`}
+      style={{ borderColor: 'var(--cb-line)', background: accent ? 'var(--cb-gold)' : '#fff' }}
+    >
+      <h2 className="mb-2 text-[13px] font-extrabold tracking-[-0.02em] text-[var(--cb-slate)]">{title}</h2>
+      {children}
+    </section>
   )
 }
 
@@ -353,7 +377,7 @@ function UnknownIcon({ size = 28 }) {
 }
 function UmbrellaIcon({ size = 24 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="shrink-0 text-white">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="shrink-0 text-[var(--cb-navy)]">
       <path d="M3 11a9 9 0 0 1 18 0Z" />
       <path d="M12 2v1M12 11v8a2 2 0 0 1-3.5 1.3" />
     </svg>
