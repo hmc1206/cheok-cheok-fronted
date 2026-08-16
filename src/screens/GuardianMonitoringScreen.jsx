@@ -14,7 +14,7 @@ export function GuardianMonitoringScreen() {
       eyebrow="함께 안심하는 이용"
       description="보호자가 이용 현황을 확인할 수 있는 화면을 준비하고 있어요."
       tip="이용 시간, 최근 활동 같은 정보를 보호자와 함께 볼 수 있도록 도와드릴 예정이에요."
-      onBack={() => navigate('/settings')}
+      onBack={() => navigate(-1)}
       icon={<ShieldGlyph />}
     />
   )
