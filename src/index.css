@@ -6,11 +6,6 @@
 @import 'tailwindcss';
 @import './styles/tokens.css';
 
-button,
-input {
-  font: inherit;
-}
-
 /* 스크롤바 숨김 처리 — 마우스 스크롤 시 화면 우측에 나타나는 스크롤바
    인디케이터를 전체 페이지 기준으로 완전히 숨긴다. 스크롤 동작(휠/터치)
    자체는 이 규칙과 무관하게 그대로 살아있다 — 여기서 건드리는 건 스크롤바의
@@ -19,21 +14,6 @@ input {
    - 구형 Edge/IE: -ms-overflow-style: none.
    - Chrome/Safari/신 Edge(webkit 계열): ::-webkit-scrollbar에 display: none.
    전역 * 선택자에 걸어서 앱 안 모든 스크롤 영역에 동일하게 적용한다. */
-* {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-*::-webkit-scrollbar {
-  display: none;
-}
-
-button:focus-visible,
-input:focus-visible,
-a:focus-visible {
-  outline: 2px solid #000000;
-  outline-offset: 3px;
-}
 
 @keyframes senior-rise-in {
   from {
@@ -49,8 +29,18 @@ a:focus-visible {
 /* Reference-home reminder: a complete mobile screen uses staggered, restrained entrance motion. */
 
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
+  * {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  *::before {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
   *::after {
     scroll-behavior: auto !important;
     animation-duration: 0.01ms !important;
@@ -70,65 +60,71 @@ a:focus-visible {
 @keyframes control-spin { to { transform: rotate(360deg); } }
 
 /* Banksalad-informed product layer — white canvas, quiet lines, green decisions. */
-.salad-login, .salad-auth { background: #f5f7f9 !important; }
-.salad-login > header, .salad-auth > header { padding-bottom: 16px; border-bottom: 1px solid #e2e8ee; }
 
 /* Dealicious-informed editorial layer — navy identity, cool grey tints, no elevation. */
-html, body, #root { font-family: Roboto, "Noto Sans KR", sans-serif; }
-.salad-home__nav span, .salad-home__nav button { color: #fff !important; }
-.salad-home__intro p, .salad-home__intro h1, .salad-home__intro button { color: #fff !important; }
-
-.salad-login, .salad-auth { background: #001339 !important; }
-.salad-login > header, .salad-auth > header { border-bottom-color: rgba(255, 255, 255, 0.18); }
-.salad-login > header span:last-child, .salad-auth > header span:last-child { color: #fff !important; }
-.salad-login section:not(:last-child) p, .salad-login section:not(:last-child) h1, .salad-auth section p, .salad-auth section h1 { color: #fff !important; }
-.salad-login section:not(:last-child) p:first-child, .salad-auth section p:first-child { color: #bec5d2 !important; }
 
 /* Apple-informed product layer — black identity, fog canvas, restrained blue action. */
-html, body, #root { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; }
-.salad-home__nav span, .salad-home__nav button { color: #fff !important; }
-.salad-home__intro p, .salad-home__intro h1, .salad-home__intro button { color: #fff !important; }
-
-.salad-login, .salad-auth { background: #000 !important; }
-.salad-login > header, .salad-auth > header { border-bottom-color: rgba(255,255,255,0.2); }
-.salad-login > header span:last-child, .salad-auth > header span:last-child { color: #fff !important; }
-.salad-login section:not(:last-child) p, .salad-login section:not(:last-child) h1, .salad-auth section p, .salad-auth section h1 { color: #fff !important; }
-.salad-login section:not(:last-child) p:first-child, .salad-auth section p:first-child { color: #a1a1a6 !important; }
 
 /* NHN Cloud-informed corporate layer — precise controls and a deliberate blue action lane. */
-html, body, #root { font-family: "Pretendard Variable", Pretendard, "Noto Sans KR", sans-serif; }
-.salad-home__nav span, .salad-home__nav button { color: #111 !important; }
-.salad-home__intro p, .salad-home__intro h1, .salad-home__intro button { color: #fff !important; }
-
-.salad-login, .salad-auth { background: #fff !important; }
-.salad-login > header, .salad-auth > header { border-bottom-color: #dfe4ec; }
-.salad-login > header span:last-child, .salad-auth > header span:last-child { color: #111 !important; }
-.salad-login section:not(:last-child) p, .salad-login section:not(:last-child) h1, .salad-auth section p, .salad-auth section h1 { color: #111 !important; }
-.salad-login section:not(:last-child) p:first-child, .salad-auth section p:first-child { color: #125de6 !important; }
 
 /* Toss TDS-informed mobile layer — large touch actions, calm blue-grey surfaces, single bright blue action. */
-html, body, #root { font-family: "Toss Product Sans", "Pretendard Variable", Pretendard, "Noto Sans KR", sans-serif; }
-.salad-home__nav span, .salad-home__nav button { color: #191f28 !important; }
-.salad-home__intro p, .salad-home__intro h1, .salad-home__intro button { color: #191f28 !important; }
-
-.salad-login, .salad-auth { background: #fff !important; }
-.salad-login > header, .salad-auth > header { border-bottom-color: #e5e8eb; }
-.salad-login > header span:last-child, .salad-auth > header span:last-child { color: #191f28 !important; }
-.salad-login section:not(:last-child) p, .salad-login section:not(:last-child) h1, .salad-auth section p, .salad-auth section h1 { color: #191f28 !important; }
-.salad-login section:not(:last-child) p:first-child, .salad-auth section p:first-child { color: #3182f6 !important; }
 
 /* Reference composition adaptation — clear greeting, horizontal voice card, explanatory service cards. */
 
+button {
+  font: inherit;
+}
+
+input {
+  font: inherit;
+}
 * {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   box-sizing: border-box;
   font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', system-ui, sans-serif;
 }
 
-html {
-  background: #ffffff;
+*::-webkit-scrollbar {
+  display: none;
 }
 
+button:focus-visible {
+  outline: 2px solid #000000;
+  outline-offset: 3px;
+}
+
+input:focus-visible {
+  outline: 2px solid #000000;
+  outline-offset: 3px;
+}
+
+a:focus-visible {
+  outline: 2px solid #000000;
+  outline-offset: 3px;
+}
+.salad-login {
+  background: #fff !important;
+}
+.salad-auth {
+  background: #fff !important;
+}
+.salad-login > header {
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e2e8ee;
+  border-bottom-color: #e5e8eb;
+}
+.salad-auth > header {
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e2e8ee;
+  border-bottom-color: #e5e8eb;
+}
+html {
+  font-family: "Toss Product Sans", "Pretendard Variable", Pretendard, "Noto Sans KR", sans-serif;
+  background: #ffffff;
+}
 body {
+  font-family: "Toss Product Sans", "Pretendard Variable", Pretendard, "Noto Sans KR", sans-serif;
   min-width: 320px;
   margin: 0;
   background: #ffffff;
@@ -137,9 +133,48 @@ body {
   font-weight: 500;
   line-height: 1.5;
 }
-
 #root {
+  font-family: "Toss Product Sans", "Pretendard Variable", Pretendard, "Noto Sans KR", sans-serif;
   min-height: 100dvh;
+}
+.salad-home__nav span {
+  color: #191f28 !important;
+}
+.salad-home__nav button {
+  color: #191f28 !important;
+}
+.salad-home__intro p {
+  color: #191f28 !important;
+}
+.salad-home__intro h1 {
+  color: #191f28 !important;
+}
+.salad-home__intro button {
+  color: #191f28 !important;
+}
+.salad-login > header span:last-child {
+  color: #191f28 !important;
+}
+.salad-auth > header span:last-child {
+  color: #191f28 !important;
+}
+.salad-login section:not(:last-child) p {
+  color: #191f28 !important;
+}
+.salad-login section:not(:last-child) h1 {
+  color: #191f28 !important;
+}
+.salad-auth section p {
+  color: #191f28 !important;
+}
+.salad-auth section h1 {
+  color: #191f28 !important;
+}
+.salad-login section:not(:last-child) p:first-child {
+  color: #3182f6 !important;
+}
+.salad-auth section p:first-child {
+  color: #3182f6 !important;
 }
 
 button:not(:disabled) {
