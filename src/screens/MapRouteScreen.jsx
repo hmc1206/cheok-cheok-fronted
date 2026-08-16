@@ -171,10 +171,7 @@ export function MapRouteScreen() {
         ) : (
           <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
             <section className="px-5 pb-4 pt-5">
-              <p className="text-[12px] font-extrabold tracking-[0.16em] text-[var(--cb-teal)]">
-                길찾기 조종
-              </p>
-              <h1 className="mt-2 text-[30px] font-extrabold leading-[1.06] tracking-[-0.08em]">
+              <h1 className="text-[30px] font-extrabold leading-[1.06] tracking-[-0.08em]">
                 어디에서 어디로
                 <br />
                 가시나요?
@@ -266,13 +263,12 @@ function ExecutingPanel() {
 
   return (
     <div className="flex flex-1 flex-col items-center justify-center px-5">
-      <p className="text-[12px] font-extrabold tracking-[0.16em] text-[var(--cb-teal)]">길찾기 조종</p>
       {/* 점 개수만큼 너비가 바뀌어도 "실행하는 중" 글자가 화면 안에서 좌우로
           흔들리지 않도록, 점 3개 폭을 항상 확보해두는 뒤쪽 placeholder 텍스트
           위에 실제 텍스트를 겹쳐 그린다(둘 다 같은 폭의 모노스페이스 숫자가
           아니라 점이라 폭이 미세하게 다를 수 있어, 이 방식이 레이아웃 흔들림
           없이 가장 간단하다). */}
-      <p className="relative mt-3 text-[24px] font-extrabold tracking-[-0.04em]">
+      <p className="relative text-[24px] font-extrabold tracking-[-0.04em]">
         <span className="invisible" aria-hidden="true">
           실행하는 중...
         </span>
