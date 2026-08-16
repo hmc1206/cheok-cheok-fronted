@@ -33,6 +33,28 @@ const MODE_TABS = [
   { key: 'play', label: '바로 실행하기' },
 ]
 
+// YOUTUBE_SEARCH의 data를 배열로 정규화한다.
+//
+// 명세서 원문에 "data": { [ {...}, {...} ] } 로 적혀 있는데, 이건 객체({}) 안에
+// 키 없이 배열([])이 바로 들어간 문법으로 실제로는 유효한 JSON이 아니다(그대로
+// 파싱될 수 없다) — 아마 YOUTUBE_PLAY 섹션의 "data": { ... } 틀을 복사해 쓰다가
+// 안쪽 내용만 배열로 바꾸고 바깥 중괄호를 못 지운 문서 오타로 보인다. 다만 이전에
+// "실제 원본 응답은 data가 배열을 감싸는 객체 형태로 온 예시도 있었다"는 이야기가
+// 있었어서, "이건 오타다"라고 단정하고 배열 하나만 기준으로 짜면 실제 연동에서
+// 깨질 위험이 있다 — 그래서 배열이 그대로 오는 경우(명세서 문구 그대로 해석)와,
+// 흔히 쓰이는 몇 가지 키로 감싸서 오는 경우를 둘 다 허용하도록 방어적으로 짰다.
+// 어느 쪽이 실제 응답인지는 백엔드와 확인이 필요하다 — 확인되면 이 함수 하나만
+// 정리하면 된다(호출부는 항상 배열 또는 null만 넘겨받으므로 손댈 필요 없음).
+function extractSearchResults(data) {
+  if (Array.isArray(data)) return data
+  if (data && typeof data === 'object') {
+    for (const key of ['results', 'items', 'videos', 'list']) {
+      if (Array.isArray(data[key])) return data[key]
+    }
+  }
+  return null
+}
+
 export function YoutubePlayerScreen() {
   const navigate = useNavigate()
   const { status, sendText, ttsCaption } = useVoiceAssistant()
@@ -61,6 +83,10 @@ export function YoutubePlayerScreen() {
   const isSearchSession = intent === 'YOUTUBE_SEARCH'
   const isPlaySession = intent === 'YOUTUBE_PLAY'
 
+  // 검색 목록은 여러 화면에서(모드 계산 + 목록 렌더링) 같은 값을 써야 하므로
+  // 한 번만 정규화해서 재사용한다.
+  const searchResults = extractSearchResults(data)
+
   // 화면에 보여줄 세부 상태를 매번 다시 계산한다(별도 로컬 step state 없이
   // entryMode + voiceSessionStore + 이 화면만의 로컬 상태 조합으로 결정).
   let mode
@@ -69,7 +95,7 @@ export function YoutubePlayerScreen() {
   } else if (entryMode === 'search') {
     if (selectedVideo) {
       mode = videoLaunched ? 'search-launched' : 'search-confirm'
-    } else if (isSearchSession && step === 'CONFIRM' && Array.isArray(data)) {
+    } else if (isSearchSession && step === 'CONFIRM' && searchResults) {
       mode = 'search-list'
     } else {
       mode = 'search-input'
@@ -189,7 +215,7 @@ export function YoutubePlayerScreen() {
         ) : mode === 'search-launched' || mode === 'play-done' ? (
           <ExecutingPanel label="유튜브를 여는 중" description="잠시만 기다려 주세요." />
         ) : mode === 'search-list' ? (
-          <VideoList videos={data} onSelect={handleSelectVideo} />
+          <VideoList videos={searchResults} onSelect={handleSelectVideo} />
         ) : mode === 'search-confirm' ? (
           <VideoConfirmPanel
             headline={ttsCaption || '이 영상이 맞나요?'}
