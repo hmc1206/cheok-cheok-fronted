@@ -1,13 +1,16 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { MicPermissionGate } from './components/common/MicPermissionGate'
 import { ThemeProvider } from './components/common/ThemeProvider'
+import { AllowedAppsEditScreen } from './screens/AllowedAppsEditScreen'
 import { AuthCallbackScreen } from './screens/AuthCallbackScreen'
 import { ChatScreen } from './screens/ChatScreen'
+import { GuardianMonitoringScreen } from './screens/GuardianMonitoringScreen'
 import { HomeScreen } from './screens/HomeScreen'
 import { KioskLiveScreen } from './screens/KioskLiveScreen'
 import { LoginPage } from './screens/LoginPage'
 import { MapRouteScreen } from './screens/MapRouteScreen'
-import { NotificationSettingsScreen } from './screens/NotificationSettingsScreen'
+import { SettingsScreen } from './screens/SettingsScreen'
+import { SubscriptionScreen } from './screens/SubscriptionScreen'
 import { TrainBookingScreen } from './screens/TrainBookingScreen'
 import { UsageLimitScreen } from './screens/UsageLimitScreen'
 import { YoutubePlayerScreen } from './screens/YoutubePlayerScreen'
@@ -43,9 +46,17 @@ function App() {
           <Route path="/kiosk" element={<KioskLiveScreen />} />
           <Route path="/youtube" element={<YoutubePlayerScreen />} />
           <Route path="/auth/callback" element={<AuthCallbackScreen />} />
-          <Route path="/notification-settings" element={<NotificationSettingsScreen />} />
           {/* TODO: 이용 한도 상세 화면 — 아직 기획/디자인 없음, 라우팅 스텁만 연결 */}
           <Route path="/usage-limit" element={<UsageLimitScreen />} />
+          {/* 홈 화면 헤더 설정 아이콘 진입 화면군 (HomeScreen.jsx SettingsIcon 참고).
+              "알림 설정"은 더 이상 별도 화면이 아니라 /settings 안 "음성 및 알림"
+              섹션으로 통합됐다(SettingsScreen.jsx 참고) — 그래서 옛
+              /notification-settings 라우트는 삭제했다. */}
+          <Route path="/settings" element={<SettingsScreen />} />
+          <Route path="/settings/allowed-apps" element={<AllowedAppsEditScreen />} />
+          {/* TODO: 실제 보호자 모니터링 화면 확정 전까지 라우팅 스텁 */}
+          <Route path="/settings/guardian-monitoring" element={<GuardianMonitoringScreen />} />
+          <Route path="/subscription" element={<SubscriptionScreen />} />
         </Routes>
       </BrowserRouter>
     </ThemeProvider>

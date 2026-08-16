@@ -1,80 +1,8 @@
-import { useNavigate } from 'react-router-dom'
+/** Design reminder — conversation history is a white product sheet with gentle accent signals. */
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 
-// 햄버거 메뉴로 여는 사이드 드로어. 히스토리/알람 설정 데이터를 props로 받는
-// 독립 컴포넌트로 분리해서, HomeScreen은 상태(열림 여부, 히스토리 배열)만 들고
-// 있고 실제 목록 렌더링은 여기서 담당한다.
 export function SidePanel({ isOpen, onClose, history }) {
-  const navigate = useNavigate()
-
-  const handleOpenNotificationSettings = () => {
-    onClose() // 드로어를 닫고 나서 이동 — 뒤로가기로 돌아왔을 때 드로어가 열린 채로 남지 않게.
-    navigate('/notification-settings')
-  }
-
-  return (
-    <>
-      {/* 오버레이: 뒤쪽을 어둡게 덮고, 바깥(오버레이) 클릭 시 닫히게 한다.
-          AppFrame 내부 div에 transform이 걸려 있어 fixed가 브라우저 전체가 아니라
-          393x852 프레임 기준으로 잡힌다(다른 화면의 CaptionOverlay와 동일한 원리). */}
-      {isOpen && (
-        <div className="fixed inset-0 z-40 bg-black/40" onClick={onClose} role="presentation" />
-      )}
-
-      <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-[78%] max-w-[300px] flex-col gap-4 overflow-y-auto p-5 transition-transform duration-300 ease-out ${
-          isOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
-        style={{ background: 'var(--color-bg)', boxShadow: 'var(--shadow-card)' }}
-        aria-hidden={!isOpen}
-      >
-        <div className="flex items-center justify-between">
-          <h2 style={{ fontSize: 'var(--text-title)', fontWeight: 700, color: 'var(--color-text)' }}>
-            메뉴
-          </h2>
-          {/* 56px 최소 터치 영역 — 노인 사용자가 오터치 없이 닫기 버튼을 누를 수 있게. */}
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="메뉴 닫기"
-            className="flex items-center justify-center"
-            style={{ width: 56, height: 56, fontSize: 'var(--text-title)', color: 'var(--color-gray)' }}
-          >
-            ×
-          </button>
-        </div>
-
-        {/* /notification-settings로 이동 — 세컨더리 버튼 스타일(.quick-action-button)을
-            그대로 써서 앱 전체 버튼 톤과 통일. */}
-        <button type="button" onClick={handleOpenNotificationSettings} className="quick-action-button w-full">
-          알람 설정
-        </button>
-
-        <div className="flex flex-col gap-2">
-          <h3 style={{ fontSize: 'var(--text-body)', color: 'var(--color-gray)' }}>히스토리</h3>
-
-          {history.length === 0 && (
-            <p style={{ fontSize: 'var(--text-body)', color: 'var(--color-gray)' }}>
-              아직 대화 기록이 없어요.
-            </p>
-          )}
-
-          <ul className="flex flex-col gap-3">
-            {/* 최신 기록이 위로 오도록 뒤집어서 표시한다 (history 자체는 시간순으로 누적됨). */}
-            {[...history].reverse().map((entry) => (
-              <li
-                key={entry.id}
-                className="flex flex-col gap-1 border-b pb-2"
-                style={{ borderColor: 'var(--color-gray-light)' }}
-              >
-                <p style={{ fontSize: 'var(--text-body)', fontWeight: 700, color: 'var(--color-text)' }}>
-                  {entry.question}
-                </p>
-                <p style={{ fontSize: 'var(--text-body)', color: 'var(--color-gray)' }}>{entry.answer}</p>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </aside>
-    </>
-  )
+  const reducedMotion = useReducedMotion()
+  return <AnimatePresence>{isOpen ? <><motion.button type="button" aria-label="도움 기록 닫기" className="salad-history__scrim fixed inset-0 z-40" onClick={onClose} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} /><motion.aside className="salad-history fixed inset-y-0 right-0 z-50 flex w-full max-w-[375px] flex-col bg-white" initial={reducedMotion ? false : { x: '100%' }} animate={{ x: 0 }} exit={reducedMotion ? undefined : { x: '100%' }} transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}><header className="flex items-center justify-between border-b border-[#f0f2f5] px-5 py-5"><div><p className="text-[14px] font-bold text-[var(--cb-tomato)]">도움 기록</p><h2 className="mt-1 text-[26px] font-bold tracking-[-0.055em] text-[#111]">말씀 나눈 내용</h2></div><button type="button" onClick={onClose} className="min-h-12 px-2 text-[15px] font-bold text-[#555c68]">닫기</button></header><div className="flex-1 overflow-y-auto px-5 py-5">{history.length === 0 ? <div className="rounded-[24px] border border-[#f0f2f5] p-6"><p className="text-[19px] font-bold tracking-[-0.04em] text-[#111]">아직 기록이 없어요.</p><p className="mt-2 text-[15px] font-medium leading-6 text-[#555c68]">홈에서 말로 질문하면 이곳에서 다시 볼 수 있어요.</p></div> : <ul>{history.map((entry) => <li key={entry.id} className="border-b border-[#f0f2f5] py-5 last:border-b-0"><time className="text-[13px] font-medium text-[#9fa4b0]">{formatTimestamp(entry.createdAt ?? entry.id)}</time><p className="mt-2 text-[17px] font-bold leading-7 tracking-[-0.04em] text-[#111]">{entry.question || '음성 질문을 확인하고 있어요.'}</p><p className="mt-3 rounded-[16px] bg-[#f7f9fb] px-4 py-3 text-[15px] font-medium leading-6 text-[#555c68]">{entry.answer}</p></li>)}</ul>}</div></motion.aside></> : null}</AnimatePresence>
 }
+function formatTimestamp(value) { const date = new Date(value); if (Number.isNaN(date.getTime())) return '방금 전'; return new Intl.DateTimeFormat('ko-KR', { hour: 'numeric', minute: '2-digit' }).format(date) }

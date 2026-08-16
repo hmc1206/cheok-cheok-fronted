@@ -1,379 +1,519 @@
-/* 전체 디자인 개편(feature/fe-redesign) 브리프: "Pretendard만 사용, 다른 폰트는
-   fallback으로도 넣지 않는다." 기존에 있던 Toss Product Sans CDN @import 2개를
-   제거하고 Pretendard 하나만 남긴다. CSS 스펙상 @import는 항상 다른 규칙보다 앞에
-   와야 하는데, 로컬 파일 @import(tailwindcss, tokens.css)는 빌드 시 그 자리에 내용이
-   그대로 인라인되어 "다른 규칙"처럼 취급될 수 있어, 외부 URL @import를 맨 위에 둔다. */
+/**
+ * Design reminder — Reference-led senior home: a clean white/mint canvas, emerald prompt cues,
+ * a waveform-led voice card, a calm two-by-two help grid, and no low-contrast critical copy.
+ */
 @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
-
 @import 'tailwindcss';
 @import './styles/tokens.css';
 
-/*
- * 전역 리셋 + 베이스 스타일. 화면별 세부 스타일은 각 컴포넌트에서 tokens.css의
- * var(--token-name)만 참조해서 짠다(하드코딩 hex/px 금지) — 어디서 봐도 같은 앱처럼
- * 보이게 하는 핵심 규칙.
- */
-* {
-  box-sizing: border-box;
-  /* Pretendard 로드 실패 시에도 다른 브랜드 폰트로 떨어지지 않고 시스템 sans-serif로만
-     폴백한다(브리프: "no other font family anywhere, not even as a fallback"). */
-  font-family: var(--font-family);
+button,
+input {
+  font: inherit;
 }
 
-/* "척척" 타이틀이 아래에서 위로 슬라이드업되며 나타나는 애니메이션.
-   500~600ms/ease-out — 색상/폰트와 무관한 순수 모션이라 리디자인 후에도 그대로 재사용. */
-@keyframes chuck-slide-up {
+button:focus-visible,
+input:focus-visible,
+a:focus-visible {
+  outline: 2px solid #000000;
+  outline-offset: 3px;
+}
+
+@keyframes senior-rise-in {
   from {
-    transform: translateY(24px);
     opacity: 0;
+    transform: translateY(8px);
   }
   to {
-    transform: translateY(0);
     opacity: 1;
+    transform: translateY(0);
   }
 }
 
-.chuck-title-animate {
-  animation: chuck-slide-up 560ms ease-out both;
+/* Reference-home reminder: a complete mobile screen uses staggered, restrained entrance motion. */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
-/* 서브타이틀은 타이틀 애니메이션이 끝나는 시점(560ms)에 이어서 등장하도록
-   animation-delay를 타이틀 duration과 동일하게 맞춘다. */
-.chuck-subtitle-animate {
-  animation: chuck-slide-up 560ms ease-out 560ms both;
+/* Reference home — keeps five visual zones inside a 375 × 812 phone canvas. */
+
+/* Quiet Utility home — a service directory, not a stack of generic glass cards. */
+
+/* ChukChuk Workbench — common component system. */
+
+/* Living Control Board — a different fixed-phone product architecture. */
+
+@keyframes control-spin { to { transform: rotate(360deg); } }
+
+/* Banksalad-informed product layer — white canvas, quiet lines, green decisions. */
+.salad-login, .salad-auth { background: #f5f7f9 !important; }
+.salad-login > header, .salad-auth > header { padding-bottom: 16px; border-bottom: 1px solid #e2e8ee; }
+
+/* Dealicious-informed editorial layer — navy identity, cool grey tints, no elevation. */
+html, body, #root { font-family: Roboto, "Noto Sans KR", sans-serif; }
+.salad-home__nav span, .salad-home__nav button { color: #fff !important; }
+.salad-home__intro p, .salad-home__intro h1, .salad-home__intro button { color: #fff !important; }
+
+.salad-login, .salad-auth { background: #001339 !important; }
+.salad-login > header, .salad-auth > header { border-bottom-color: rgba(255, 255, 255, 0.18); }
+.salad-login > header span:last-child, .salad-auth > header span:last-child { color: #fff !important; }
+.salad-login section:not(:last-child) p, .salad-login section:not(:last-child) h1, .salad-auth section p, .salad-auth section h1 { color: #fff !important; }
+.salad-login section:not(:last-child) p:first-child, .salad-auth section p:first-child { color: #bec5d2 !important; }
+
+/* Apple-informed product layer — black identity, fog canvas, restrained blue action. */
+html, body, #root { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; }
+.salad-home__nav span, .salad-home__nav button { color: #fff !important; }
+.salad-home__intro p, .salad-home__intro h1, .salad-home__intro button { color: #fff !important; }
+
+.salad-login, .salad-auth { background: #000 !important; }
+.salad-login > header, .salad-auth > header { border-bottom-color: rgba(255,255,255,0.2); }
+.salad-login > header span:last-child, .salad-auth > header span:last-child { color: #fff !important; }
+.salad-login section:not(:last-child) p, .salad-login section:not(:last-child) h1, .salad-auth section p, .salad-auth section h1 { color: #fff !important; }
+.salad-login section:not(:last-child) p:first-child, .salad-auth section p:first-child { color: #a1a1a6 !important; }
+
+/* NHN Cloud-informed corporate layer — precise controls and a deliberate blue action lane. */
+html, body, #root { font-family: "Pretendard Variable", Pretendard, "Noto Sans KR", sans-serif; }
+.salad-home__nav span, .salad-home__nav button { color: #111 !important; }
+.salad-home__intro p, .salad-home__intro h1, .salad-home__intro button { color: #fff !important; }
+
+.salad-login, .salad-auth { background: #fff !important; }
+.salad-login > header, .salad-auth > header { border-bottom-color: #dfe4ec; }
+.salad-login > header span:last-child, .salad-auth > header span:last-child { color: #111 !important; }
+.salad-login section:not(:last-child) p, .salad-login section:not(:last-child) h1, .salad-auth section p, .salad-auth section h1 { color: #111 !important; }
+.salad-login section:not(:last-child) p:first-child, .salad-auth section p:first-child { color: #125de6 !important; }
+
+/* Toss TDS-informed mobile layer — large touch actions, calm blue-grey surfaces, single bright blue action. */
+html, body, #root { font-family: "Toss Product Sans", "Pretendard Variable", Pretendard, "Noto Sans KR", sans-serif; }
+.salad-home__nav span, .salad-home__nav button { color: #191f28 !important; }
+.salad-home__intro p, .salad-home__intro h1, .salad-home__intro button { color: #191f28 !important; }
+
+.salad-login, .salad-auth { background: #fff !important; }
+.salad-login > header, .salad-auth > header { border-bottom-color: #e5e8eb; }
+.salad-login > header span:last-child, .salad-auth > header span:last-child { color: #191f28 !important; }
+.salad-login section:not(:last-child) p, .salad-login section:not(:last-child) h1, .salad-auth section p, .salad-auth section h1 { color: #191f28 !important; }
+.salad-login section:not(:last-child) p:first-child, .salad-auth section p:first-child { color: #3182f6 !important; }
+
+/* Reference composition adaptation — clear greeting, horizontal voice card, explanatory service cards. */
+
+* {
+  box-sizing: border-box;
+  font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', system-ui, sans-serif;
 }
 
-/* 홈 화면 인사 문구(두 줄)가 타이핑되듯 아래에서 위로 올라오는 애니메이션.
-   같은 chuck-slide-up 키프레임을 재사용하되, 두 줄이 거의 이어서 나타나도록
-   (로그인 스플래시의 타이틀→서브타이틀보다 짧은) 150ms 정도만 스태거를 준다.
-   both 덕분에 애니메이션이 끝난 뒤엔 마지막 상태(제자리, 불투명)로 고정된다. */
-.home-greeting-line-1 {
-  animation: chuck-slide-up 500ms ease-out both;
-}
-.home-greeting-line-2 {
-  animation: chuck-slide-up 500ms ease-out 150ms both;
+html {
+  background: #ffffff;
 }
 
 body {
+  min-width: 320px;
   margin: 0;
-  /* font-family는 위 * 규칙(var(--font-family) = Pretendard → system-ui → sans-serif)을
-     그대로 쓰도록 여기서는 지정하지 않는다 (지정하면 specificity 때문에 *보다 우선해버림). */
-  font-size: var(--text-body);
-  line-height: var(--line-height-normal);
-  color: var(--color-text);
-  background: var(--color-bg);
+  background: #ffffff;
+  color: #1a1a1a;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.5;
 }
 
 #root {
   min-height: 100dvh;
 }
 
-button {
-  font: inherit;
+button:not(:disabled) {
   cursor: pointer;
 }
 
-/* 세컨더리(고스트) 버튼 — 디자인 브리프의 "Secondary/ghost button" 규칙을 그대로 적용:
-   투명 배경 + primary 2px 테두리, 필(pill) 모양, 56px 최소 터치 영역(노인 사용자
-   접근성 — 웹 표준 44px보다 크게), 클릭 시 살짝 어두워지며 눌리는 느낌(scale). */
-.quick-action-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 56px;
-  padding: var(--space-sm) var(--space-md);
-  font-size: var(--text-body-lg);
+.login-page-motion {
+  animation: senior-rise-in 400ms ease-out both;
+}
+.control-stage {
+  background: #f2f4f6;
+}
+.control-shell {
+  box-shadow: none;
+  background: #fff;
+}
+
+.control-button {
+  border: 0;
+  border-radius: 16px;
+  transition: background-color 140ms ease-out, color 140ms ease-out, box-shadow 140ms ease-out;
+  box-shadow: none !important;
+  font-size: 17px;
   font-weight: 600;
-  border: 2px solid var(--color-primary);
-  border-radius: var(--radius-pill);
+  min-height: 56px;
+}
+.control-button--primary {
+  background: #3182f6;
+  box-shadow: none;
+  color: #fff;
+  border-color: #3182f6;
+}
+.control-button--primary:hover:not(:disabled) {
+  background: #2272eb;
+}
+.control-button--secondary {
+  background: #e8f3ff;
+  border: 0;
+  color: #1b64da;
+  border-radius: 16px;
+}
+.control-button--quiet {
   background: transparent;
-  color: var(--color-primary);
-  box-shadow: var(--shadow-none);
-  transition:
-    transform 120ms ease-out,
-    background-color 120ms ease-out,
-    color 120ms ease-out;
+  border: 0;
+  color: #3182f6;
 }
 
-.quick-action-button:active:not(:disabled) {
-  transform: scale(0.97);
-  background: var(--color-bg-alt);
+.control-field {
+  border-top: 0;
+  padding-top: 0;
+}
+.control-input {
+  border: 1px solid #e7eaf0;
+  background: #fff;
+  color: var(--cb-navy);
+  transition: border-color 140ms ease-out, background-color 140ms ease-out;
+  border-radius: 10px;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  border-color: #e5e8eb;
+  box-shadow: none !important;
+}
+.control-input:focus {
+  border-bottom-color: var(--cb-tomato);
+  background: #fff;
+  border-color: #3182f6;
+  box-shadow: 0 0 0 3px rgba(49,130,246,0.14) !important;
+}
+.control-input--error {
+  border-bottom-color: var(--cb-error);
 }
 
-.quick-action-button:disabled {
-  border-color: var(--color-gray-light);
-  color: var(--color-gray);
-  cursor: not-allowed;
+.control-placeholder__signal {
+  background: #fff;
+  border: 1px solid #f0f2f5;
+  border-radius: 16px;
+  border-color: transparent;
 }
 
-.quick-action-button:focus-visible,
-button:focus-visible,
-input:focus-visible {
-  outline: var(--focus-ring);
-  outline-offset: 2px;
+.control-progress {
+  border-bottom: 1px solid #e2e8ee;
+  background: #fff;
+  border-bottom-color: #e5e8eb;
 }
-
-/* 길찾기 화면 입력창(.map-input)만 전역 포커스 링 대신 브랜드 accent 컬러를 쓴다.
-   class 선택자(.map-input) + :focus-visible이 위 규칙(input:focus-visible)보다
-   구체적이라(specificity 우위) 이 클래스가 붙은 요소에서만 이 규칙이 이긴다.
-   병합(feature/fe-redesign) 이후: 예전엔 브랜드 색을 #146156으로 하드코딩했는데,
-   새 디자인 토큰의 --color-primary(#146456)와 미묘하게 다른 값이라 헷갈릴 수 있어
-   var(--color-primary) 참조로 바꿨다 — 값 자체는 새 토큰을 그대로 따라간다. */
-.map-input:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
-}
-
-/* 메인(primary) 버튼 — 디자인 브리프 "Primary button" 규칙: --color-primary 채우기,
-   흰 텍스트, 필(pill) 모양, 56px 최소 터치 영역, 텍스트 20px/600. 눌렀을 때
-   --color-primary-pressed(약 15% 어둡게) + 살짝 축소(scale)로 눌리는 느낌을 준다. */
-.primary-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 56px;
-  padding: 0 var(--space-lg);
-  font-size: var(--text-body-lg);
-  font-weight: 600;
-  border: none;
-  border-radius: var(--radius-pill);
-  background: var(--color-primary);
-  color: var(--color-primary-contrast);
-  box-shadow: var(--shadow-none);
-  transition:
-    transform 120ms ease-out,
-    background-color 120ms ease-out;
-}
-
-.primary-button:active:not(:disabled) {
-  background: var(--color-primary-pressed);
-  transform: scale(0.97);
-}
-
-.primary-button:disabled {
-  background: var(--color-gray-light);
-  color: var(--color-gray);
-  cursor: not-allowed;
-}
-
-/* 아이콘 전용 버튼 — 디자인 브리프 "Icon-only buttons" 규칙: 최소 56×56px 터치 영역,
-   --color-secondary 칩 배경, 아이콘은 --color-text. 원이 아니라 둥근 사각(radius-lg)
-   "칩" 모양으로 둬서 기존 유리 원형 버튼과는 다른 새 시각 언어를 준다. */
-.icon-chip-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  border-radius: var(--radius-lg);
-  background: var(--color-secondary);
-  color: var(--color-text);
-  box-shadow: var(--shadow-none);
-  /* hover/터치 시 filter로 살짝 어두워지는 효과가 튀지 않고 부드럽게 들어오도록
-     0.2s 트랜지션 추가(요청사항: "0.15~0.2초 정도 부드럽게"). */
-  transition:
-    transform 120ms ease-out,
-    opacity 120ms ease-out,
-    filter 0.2s ease;
-}
-
-/* 마우스 hover 시 배경을 살짝 어둡게 — filter: brightness()는 색상(hue)은 그대로 두고
-   명도만 낮춰서, --color-secondary 값 자체를 건드리거나 새 색을 하드코딩하지
-   않아도 된다(요청사항: "색상 자체는 유지"). */
-.icon-chip-button:hover:not(:disabled) {
-  filter: brightness(0.9);
-}
-
-/* 터치 기기는 hover가 없어서 :active에도 같은 효과를 넣어야 "눌렀다"는 피드백이
-   보인다(요청사항: "모바일에서는 hover 대신 active 상태에도"). */
-.icon-chip-button:active:not(:disabled) {
-  filter: brightness(0.9);
-  transform: scale(0.95);
-}
-
-.icon-chip-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* 음성 비서 마이크 버튼 — 화면의 메인 액션이라 primary-button과 같은 색 규칙(채우기
-   --color-primary, 눌렀을 때 --color-primary-pressed)을 쓰되, 다른 화면들에서
-   재사용하는 큰 버튼이라 별도 클래스로 둔다. 홈 화면 카드형 박스 레이아웃 요청에
-   맞춰 원형이 아니라 둥근 사각 박스로 바뀌면서, 다른 카드처럼 shadow-card를
-   준다(모양/그림자만 변경 — 색/상태 로직은 그대로). */
-.voice-button {
-  border: none;
-  background: var(--color-primary);
-  color: var(--color-primary-contrast);
-  box-shadow: var(--shadow-card);
-  /* filter 트랜지션 추가 — 0.2s로 부드럽게(요청사항 1). */
-  transition:
-    transform 120ms ease-out,
-    background-color 120ms ease-out,
-    filter 0.2s ease;
-}
-
-/* hover: 명도만 살짝 낮춤(brightness), hue는 그대로 — 요청사항 1. */
-.voice-button:hover:not(:disabled) {
-  filter: brightness(0.9);
-}
-
-/* 터치 기기는 hover가 없어 :active에도 동일 효과를 준다. 기존 배경색 스왑
-   (--color-primary-pressed)과 filter를 같이 적용하면 겹쳐서 필요 이상으로
-   어두워지므로, 배경색 스왑은 지우고 filter 하나로 통일했다. */
-.voice-button:active:not(:disabled) {
-  filter: brightness(0.9);
-  transform: scale(0.97);
-}
-
-.voice-button:disabled {
-  background: var(--color-gray-light);
-  color: var(--color-gray);
-  cursor: not-allowed;
-}
-
-/* on/off 토글 스위치 (알림 설정 화면). 켜짐 상태는 accent 컬러, 꺼짐은 --color-gray-light —
-   앱 전체에서 accent가 "클릭 유도/활성" 의미로만 쓰이는 것과 일관되게 유지. */
-.toggle-switch {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  width: 52px;
-  height: 32px;
-  flex-shrink: 0;
-  padding: 4px;
-  border: none;
-  border-radius: var(--radius-pill);
-  background: var(--color-gray-light);
-  transition: background-color 120ms ease-out;
-}
-
-.toggle-switch[data-checked='true'] {
-  background: var(--color-primary);
-}
-
-.toggle-switch-thumb {
-  display: block;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: #ffffff;
-  box-shadow: var(--shadow-card);
-  transition: transform 120ms ease-out;
-}
-
-.toggle-switch[data-checked='true'] .toggle-switch-thumb {
-  transform: translateX(20px);
-}
-
-/* 카드 — 디자인 브리프 "Cards" 규칙: 흰 배경, radius-lg, 옅은 그림자, 내부 여백 md. */
-.app-card {
-  background: var(--color-bg);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
-  padding: var(--space-md);
-}
-
-/* "현재 이용 상태" 카드 전용 — 흰 배경(.app-card)이 흰 페이지 배경에 묻혀 보인다는
-   피드백 반영. 새 색을 만들지 않고 이미 있는 --color-bg-alt(옅은 회색/그린 톤,
-   #f5f7f6)로 배경을 구분하고, accent 컬러의 얇은 테두리를 카드 전체 둘레에 둘러
-   "깔끔하지만 포인트 있는" 느낌을 낸다. box-shadow는 .app-card의 것을 그대로
-   물려받는다. (왼쪽만 -> 좌우 -> 전체 테두리 순으로 반복 피드백을 거쳐 지금 형태로 정착) */
-.usage-status-card {
-  background: var(--color-bg-alt);
-  border: 1px solid var(--color-primary);
-}
-
-/* 3개 바로가기 카드 전용 — 마찬가지로 흰 배경이 존재감 없어 보인다는 피드백 반영.
-   여기는 배경색 대신 연한 그린 톤 테두리로 경계만 살짝 드러낸다(피드백 요청:
-   "옅은 배경색 또는 연한 보더" 중 보더 쪽 선택 — 이용 상태 카드와는 다른 방식으로
-   구분해 두 카드가 똑같아 보이지 않게 했다). 테두리 색은 --color-primary-soft-border
-   토큰(accent와 같은 색 계열, 테마별로 재정의됨 — tokens.css 참고)을 써서 라이트/
-   고대비 테마 모두에서 팔레트가 어긋나지 않는다. hover 시 살짝 떠오르는 효과
-   (translateY -2px)와 그림자 강화도 여기서 처리 — 개별 아이콘 버튼
-   (.icon-chip-button)의 hover 어두워짐 효과와는 별개로, 카드 전체가 반응하는
-   느낌을 준다. */
-.nav-icons-card {
-  border: 1px solid var(--color-primary-soft-border);
-  transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease;
-}
-
-.nav-icons-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(9, 38, 53, 0.1);
-}
-
-/* 채팅 페이지(ChatScreen) 하단 입력바. ChatGPT 앱의 "+ / 입력창 / 마이크+파형"
-   가로 배치를 참고했다 — 로고/브랜드 텍스트는 없음. */
-.chat-input-bar {
+.control-progress > div {
   display: flex;
-  align-items: center;
-  gap: var(--space-xs);
-  padding: var(--space-sm) var(--space-sm);
-  border-top: 1px solid var(--color-gray-light);
-  background: var(--color-bg);
-}
-
-/* "+"와 마이크/파형 아이콘 버튼 공용 스타일 — 44px 최소 터치 영역, 평소엔
-   배경 없이 아이콘만(햄버거 메뉴와 같은 절제된 톤). */
-.chat-input-icon-button {
-  display: inline-flex;
+  min-height: 46px;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  min-width: 44px;
-  min-height: 44px;
-  border: none;
-  border-radius: var(--radius-pill);
+  gap: 0.35rem;
+  border-right: 0;
+  color: #8b95a1;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+.control-progress > div:last-child {
+  border-right: 0;
+}
+.control-progress > div span {
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+}
+.control-progress > .is-current {
+  background: #fff;
+  color: #191f28;
+  box-shadow: inset 0 -3px 0 #3182f6;
+}
+
+.control-form-screen__body {
+  border-top: 0;
+  background: #f2f4f6;
+}
+.control-number-field {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 0.75rem;
+}
+.control-number-field > span {
+  padding-top: 0.2rem;
+  color: #3182f6;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+.control-notice {
+  border-left: 3px solid var(--cb-teal);
+  padding-left: 0.75rem;
+  color: #4e5968;
+  font-size: 0.88rem;
+  font-weight: 700;
+  line-height: 1.5;
+  border-left-color: #3182f6;
+}
+.control-form-screen__action {
+  border-top: 1px solid #e2e8ee;
+  background: #fff;
+  border-top-color: #e5e8eb;
+}
+.control-form-screen__hint {
+  border-top: 1px solid #e2e8ee;
+  background: #e8f3ff;
+  color: #4e5968;
+  border-top-color: #e5e8eb;
+}
+.control-form-screen__hint span {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+.control-form-screen__hint p {
+  margin-top: 0.25rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+.salad-header {
+  border-bottom: 1px solid #e2e8ee;
+  background: #fff;
+  border-bottom-color: #e5e8eb;
+}
+
+.salad-home {
+  background: #f2f4f6 !important;
+}
+.salad-home__nav {
+  border-bottom: 1px solid #e2e8ee;
+  background: #fff;
+  border-bottom-color: #e5e8eb;
+}
+.salad-home__mark {
+  background: #e8f3ff;
+}
+.salad-home__intro {
+  min-height: 122px;
+  padding-top: 22px;
+  border-radius: 16px;
+  background: #d8e9ff;
+  padding: 22px 20px;
+}
+.salad-home__intro--transcript {
+  min-height: 132px;
+}
+.salad-home__voice {
+  border: 1px solid #e5ebf0;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: none;
+  border-color: transparent;
+}
+.salad-home__voice::before {
+  position: absolute;
+  top: -34px;
+  right: -28px;
+  width: 136px;
+  height: 136px;
+  border-radius: 999px;
+  background: #e8f3ff;
+  content: '';
+}
+.salad-home__mic {
+  position: relative;
+  background: #3182f6;
+  box-shadow: none;
+}
+.salad-home__audio-ring {
+  position: absolute;
+  inset: -8px;
+  border: 1px solid #13bd7e;
+  border-radius: 999px;
+  opacity: 0;
+  transition: transform 90ms linear, opacity 90ms linear;
+  border-color: #3182f6;
+}
+.salad-home__voice[data-state='listening'] .salad-home__audio-ring {
+  opacity: calc(0.2 + (var(--voice-level, 0) * 0.7));
+  transform: scale(calc(1.02 + (var(--voice-level, 0) * 0.28)));
+}
+.salad-home__text-submit {
+  border-radius: 14px;
+  background: #3182f6;
+}
+.salad-home__services {
+  min-height: 0;
+  gap: 12px;
+}
+.salad-home__service {
+  border: 1px solid #e5ebf0;
+  border-radius: 14px;
+  background: #fff;
+  transition: border-color 150ms ease-out, transform 150ms ease-out;
+  border-color: transparent;
+  box-shadow: none;
+}
+.salad-home__service:hover {
+  border-color: #125de6;
+  background: #e8f3ff;
+}
+.salad-home__service-icon {
+  border-radius: 10px;
+  background: #e8f3ff;
+  color: #3182f6;
+}
+
+.salad-login__mark {
+  border-radius: 10px;
+  background: #e8f3ff;
+}
+.salad-login__bubble {
+  background: #e8f3ff;
+}
+
+.control-form-screen {
+  background: #f2f4f6 !important;
+}
+.salad-auth__loader {
+  border: 4px solid rgba(19, 189, 126, 0.14);
+  animation: control-spin 900ms linear infinite;
+  border-color: #e5e8eb;
+  border-top-color: #3182f6;
+}
+.salad-history__scrim {
+  background: rgba(25,31,40,0.34);
+}
+.salad-history {
+  box-shadow: 0 4px 8px rgba(0,0,0,0.06);
+  background: #fff;
+}
+.salad-login section:last-child {
+  border-top-color: #e2e8ee;
+  margin: 0 -24px -28px;
+  border-top: 0;
+  background: #fff;
+  padding: 20px 24px 28px;
+}
+.salad-history > header {
+  background: #fff;
+  border-bottom-color: #e5e8eb;
+}
+.salad-home__content {
+  padding-top: 16px;
+}
+.salad-home__intro p:first-child {
+  color: #1768cf !important;
+}
+.salad-home__service--compact .salad-home__service-icon {
+  border-radius: 8px;
+}
+.salad-home__content > div:nth-last-child(2) p {
+  color: #4e5968;
+}
+.salad-login__bubble span {
+  color: #3182f6 !important;
+}
+.salad-login section:last-child .control-button--primary {
+  background: #3182f6;
+}
+.control-form-screen__body h1 {
+  color: #191f28;
+}
+.salad-home--reference {
+  background: #f2f4f6 !important;
+}
+.salad-home--reference .salad-home__content {
+  gap: 0;
+}
+.salad-home__greeting {
+  min-height: 116px;
+  padding-top: 5px;
+}
+.salad-home__greeting p {
+  margin: 0;
+  color: #3182f6;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.045em;
+}
+.salad-home__greeting h1 {
+  margin: 6px 0 0;
+  color: #191f28;
+  font-size: 29px;
+  font-weight: 700;
+  line-height: 1.18;
+  letter-spacing: -0.065em;
+}
+.salad-home--reference .salad-home__intro--transcript {
+  min-height: 116px;
+  padding: 14px 0 0;
   background: transparent;
-  color: var(--color-gray);
-  font-size: var(--text-heading);
-  flex-shrink: 0;
-  transition: color 0.2s ease;
 }
-
-.chat-input-icon-button:disabled {
-  color: var(--color-gray-light);
-  cursor: default;
+.salad-home__voice--reference {
+  min-height: 184px;
+  padding: 28px;
+  border: 1px solid #e5e8eb;
+  border-radius: 20px;
+  background: #fff;
 }
-
-/* 마이크 버튼이 듣는 중일 때 accent 컬러로 강조 — "듣고 있는 중" 상태 표시
-   (요구사항 3). */
-.chat-input-icon-button[data-listening='true'] {
-  color: var(--color-primary);
+.salad-home__voice--reference::before {
+  top: -38px;
+  right: -22px;
+  width: 148px;
+  height: 148px;
+  background: #e8f3ff;
+  opacity: 1;
 }
-
-.chat-input-field {
-  flex: 1;
-  min-height: 44px;
-  padding: 0 var(--space-sm);
-  border: none;
-  border-radius: var(--radius-pill);
-  background: var(--color-bg-alt);
-  color: var(--color-text);
-  font-size: var(--text-body);
+.salad-home__voice--reference > div {
+  max-width: 188px;
 }
-
-.chat-input-field::placeholder {
-  color: var(--color-gray);
+.salad-home__voice--reference > div > p:first-child {
+  color: #191f28;
 }
-
-/* 듣는 중일 때 파형 아이콘이 은은하게 맥박치듯 애니메이션 — "지금 듣고 있다"는
-   걸 정적인 색 변화보다 더 분명하게 전달한다. */
-@keyframes chat-waveform-pulse {
-  0%,
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.55;
-    transform: scale(1.15);
-  }
+.salad-home__voice--reference > div > p:nth-child(2) {
+  color: #4e5968;
 }
-
-.chat-waveform-pulse {
-  display: inline-flex;
-  animation: chat-waveform-pulse 900ms ease-in-out infinite;
+.salad-home__mic--reference {
+  width: 88px !important;
+  height: 88px !important;
+  margin-left: 12px !important;
+  background: #3182f6 !important;
+  box-shadow: 0 10px 20px rgba(49,130,246,0.18) !important;
+}
+.salad-home--reference .salad-home__services--reference {
+  grid-auto-rows: minmax(0, 1fr);
+}
+.salad-home__service--reference {
+  padding: 18px 16px;
+  border: 1px solid #e5e8eb;
+  border-radius: 20px;
+  background: #fff;
+}
+.salad-home__service--reference .salad-home__service-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: #e8f3ff;
+  color: #3182f6;
+}
+.salad-home__service--reference span > span:last-child {
+  color: #4e5968;
+}
+.salad-home--reference .salad-home__content > div:nth-last-child(2) span {
+  color: #8b95a1;
+}
+.salad-home__more-button {
+  color: #3182f6;
+  border-radius: 12px;
+}
+.salad-home__more-button:active {
+  background: #e8f3ff;
+}
+.salad-home__services--expanded {
+  grid-auto-rows: 138px;
 }

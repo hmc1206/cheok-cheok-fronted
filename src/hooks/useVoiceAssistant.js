@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react'
+import { useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { voiceApi } from '../api/voiceApi'
 import { useAuthStore } from '../store/authStore'
@@ -25,25 +26,28 @@ export function useVoiceAssistant({ onResult } = {}) {
   const { speak } = useTTS()
   const userId = useAuthStore((state) => state.userId)
   const setSession = useVoiceSessionStore((state) => state.setSession)
+  const cancelledRef = useRef(false)
 
   const [status, setStatus] = useState('idle') // idle | listening | processing
   const [sttCaption, setSttCaption] = useState('')
   const [ttsCaption, setTtsCaption] = useState('')
+  const [outcome, setOutcome] = useState('idle') // idle | success | error
 
   const applyResponse = useCallback(
-    (response) => {
+    (response, transcript = '') => {
       // API 명세서 v2.0 2장 공통 응답 필드: intent/step/slots/ttsText/screen/quickReplies/data.
       const { intent, step, screen, slots, data, ttsText, quickReplies } = response
 
       setTtsCaption(ttsText ?? '')
+      setOutcome('success')
       if (ttsText) speak(ttsText)
 
-      setSession({ intent, step, screen, slots, data, quickReplies: quickReplies ?? null })
+      setSession({ intent, step, screen, slots, data, transcript, quickReplies: quickReplies ?? null })
 
       // "진행 중이면 같은 화면에서 이어감" — 이미 목적지 화면이면 다시 navigate하지 않는다.
       const targetPath = INTENT_ROUTES[intent]
       if (targetPath && location.pathname !== targetPath) {
-        navigate(targetPath, { state: { data } })
+        navigate(targetPath, { state: { data, slots, transcript } })
       }
 
       onResult?.(response)
@@ -54,11 +58,13 @@ export function useVoiceAssistant({ onResult } = {}) {
   const processUtterance = useCallback(
     async (payload) => {
       setStatus('processing')
+      setOutcome('idle')
       try {
         const response = await voiceApi.process({ userId, ...payload })
-        applyResponse(response)
+        if (cancelledRef.current) return
+        applyResponse(response, payload.text ?? '')
       } catch (error) {
-        // 공통 에러 응답({ success: false, error: { code, message }, ttsText })도 정상 응답과 동일하게 캡션+TTS로
+        // 공통 에러 응답({ errorCode, message, ttsText })도 정상 응답과 동일하게 캡션+TTS로
         // 안내한다 (청각+시각 이중 안내 원칙). apiClient 인터셉터가 SESSION_EXPIRED/401은
         // 이미 별도 처리하지만, 여기서 다시 캡션을 채워줘야 화면에도 문구가 보인다.
         // catch 없이 두면 sendText를 그냥 호출만 하고 await하지 않는 화면들에서
@@ -68,6 +74,7 @@ export function useVoiceAssistant({ onResult } = {}) {
           setTtsCaption(ttsText)
           speak(ttsText)
         }
+        setOutcome('error')
       } finally {
         setStatus('idle')
       }
@@ -76,21 +83,40 @@ export function useVoiceAssistant({ onResult } = {}) {
   )
 
   const startListening = useCallback(async () => {
+    cancelledRef.current = false
     setStatus('listening')
+    setSttCaption('')
+    setTtsCaption('')
+    setOutcome('idle')
     try {
-      const result = await startSTT()
+      const result = await startSTT({ onInterim: setSttCaption })
       // 사투리/오인식 확인용 자막을 API 호출 전에 먼저 띄운다 (기획서 3-1장 3단계).
+      if (cancelledRef.current) return
       if (result.text) setSttCaption(result.text)
+      if (cancelledRef.current) return
       await processUtterance(result)
     } catch {
-      setStatus('idle')
+      if (!cancelledRef.current) {
+        setOutcome('error')
+        setStatus('idle')
+      }
     }
   }, [processUtterance, startSTT])
+
+  const cancelListening = useCallback(() => {
+    cancelledRef.current = true
+    stopListening()
+    setStatus('idle')
+    setTtsCaption('')
+    setOutcome('idle')
+  }, [stopListening])
 
   // 음성 없이 텍스트로 입력하는 경우(화면 내 텍스트 입력창)에도 같은 파이프라인을 태운다.
   const sendText = useCallback(
     (text, extra = {}) => {
       setSttCaption(text)
+      setTtsCaption('')
+      setOutcome('idle')
       return processUtterance({ text, ...extra })
     },
     [processUtterance],
@@ -102,7 +128,9 @@ export function useVoiceAssistant({ onResult } = {}) {
     isSTTSupported,
     sttCaption,
     ttsCaption,
+    outcome,
     startListening,
+    cancelListening,
     stopListening,
     sendText,
   }
