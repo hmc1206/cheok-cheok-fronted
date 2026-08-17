@@ -7,16 +7,18 @@ import { MicIcon } from '../components/common/icons'
 import { useHistoryStore } from '../store/historyStore'
 import { useVoiceAssistant } from '../hooks/useVoiceAssistant'
 import { useMicrophoneLevel } from '../hooks/useMicrophoneLevel'
-import { getCurrentPositionOrNull } from '../lib/geolocation'
+import { useVoiceSessionStore } from '../store/voiceSessionStore'
 
 // "도움 기록"은 더 이상 홈 화면 드로어가 아니라 설정 화면(SettingsScreen.jsx)
 // 안의 한 섹션이라, 여기 바로가기 그리드에서는 뺐다(요청사항: "도움기록 기능을
 // 설정 안으로 넣고") — 5개로 줄어서 "1개 기능 더보기"로 문구도 같이 바뀐다.
 //
 // "말로 질문"(발화 없이 그냥 마이크만 켜던 항목)을 "오늘의 날씨"로 교체했다
-// (요청사항). path가 없는 건 이전 "voice" 항목과 동일한 이유 — 이 항목은 다른
-// 화면으로 바로 이동하지 않고 handleFeatureSelect에서 특수 처리한다(GPS부터
-// 확보해야 해서).
+// (요청사항). 다른 항목들과 마찬가지로 path만 있으면 된다 — 예전엔 이 항목만
+// 예외로 여기서 GPS+요청을 먼저 끝내고 성공해야 이동하는 구조였는데, "영상
+// 도움 버튼처럼 클릭 즉시 전용 페이지로 이동해야 한다"는 사용자 확인에 따라
+// 다른 기능들과 동일하게 "먼저 이동 -> 그 페이지 안에서 처리"로 바꿨다
+// (WeatherScreen.jsx가 진입 즉시 GPS+요청을 스스로 시작한다).
 const NAV_ITEMS = [
   { id: 'map', label: '길 찾기', sub: '목적지까지 편하게', path: '/map', Icon: MapIcon },
   // 기차 예매(TRAIN_BOOKING, 제출 로직 없는 미완성 스텁이었음)를 대체한 신규
@@ -24,7 +26,7 @@ const NAV_ITEMS = [
   { id: 'nearby-place', label: '내 주변 병원·약국', sub: '가까운 곳 바로 찾기', path: '/nearby-place', Icon: NearbyPlaceIcon },
   { id: 'kiosk', label: '키오스크', sub: '화면을 보며 따라하기', path: '/kiosk', Icon: KioskIcon },
   { id: 'youtube', label: '영상 도움', sub: '보고 싶은 영상 찾기', path: '/youtube', Icon: YoutubeIcon },
-  { id: 'weather', label: '오늘의 날씨', sub: '기온과 강수 확률 보기', Icon: WeatherIcon },
+  { id: 'weather', label: '오늘의 날씨', sub: '기온과 강수 확률 보기', path: '/weather', Icon: WeatherIcon },
 ]
 
 export function HomeScreen() {
@@ -32,6 +34,7 @@ export function HomeScreen() {
   const { status, sttCaption, ttsCaption, outcome, startListening, cancelListening, sendText } = useVoiceAssistant()
   const microphoneLevel = useMicrophoneLevel(status === 'listening')
   const addHistoryEntry = useHistoryStore((state) => state.addEntry)
+  const resetSession = useVoiceSessionStore((state) => state.resetSession)
   const [isTranscriptEditing, setIsTranscriptEditing] = useState(false)
   const [transcriptDraft, setTranscriptDraft] = useState('')
   const [isMoreOpen, setIsMoreOpen] = useState(false)
@@ -52,21 +55,6 @@ export function HomeScreen() {
     setTranscriptDraft('')
     startListening()
   }
-  // "오늘의 날씨" 타일: 발화 없이 곧바로 오늘 날씨를 조회한다(사용자 확인 —
-  // 날씨 API 명세서 1장 예시 문구를 그대로 재사용). /voice/process는 text/audio
-  // 중 하나가 필수라 이 고정 문구를 text로 보낸다. latitude/longitude는 "현재
-  // 위치" 기준 조회를 위한 선택 필드(명세서 4장)라 GPS를 먼저 시도하고, 실패해도
-  // (권한 거부/타임아웃) 좌표 없이 그대로 보낸다 — 서버가 ASK_LOCATION으로
-  // 되물을 뿐 정상 흐름이다(WeatherScreen.jsx가 그 이후를 이어받는다).
-  const [isWeatherRequesting, setIsWeatherRequesting] = useState(false)
-  const handleWeatherRequest = async () => {
-    setIsWeatherRequesting(true)
-    const coords = await getCurrentPositionOrNull()
-    setIsWeatherRequesting(false)
-    // coords가 이미 { latitude, longitude } 형태라(lib/geolocation.js) 별도
-    // 필드명 변환 없이 그대로 넘긴다.
-    sendText('오늘 날씨 알려줘', coords ?? {})
-  }
   const handleTranscriptEdit = () => {
     const draft = sttCaption || transcriptDraft
     if (isTranscribing) cancelListening()
@@ -86,8 +74,12 @@ export function HomeScreen() {
   }
   const handleFeatureSelect = (item) => {
     if (item.id === 'weather') {
-      handleWeatherRequest()
-      return
+      // 이전에 확인했던 날씨 결과(음성으로 물어봤던 것이든, 예전에 이 타일을
+      // 눌렀던 것이든)가 voiceSessionStore에 남아있으면, 그 오래된 결과를 그대로
+      // 보여주지 않고 매번 새로 조회하도록 여기서 세션을 비운다 — WeatherScreen
+      // 은 "이미 결과가 있으면 재요청하지 않는다"고 판단하므로, 재진입 때마다
+      // 새로 확인하려면 진입 전에 비워야 한다.
+      resetSession()
     }
     navigate(item.path)
   }
@@ -200,11 +192,6 @@ export function HomeScreen() {
                 type="button"
                 key={item.id}
                 onClick={() => handleFeatureSelect(item)}
-                // 날씨 타일은 GPS 확보를 기다리는 짧은 순간(최대 5초, lib/geolocation.js
-                // 타임아웃) 동안 중복 클릭을 막고, 위치를 확인 중이라는 걸 알려준다 —
-                // 그 사이엔 status가 아직 'processing'으로 안 바뀌어(요청을 아직 안
-                // 보냈으므로) 다른 화면들처럼 훅의 status만으로는 로딩 여부를 알 수 없다.
-                disabled={item.id === 'weather' && isWeatherRequesting}
                 whileTap={reducedMotion ? undefined : { scale: 0.98 }}
                 initial={isMoreOpen && index >= 4 && !reducedMotion ? { opacity: 0, y: 22 } : false}
                 animate={{ opacity: 1, y: 0 }}
@@ -214,9 +201,7 @@ export function HomeScreen() {
                 <span className="salad-home__service-icon flex items-center justify-center"><item.Icon /></span>
                 <span>
                   <span className="block text-[18px] font-bold tracking-[-0.055em]">{item.label}</span>
-                  <span className="mt-1 block text-[13px] font-medium leading-5">
-                    {item.id === 'weather' && isWeatherRequesting ? '위치를 확인하는 중...' : item.sub}
-                  </span>
+                  <span className="mt-1 block text-[13px] font-medium leading-5">{item.sub}</span>
                 </span>
               </motion.button>
             ))}
