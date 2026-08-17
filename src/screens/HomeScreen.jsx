@@ -98,12 +98,12 @@ export function HomeScreen() {
     <AppFrame>
       <main className={`salad-home salad-home--reference flex h-full min-h-0 flex-col ${isMoreOpen ? 'overflow-y-auto' : 'overflow-hidden'}`}>
         <header className="salad-home__nav flex h-[64px] shrink-0 items-center justify-between px-5">
-          <div className="flex items-center gap-2">
-            <span className="salad-home__mark flex h-8 w-8 items-center justify-center rounded-[10px]">
-              <img src="/manus-storage/cheok-logo-mark_977663d4.png" alt="" className="h-5 w-5" />
-            </span>
-            <span className="text-[18px] font-bold tracking-[-0.04em]">척척</span>
-          </div>
+          {/* 요청사항: 로고 아이콘 이미지를 완전히 삭제하고 "척척" 텍스트만
+              남긴다. 아이콘+텍스트를 감싸던 flex/gap 래퍼(아이콘과의 간격
+              용도)도 함께 걷어냈다 — 아이콘이 있던 자리(px-5 왼쪽 여백)에
+              텍스트가 그대로 자연스럽게 붙도록, 남은 요소 하나만 별도 래퍼
+              없이 header에 바로 둔다. 폰트/굵기/색상은 기존 값 그대로 유지. */}
+          <span className="text-[18px] font-bold tracking-[-0.04em]">척척</span>
           {/* 설정 화면 진입점(=햄버거 아이콘). "도움 기록"이 설정 화면 안으로
               옮겨가면서(요청사항) 이 버튼 하나가 설정+도움 기록+구독 신청까지
               전부 아우르는 메뉴 진입점이 됐다 — 그래서 아이콘도 기존 톱니바퀴

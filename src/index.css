@@ -385,9 +385,6 @@ button:not(:disabled) {
   background: #fff;
   border-bottom-color: #e5e8eb;
 }
-.salad-home__mark {
-  background: #e8f3ff;
-}
 .salad-home__intro {
   min-height: 122px;
   padding-top: 22px;
