@@ -15,11 +15,15 @@ const SPLASH_DURATION_MS = 2000
 // 화면이 끊겨 보이지 않는다.
 const FADE_DURATION_MS = 300
 
-// "척척" 타이틀 슬라이드업 애니메이션(index.css의 splash-title-rise, 560ms)이
-// 끝나갈 즈음 서브 문구가 자연스럽게 이어서 나타나도록 살짝 겹치는 시점(450ms)
-// 에 시작한다 — 완전히 끝난 뒤(560ms) 시작하면 두 모션 사이에 정지 구간이
-// 생겨 뚝뚝 끊겨 보인다(사용자 확인: 타이밍은 이 값으로 제안 후 승인받음).
-const SUBTITLE_DELAY_MS = 450
+// "척척" 타이틀 슬라이드업 애니메이션(index.css의 splash-title-rise)이 끝나갈
+// 즈음 서브 문구가 자연스럽게 이어서 나타나도록 살짝 겹치는 시점에 시작한다 —
+// 완전히 끝난 뒤 시작하면 두 모션 사이에 정지 구간이 생겨 뚝뚝 끊겨 보인다.
+// 사용자 요청으로 타이틀 애니메이션 자체를 560ms -> 900ms로 늘려 천천히
+// 올라오게 했고(아래 splash-title-rise 인라인 스타일 참고), 서브 문구 시작
+// 시점도 같은 비율(전체의 약 80% 지점)로 맞춰 720ms로 함께 늘렸다 — 타이틀만
+// 늘리고 이 값을 그대로 두면 두 모션의 "겹침 정도"가 비율상 더 짧아져 버려서
+// 늦게 나타나는 애매한 타이밍이 되기 때문.
+const SUBTITLE_DELAY_MS = 720
 
 // 앱 최초 진입("/") 화면. 로그인 화면(LoginPage)보다 먼저 노출되며, "척척"
 // 타이틀이 아래에서 위로 슬라이드업된 뒤 일정 시간 후 자동으로 /login으로
@@ -75,11 +79,15 @@ export function SplashScreen() {
         {/* 사용자 확인(재조정 2회차): 타이틀/서브 문구 둘 다 --cb-navy(검정에
             가까운 다크 네이비)로 통일했다 — 브랜드 파란색은 이제 텍스트가
             아니라 뒤의 은은한 글로우로만 남아있다. 색이 같아진 대신 굵기
-            (extrabold 800 vs medium 500)와 크기(44px vs 15px) 차이로 위계를
+            (black 900 vs medium 500)와 크기(44px vs 15px) 차이로 위계를
             구분한다. */}
+        {/* font-black(900): 요청사항 — 기존 font-extrabold(800)보다 한 단계 더
+            굵게. 애니메이션 duration도 560ms -> 900ms로 늘려 슬라이드업이 덜
+            급하게, 더 여유 있게 올라오도록 했다(요청사항: "너무 빨리 올라오는
+            느낌"). */}
         <h1
-          className="splash-title relative text-[44px] font-extrabold tracking-[-0.04em] text-[var(--cb-navy)]"
-          style={{ animation: 'splash-title-rise 560ms ease-out both' }}
+          className="splash-title relative text-[44px] font-black tracking-[-0.04em] text-[var(--cb-navy)]"
+          style={{ animation: 'splash-title-rise 900ms ease-out both' }}
         >
           척척
         </h1>
