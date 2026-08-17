@@ -16,10 +16,26 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
-    <script
-      defer
-      src="%VITE_ANALYTICS_ENDPOINT%/umami"
-      data-website-id="%VITE_ANALYTICS_WEBSITE_ID%"></script>
+    <!-- QA 중 발견: VITE_ANALYTICS_ENDPOINT/VITE_ANALYTICS_WEBSITE_ID가 .env,
+         .env.production 어디에도 정의돼 있지 않아, 예전엔 이 자리에 있던
+         script 태그의 src/data-website-id 자리표시자(Vite HTML env 치환 문법)가
+         치환되지 않은 채 그대로 남아 모든 화면에서 존재하지 않는 주소로 스크립트를
+         요청 -> 매 페이지 진입마다 콘솔 404 에러가 찍히고 있었다(build 시에도
+         같은 경고가 떴다). 값이 실제로 설정되기 전까지는 아예 요청하지 않도록
+         module 스크립트에서 조건부로 감싼다 — 나중에 실제 엔드포인트/website-id가
+         채워지면 자동으로 다시 정상 동작한다(엔드포인트/website-id 값 자체를
+         정하는 건 이 QA의 범위가 아니라 임의로 채우지 않았다). -->
+    <script type="module">
+      const endpoint = import.meta.env.VITE_ANALYTICS_ENDPOINT
+      const websiteId = import.meta.env.VITE_ANALYTICS_WEBSITE_ID
+      if (endpoint && websiteId) {
+        const analyticsScript = document.createElement('script')
+        analyticsScript.defer = true
+        analyticsScript.src = `${endpoint}/umami`
+        analyticsScript.dataset.websiteId = websiteId
+        document.body.appendChild(analyticsScript)
+      }
+    </script>
   </body>
 
 </html>
