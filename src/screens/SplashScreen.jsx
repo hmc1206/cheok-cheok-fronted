@@ -72,10 +72,11 @@ export function SplashScreen() {
             "척척"/서브 문구만 순서대로 읽는다. */}
         <div className="splash-glow" aria-hidden="true" />
 
-        {/* 사용자 확인(재조정): "척척"은 검정(--cb-navy)으로 되돌리고, 브랜드
-            파란색은 서브 문구 쪽으로 옮겼다 — 타이틀/서브 문구 색이 리디자인
-            초안과 반대로 바뀐 것뿐, 굵기 위계(타이틀 extrabold vs 서브 문구
-            medium)는 그대로 유지했다. */}
+        {/* 사용자 확인(재조정 2회차): 타이틀/서브 문구 둘 다 --cb-navy(검정에
+            가까운 다크 네이비)로 통일했다 — 브랜드 파란색은 이제 텍스트가
+            아니라 뒤의 은은한 글로우로만 남아있다. 색이 같아진 대신 굵기
+            (extrabold 800 vs medium 500)와 크기(44px vs 15px) 차이로 위계를
+            구분한다. */}
         <h1
           className="splash-title relative text-[44px] font-extrabold tracking-[-0.04em] text-[var(--cb-navy)]"
           style={{ animation: 'splash-title-rise 560ms ease-out both' }}
@@ -83,7 +84,7 @@ export function SplashScreen() {
           척척
         </h1>
         <motion.p
-          className="relative mt-2 text-[15px] font-medium tracking-[-0.02em] text-[var(--cb-tomato)]"
+          className="relative mt-2 text-[15px] font-medium tracking-[-0.02em] text-[var(--cb-navy)]"
           initial={reducedMotion ? false : { opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.2, delay: SUBTITLE_DELAY_MS / 1000 }}
