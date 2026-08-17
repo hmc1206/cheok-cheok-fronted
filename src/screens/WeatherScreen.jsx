@@ -149,6 +149,14 @@ export function WeatherScreen() {
 
   const condition = voiceData ? (WEATHER_CONDITIONS[voiceData.conditionCode] ?? WEATHER_CONDITIONS.UNKNOWN) : null
   const ConditionIcon = condition?.Icon
+  // 일교차 — 명세서엔 별도 필드가 없어(요청사항: "이 계산은... 프론트에서 직접
+  // 계산할 것") 최고·최저 기온 두 값의 차이로 계산한다. 반올림은 온도 표시
+  // 규칙(명세서 11-4 "반올림한 정수로 표시")과 통일했다. 둘 중 하나라도 없으면
+  // (예보가 아니라 실시간 관측만 있는 응답 등) 계산할 수 없으니 표시하지 않는다.
+  const diurnalRange =
+    voiceData?.minimumTemperature != null && voiceData?.maximumTemperature != null
+      ? Math.round(voiceData.maximumTemperature - voiceData.minimumTemperature)
+      : null
 
   return (
     <AppFrame>
@@ -232,6 +240,11 @@ export function WeatherScreen() {
                   습도 {voiceData?.humidity != null ? `${voiceData.humidity}%` : '-'}
                 </p>
               </div>
+              {/* 일교차 — 어르신도 한눈에 읽도록 온도 범위 바로 아래, 문장 형태로
+                  크게 강조한다(요청사항: "오늘 일교차는 5도예요" 형태). */}
+              {diurnalRange != null ? (
+                <p className="mt-2 text-[16px] font-bold text-[var(--cb-navy)]">오늘 일교차는 {diurnalRange}도예요.</p>
+              ) : null}
               {/* 강수확률/풍속 — 이번 요청 4항목엔 없지만 작은 보조 정보로 유지(사용자 확인). */}
               <p className="mt-2 text-[13px] font-medium text-[var(--cb-slate)]">
                 강수 확률 {voiceData?.precipitationProbability != null ? `${voiceData.precipitationProbability}%` : '-'}
