@@ -32,12 +32,14 @@ const SUBTITLE_DELAY_MS = 450
 // 그래서 네이티브 앱처럼 "매번 앱을 열 때마다" 보이는 방식으로 바꿨다(사용자
 // 확인) — /"에 진입할 때마다 항상 재생된다.
 //
-// 리디자인(요청사항): (1) "척척" 색상을 --cb-navy에서 홈 화면과 같은 브랜드
-// 파란색 --cb-tomato로 변경, (2) 그 아래 "무엇이든 척척 알려드립니다" 서브
-// 문구 추가(홈 화면의 진입 모션 패턴 — opacity/y 페이드업, framer-motion —
-// 을 그대로 재사용), (3) 은은한 파란 글로우 배경 포인트 추가(사용자 확인 —
-// 마이크/음파 같은 구체적 장식 아이콘은 넣지 않기로 함, "과한 장식 없이
-// 정돈된 느낌" 유지).
+// 리디자인(요청사항): (1) "무엇이든 척척 알려드립니다" 서브 문구 추가(홈
+// 화면의 진입 모션 패턴 — opacity/y 페이드업, framer-motion — 을 그대로
+// 재사용), (2) 은은한 파란 글로우 배경 포인트 추가(사용자 확인 — 마이크/
+// 음파 같은 구체적 장식 아이콘은 넣지 않기로 함, "과한 장식 없이 정돈된
+// 느낌" 유지). 타이틀/서브 문구 색상은 처음엔 "척척"을 브랜드 파란색(--cb-
+// tomato)으로 바꿨었는데, 사용자 재요청으로 "척척"은 검정(--cb-navy) 그대로
+// 두고 서브 문구를 파란색으로 옮겼다(아래 렌더링부 참고) — 브랜드 파란색
+// 자체는 여전히 화면에 남아있다.
 export function SplashScreen() {
   const navigate = useNavigate()
   const [isFadingOut, setIsFadingOut] = useState(false)
@@ -70,18 +72,18 @@ export function SplashScreen() {
             "척척"/서브 문구만 순서대로 읽는다. */}
         <div className="splash-glow" aria-hidden="true" />
 
+        {/* 사용자 확인(재조정): "척척"은 검정(--cb-navy)으로 되돌리고, 브랜드
+            파란색은 서브 문구 쪽으로 옮겼다 — 타이틀/서브 문구 색이 리디자인
+            초안과 반대로 바뀐 것뿐, 굵기 위계(타이틀 extrabold vs 서브 문구
+            medium)는 그대로 유지했다. */}
         <h1
-          className="splash-title relative text-[44px] font-extrabold tracking-[-0.04em] text-[var(--cb-tomato)]"
+          className="splash-title relative text-[44px] font-extrabold tracking-[-0.04em] text-[var(--cb-navy)]"
           style={{ animation: 'splash-title-rise 560ms ease-out both' }}
         >
           척척
         </h1>
-        {/* 서브 문구: "척척"(굵게, 브랜드 파랑)보다 위계를 낮춰 medium 굵기 +
-            --cb-slate(다른 화면들의 보조 설명 텍스트와 동일한 색 토큰)로
-            처리했다. reducedMotion이면 모션 없이 바로 보이게 한다(홈 화면
-            진입 모션과 동일한 접근성 처리 — HomeScreen.jsx 참고). */}
         <motion.p
-          className="relative mt-2 text-[15px] font-medium tracking-[-0.02em] text-[var(--cb-slate)]"
+          className="relative mt-2 text-[15px] font-medium tracking-[-0.02em] text-[var(--cb-tomato)]"
           initial={reducedMotion ? false : { opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.2, delay: SUBTITLE_DELAY_MS / 1000 }}
