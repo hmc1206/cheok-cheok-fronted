@@ -70,25 +70,37 @@ export function NearbyPlaceScreen() {
     }
   }, [])
 
+  // 이 화면에서 직접 보낸 요청의 응답을 기다리는 중인지 추적한다. 왜 필요한가:
+  // 실사용 중 백엔드가 "병원 찾아줘"/"약국 찾아줘" 발화를 SEARCH_MEDICAL이 아니라
+  // MAP_ROUTE로 잘못 분류해서 응답하는 사례가 있었다 — intent만 보고 판단하면
+  // (아래 isVoiceSession) 이 경우 "내 응답이 아니다"로 오판해서 자동 실행을
+  // 안 하게 된다(그리고 useVoiceAssistant의 기본 동작이라면 그 잘못된 intent를
+  // 보고 엉뚱하게 길찾기 화면(/map)으로 이동시켰을 것이다 — 그래서 handleChooseCategory
+  // 에서 suppressNavigation:true로 그 자동 이동 자체를 꺼둔다).
+  // "이 화면이 직접 보낸 요청이면, 서버가 intent를 뭐라고 답하든 이 화면이
+  // 응답을 처리한다"는 게 이 ref의 역할 — voiceSessionStore에 남는 stale한
+  // 이전 검색 결과(예: 예전에 길찾기를 썼을 때 남은 데이터)까지 실행해버리는
+  // 걸 막기 위해, "방금 내가 요청을 보냈다"는 사실 자체로만 판단한다.
+  const awaitingOwnResponseRef = useRef(false)
+
   // mode는 길찾기/날씨 화면과 동일하게 로컬 stage state 없이 서버 세션 상태
   // 그대로에서 계산한다 — "실행" 단계가 곧 "서버가 DONE으로 답했다"는 뜻이라
-  // 별도 상태를 따로 들고 다닐 필요가 없다.
-  const mode = isLocating
-    ? 'locating'
-    : status === 'processing'
-      ? 'loading'
-      : isVoiceSession && voiceStep === 'DONE' && voiceData
-        ? 'executing'
-        : 'choose'
+  // 별도 상태를 따로 들고 다닐 필요가 없다. isVoiceSession(intent 기반)은
+  // "음성으로만 들어와서 이 화면으로 정상 라우팅된 경우"를 커버하고,
+  // awaitingOwnResponseRef(요청 출처 기반)는 "이 화면에서 직접 보낸 요청인데
+  // 서버가 intent를 잘못 준 경우"까지 커버한다 — 둘 중 하나만 맞아도 실행한다.
+  const isExpectedResponse = (isVoiceSession || awaitingOwnResponseRef.current) && voiceStep === 'DONE' && voiceData
+  const mode = isLocating ? 'locating' : status === 'processing' ? 'loading' : isExpectedResponse ? 'executing' : 'choose'
 
   // DONE 응답 자동 실행 — 길찾기에서 뽑아낸 공용 훅(hooks/useVoiceAutoLaunch.js)을
   // 그대로 재사용한다. 카테고리 버튼 클릭이든 음성 발화든 결과가 도착하는
   // 경로(voiceSessionStore)가 같아서 이 훅 하나로 두 진입 경로를 다 커버한다.
   useVoiceAutoLaunch({
-    isActive: isVoiceSession && voiceStep === 'DONE',
+    isActive: isExpectedResponse,
     appUrl: voiceData?.naverMapAppUrl,
     webUrl: voiceData?.naverMapWebUrl,
     onLaunch: () => {
+      awaitingOwnResponseRef.current = false
       const inferred = inferCategory({ slotsValue: voiceSlots?.type ?? voiceSlots?.category, transcript: voiceTranscript })
       if (inferred) setCategory(inferred)
     },
@@ -97,27 +109,33 @@ export function NearbyPlaceScreen() {
   // 카테고리 버튼 클릭: GPS를 먼저 시도한 뒤(실패해도 좌표 없이 계속 진행 —
   // 날씨 화면의 "오늘의 날씨" 버튼과 동일한 원칙, 명세서 5장 요청 예시에도
   // 좌표 필드가 필수로 보이지 않는다) type 필드에 카테고리를 실어 보낸다.
-  // fallbackRoute: 이 요청이 실패하면(예: GEOCODE_NOT_FOUND) 항상 이 화면으로
-  // 돌아와야 한다 — 그 코드는 길찾기(MAP_ROUTE)와도 공유되는 코드라
-  // useVoiceAssistant의 공통 테이블만 믿으면 엉뚱하게 /map으로 보내질 수 있어
-  // 명시적으로 지정한다(hooks/useVoiceAssistant.js의 ERROR_FORCE_NAVIGATE_ROUTES
-  // 주석 참고).
+  //  - fallbackRoute: 이 요청이 실패하면(예: GEOCODE_NOT_FOUND) 항상 이 화면으로
+  //    돌아와야 한다 — 그 코드는 길찾기(MAP_ROUTE)와도 공유되는 코드라
+  //    useVoiceAssistant의 공통 테이블만 믿으면 엉뚱하게 /map으로 보내질 수 있어
+  //    명시적으로 지정한다(hooks/useVoiceAssistant.js의 ERROR_FORCE_NAVIGATE_ROUTES
+  //    주석 참고).
+  //  - suppressNavigation: 이 화면에서 직접 보낸 요청이라, 성공 응답이 왔을 때
+  //    intent 기반 자동 이동을 아예 하지 않는다 — 서버가 intent를 SEARCH_MEDICAL
+  //    이 아니라 MAP_ROUTE로 잘못 줘도 길찾기 화면으로 튕기지 않고 이 화면에
+  //    그대로 남아 위 isExpectedResponse/useVoiceAutoLaunch로 딥링크만 실행한다.
   const handleChooseCategory = async (selectedCategory) => {
     setCategory(selectedCategory)
     setIsLocating(true)
     const coords = await getCurrentPositionOrNull()
     if (!isMountedRef.current) return
     setIsLocating(false)
+    awaitingOwnResponseRef.current = true
     const label = CATEGORY_LABEL[selectedCategory]
     sendText(
       `근처 ${label} 찾아줘`,
       { type: CATEGORY_TO_TYPE[selectedCategory], ...(coords ?? {}) },
-      { fallbackRoute: '/nearby-place' },
+      { fallbackRoute: '/nearby-place', suppressNavigation: true },
     )
   }
 
   const handleBack = () => {
     if (mode !== 'choose') {
+      awaitingOwnResponseRef.current = false
       resetSession()
       setCategory(null)
       return

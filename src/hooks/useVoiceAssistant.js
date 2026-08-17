@@ -70,7 +70,7 @@ export function useVoiceAssistant({ onResult } = {}) {
   const [errorCode, setErrorCode] = useState(null)
 
   const applyResponse = useCallback(
-    (response, transcript = '') => {
+    (response, transcript = '', { suppressNavigation } = {}) => {
       // API 명세서 v2.0 2장 공통 응답 필드: intent/step/slots/ttsText/screen/quickReplies/data.
       const { intent, step, screen, slots, data, ttsText, quickReplies } = response
 
@@ -80,10 +80,21 @@ export function useVoiceAssistant({ onResult } = {}) {
 
       setSession({ intent, step, screen, slots, data, transcript, quickReplies: quickReplies ?? null, ttsText: ttsText ?? null })
 
-      // "진행 중이면 같은 화면에서 이어감" — 이미 목적지 화면이면 다시 navigate하지 않는다.
-      const targetPath = INTENT_ROUTES[intent]
-      if (targetPath && location.pathname !== targetPath) {
-        navigate(targetPath, { state: { data, slots, transcript } })
+      // suppressNavigation: 이 요청을 보낸 화면이 이미 응답을 직접 처리할 준비가
+      // 되어 있어서(예: 병원·약국 찾기 화면이 SEARCH_MEDICAL 응답을 기다리는 중)
+      // intent 기반 자동 이동이 필요 없는 경우 호출부가 명시적으로 끈다. 실사용
+      // 중 실제로 필요했던 이유: 병원·약국 찾기에서 보낸 요청인데 백엔드가 intent를
+      // SEARCH_MEDICAL이 아니라 MAP_ROUTE로 잘못 분류해 응답하는 사례가 있었다 —
+      // 이 자동 이동 로직이 그 intent 값을 그대로 믿고 사용자를 길찾기 화면(/map)
+      // 으로 보내버려서, 병원·약국 찾기 화면에 그대로 남아 딥링크만 실행돼야 할
+      // 상황에서 엉뚱한 화면으로 튕기는 문제가 있었다. 화면이 자기 응답인 걸 이미
+      // 아는 경우엔 서버가 intent를 뭐라고 주든 이 화면 판단을 우선하게 한다.
+      if (!suppressNavigation) {
+        // "진행 중이면 같은 화면에서 이어감" — 이미 목적지 화면이면 다시 navigate하지 않는다.
+        const targetPath = INTENT_ROUTES[intent]
+        if (targetPath && location.pathname !== targetPath) {
+          navigate(targetPath, { state: { data, slots, transcript } })
+        }
       }
 
       onResult?.(response)
@@ -92,14 +103,14 @@ export function useVoiceAssistant({ onResult } = {}) {
   )
 
   const processUtterance = useCallback(
-    async (payload, { fallbackRoute } = {}) => {
+    async (payload, { fallbackRoute, suppressNavigation } = {}) => {
       setStatus('processing')
       setOutcome('idle')
       setErrorCode(null)
       try {
         const response = await voiceApi.process({ userId, ...payload })
         if (cancelledRef.current) return
-        applyResponse(response, payload.text ?? '')
+        applyResponse(response, payload.text ?? '', { suppressNavigation })
       } catch (error) {
         // 공통 에러 응답({ errorCode, message, ttsText })도 정상 응답과 동일하게 캡션+TTS로
         // 안내한다 (청각+시각 이중 안내 원칙). apiClient 인터셉터가 SESSION_EXPIRED/401은
@@ -188,6 +199,9 @@ export function useVoiceAssistant({ onResult } = {}) {
   // 직접 지정하고 싶을 때 쓴다(예: 병원·약국 찾기 화면에서 보낸 요청은 실패해도
   // 항상 이 화면으로 돌아와야 하므로 '/nearby-place'를 넘김) — 안 넘기면 기존처럼
   // ERROR_FORCE_NAVIGATE_ROUTES 공통 테이블을 따른다.
+  // requestOptions.suppressNavigation: true면 응답이 성공해도 intent 기반 자동
+  // 이동을 하지 않는다 — 호출한 화면이 이미 이 응답을 기다리고 있어서 서버가
+  // 어떤 intent를 주든 그 화면이 알아서 처리하겠다는 뜻(applyResponse 주석 참고).
   const sendText = useCallback(
     (text, extra = {}, requestOptions = {}) => {
       setSttCaption(text)
