@@ -15,7 +15,15 @@ import { useVoiceSessionStore } from '../store/voiceSessionStore'
 // 날씨 알려줘" 등을 말했을 때 공통으로 도착하는 화면. 길찾기/병원·약국 찾기와
 // 같은 톤(헤더+상단 탭+ExecutingPanel)을 유지하되, 이 화면만의 흐름(ASK_LOCATION
 // 되묻기, 결과 카드)은 날씨 API 명세서 v1.0을 그대로 따른다.
-const STEP_LABELS = ['입력', '실행']
+//
+// STEP_LABELS: 길찾기/병원·약국 찾기는 사용자가 값을 "입력"한 뒤에야 "실행"
+// 단계로 넘어가는 진짜 2단계 흐름이라 탭이 둘 다 의미가 있다. 날씨는 이 화면에
+// 들어오자마자 자동으로 조회가 시작돼(위 자동 진입 이펙트 참고) 사용자가 직접
+// 입력하는 단계 자체가 없다 — "입력" 탭이 실제로는 한 번도 활성화되지 않는
+// 죽은 탭이었다(요청사항: "입력 탭을 없애고 실행 탭만 남겨줘"). ProgressStrip은
+// labels 배열 길이에 맞춰 칸을 그리므로 여기서 '실행' 하나만 넘기면 자동으로
+// 탭 하나짜리 UI가 된다(components/common/ProgressStrip.jsx의 grid-cols-1 추가 참고).
+const STEP_LABELS = ['실행']
 
 // 날씨 상태 코드 -> 아이콘/기본 문구(명세서 8장). 이 프로젝트는 아이콘 라이브러리를
 // 안 쓰고 전부 직접 그린 stroke=currentColor 선 아이콘이라(components/common/
@@ -234,10 +242,9 @@ export function WeatherScreen() {
     <AppFrame>
       <main className="control-form-screen flex h-full min-h-0 flex-col overflow-hidden bg-[var(--cb-cream)]">
         <MobileHeader title="오늘의 날씨" onBack={handleBack} />
-        <ProgressStrip
-          labels={STEP_LABELS}
-          current={mode === 'ask-location' || (mode === 'error' && displayedErrorCode === 'WEATHER_LOCATION_NOT_FOUND') ? 1 : 2}
-        />
+        {/* 탭이 "실행" 하나뿐이라 항상 current=1(활성)로 고정 — 예전엔 "입력" 탭과
+            번갈아가며 몇 번인지 계산했지만 이제 그럴 필요가 없다. */}
+        <ProgressStrip labels={STEP_LABELS} current={1} />
 
         {mode === 'locating' ? (
           <ExecutingPanel label="위치를 확인하는 중" description="현재 위치 확인을 위해 위치 접근을 허용해 주세요." />
