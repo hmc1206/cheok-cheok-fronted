@@ -51,9 +51,13 @@ export function SubscriptionScreen() {
             이용하실 수 있어요.
           </p>
 
+          {/* QA 중 발견: "KTX 예매·키오스크·앱 연결 모두 사용 가능"이 기차 예매
+              (TRAIN_BOOKING, 이미 "내 주변 병원·약국 찾기"로 대체된 기능)를 그대로
+              언급하고 있었다 — 존재하지 않는 기능을 구독 혜택으로 광고하는
+              문구였다. 지금 있는 기능으로 바꿨다. */}
           <SectionCard title="구독 혜택" className="mt-5">
             <ul className="flex flex-col gap-2">
-              {['무제한 이용', '광고 없이 사용', 'KTX 예매·키오스크·앱 연결 모두 사용 가능'].map(
+              {['무제한 이용', '광고 없이 사용', '병원·약국 찾기·키오스크·앱 연결 모두 사용 가능'].map(
                 (benefit) => (
                   <li key={benefit} className="flex items-center gap-2">
                     <CheckGlyph />
