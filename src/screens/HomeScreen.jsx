@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { AppFrame } from '../components/common/AppFrame'
+import { BrandWordmark } from '../components/common/BrandWordmark'
 import { MicIcon } from '../components/common/icons'
 import { useHistoryStore } from '../store/historyStore'
 import { useVoiceAssistant } from '../hooks/useVoiceAssistant'
@@ -102,8 +103,11 @@ export function HomeScreen() {
               남긴다. 아이콘+텍스트를 감싸던 flex/gap 래퍼(아이콘과의 간격
               용도)도 함께 걷어냈다 — 아이콘이 있던 자리(px-5 왼쪽 여백)에
               텍스트가 그대로 자연스럽게 붙도록, 남은 요소 하나만 별도 래퍼
-              없이 header에 바로 둔다. 폰트/굵기/색상은 기존 값 그대로 유지. */}
-          <span className="text-[18px] font-bold tracking-[-0.04em]">척척</span>
+              없이 header에 바로 둔다. 폰트/굵기/색상은 기존 값 그대로 유지.
+              로그인/인증 콜백 화면에도 동일한 방식(아이콘 삭제, 텍스트만)을
+              적용하면서 중복되던 마크업을 BrandWordmark 공통 컴포넌트로
+              뽑아냈다 — 화면별 크기/색상 차이는 className으로 유지. */}
+          <BrandWordmark className="text-[18px] font-bold tracking-[-0.04em]" />
           {/* 설정 화면 진입점(=햄버거 아이콘). "도움 기록"이 설정 화면 안으로
               옮겨가면서(요청사항) 이 버튼 하나가 설정+도움 기록+구독 신청까지
               전부 아우르는 메뉴 진입점이 됐다 — 그래서 아이콘도 기존 톱니바퀴

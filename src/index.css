@@ -456,10 +456,6 @@ button:not(:disabled) {
   color: #3182f6;
 }
 
-.salad-login__mark {
-  border-radius: 10px;
-  background: #e8f3ff;
-}
 .salad-login__bubble {
   background: #e8f3ff;
 }
