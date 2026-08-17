@@ -243,8 +243,10 @@ export function WeatherScreen() {
       <main className="control-form-screen flex h-full min-h-0 flex-col overflow-hidden bg-[var(--cb-cream)]">
         <MobileHeader title="오늘의 날씨" onBack={handleBack} />
         {/* 탭이 "실행" 하나뿐이라 항상 current=1(활성)로 고정 — 예전엔 "입력" 탭과
-            번갈아가며 몇 번인지 계산했지만 이제 그럴 필요가 없다. */}
-        <ProgressStrip labels={STEP_LABELS} current={1} />
+            번갈아가며 몇 번인지 계산했지만 이제 그럴 필요가 없다. showNumbers=false:
+            탭이 하나뿐이면 "01"이 몇 단계 중 몇 번째인지 알려주는 의미가 없어져서
+            숫자 없이 "실행"만 보여준다(요청사항). */}
+        <ProgressStrip labels={STEP_LABELS} current={1} showNumbers={false} />
 
         {mode === 'locating' ? (
           <ExecutingPanel label="위치를 확인하는 중" description="현재 위치 확인을 위해 위치 접근을 허용해 주세요." />

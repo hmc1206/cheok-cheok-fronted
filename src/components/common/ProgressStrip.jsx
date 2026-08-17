@@ -21,7 +21,11 @@ const GRID_COLS_CLASS = {
   4: 'grid-cols-4',
 }
 
-export function ProgressStrip({ labels, current }) {
+// showNumbers: 길찾기/병원·약국 찾기/영상 도움은 "01"/"02" 번호가 실제로
+// 몇 단계 중 몇 번째인지 알려주는 정보라 계속 보여준다(기본값 true, 그 화면들은
+// 손대지 않음). 날씨 화면은 탭이 "실행" 하나뿐이라 "01"이 아무 의미 없는
+// 장식이 되어서(요청사항: "01 빼줘") 숫자를 아예 안 그리도록 껐다.
+export function ProgressStrip({ labels, current, showNumbers = true }) {
   return (
     <div
       className={`control-progress grid ${GRID_COLS_CLASS[labels.length] ?? 'grid-cols-2'}`}
@@ -29,7 +33,7 @@ export function ProgressStrip({ labels, current }) {
     >
       {labels.map((label, index) => (
         <div key={label} className={index + 1 === current ? 'is-current' : ''}>
-          <span>0{index + 1}</span>
+          {showNumbers ? <span>0{index + 1}</span> : null}
           <strong>{label}</strong>
         </div>
       ))}
