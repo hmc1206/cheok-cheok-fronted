@@ -112,7 +112,7 @@ a:focus-visible {
   height: 320px;
   transform: translate(-50%, -50%);
   border-radius: 9999px;
-  background: radial-gradient(circle, rgba(49, 130, 246, 0.16) 0%, rgba(49, 130, 246, 0) 70%);
+  background: radial-gradient(circle, rgba(49, 130, 246, 0.2) 0%, rgba(49, 130, 246, 0) 70%);
   pointer-events: none;
   animation: splash-glow-fade 900ms ease-out both;
 }
