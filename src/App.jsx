@@ -4,7 +4,6 @@ import { ThemeProvider } from './components/common/ThemeProvider'
 import { useAuthStore } from './store/authStore'
 import { AllowedAppsEditScreen } from './screens/AllowedAppsEditScreen'
 import { AuthCallbackScreen } from './screens/AuthCallbackScreen'
-import { ChatScreen } from './screens/ChatScreen'
 import { GuardianMonitoringScreen } from './screens/GuardianMonitoringScreen'
 import { HomeScreen } from './screens/HomeScreen'
 import { KioskLiveScreen } from './screens/KioskLiveScreen'
@@ -56,8 +55,11 @@ function App() {
           <Route path="/" element={<SplashScreen />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/home" element={<HomeScreen />} />
-          {/* 홈 화면 "눌러서 말하기" 카드에서 진입하는 음성 채팅 페이지 */}
-          <Route path="/chat" element={<ChatScreen />} />
+          {/* 정리(요청사항): 예전 "눌러서 말하기" 전용 채팅 페이지(/chat,
+              ChatScreen.jsx)로, 그 흐름이 홈 화면 인라인 방식으로 바뀌면서
+              어디서도 더 이상 이 경로로 이동시키지 않는 죽은 라우트였다 —
+              사용하는 곳이 없어 화면/라우트를 통째로 삭제했다(git 히스토리에
+              남아있어 필요하면 복원 가능). */}
           <Route path="/map" element={<MapRouteScreen />} />
           {/* 기차 예매(TRAIN_BOOKING)를 대체한 신규 기능. 제출 로직이 아예 없던
               미완성 스텁이라 화면/라우트/intent 매핑을 통째로 지우고 이 자리를

@@ -26,8 +26,10 @@ import { useHistoryStore } from '../store/historyStore'
 // "도움기록 기능을 설정 안으로 넣고") 이 화면의 한 섹션으로 옮겼다. 홈 화면
 // (HomeScreen.jsx)과 이 화면이 서로 다른 라우트(별개 컴포넌트 트리)라 로컬
 // state로는 기록을 공유할 수 없어서, historyStore.js(Zustand)로 빼서 홈에서
-// 쌓고 여기서 읽는다. ChatScreen.jsx가 여전히 SidePanel을 별도로 쓰고 있어
-// SidePanel.jsx 자체는 삭제하지 않았다(거긴 손대지 않음, 이번 요청 범위 밖).
+// 쌓고 여기서 읽는다. 당시엔 ChatScreen.jsx가 여전히 SidePanel을 쓰고 있어
+// SidePanel.jsx를 남겨뒀었는데, 이후 QA에서 ChatScreen.jsx 자체가 죽은
+// 라우트로 확인돼 함께 삭제되면서(App.jsx 참고) SidePanel.jsx도 이제
+// 아무도 쓰지 않아 같이 지웠다.
 export function SettingsScreen() {
   const navigate = useNavigate()
   const [settings, setSettings] = useState(null)
