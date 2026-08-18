@@ -140,7 +140,10 @@ export function NearbyPlaceScreen() {
       setCategory(null)
       return
     }
-    navigate('/home')
+    // QA 중 발견: 다른 기능 화면들과 같은 문제(MapRouteScreen.jsx 주석 참고) —
+    // 홈에서 push로만 들어오는 화면이라 여기서 또 push하면 히스토리가 중복
+    // 쌓여 뒤로가기가 예상과 다르게 동작한다. replace로 수정.
+    navigate('/home', { replace: true })
   }
 
   return (

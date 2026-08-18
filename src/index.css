@@ -41,6 +41,23 @@ a:focus-visible {
   outline-offset: 3px;
 }
 
+/* QA 중 발견: 마이크 권한 모달(components/common/MicPermissionModal.jsx)과
+   components/common/Card.jsx가 .app-card 클래스로 카드 배경/모서리/그림자를
+   그리도록 짜여 있는데, 정작 이 클래스 자체가 index.css에 없었다(git 히스토리를
+   보면 예전 토큰 체계 --radius-lg/--shadow-card/--space-md를 쓰던 시절엔 있었지만,
+   지금의 --cb-* 토큰으로 옮겨오면서 규칙만 지워지고 사용처는 안 지워진 채 남음).
+   그 결과 마이크 권한을 아직 허용하지 않은 사용자(로그인 후 흔한 첫 진입 상태)가
+   보는 모달의 카드에 배경/그림자가 전혀 없어서, 안내 문구가 뒤 화면 위에 그대로
+   겹쳐 보이는 버그였다. 지금 토큰으로 다시 정의한다 — 흰 배경 + 둥근 모서리 +
+   옅은 그림자(.salad-history가 쓰는 것과 같은 값을 재사용, 새로 만들지 않음) +
+   내부 여백. */
+.app-card {
+  background: var(--cb-cream);
+  border-radius: var(--cb-radius-md);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.06);
+  padding: var(--cb-space-4);
+}
+
 @keyframes senior-rise-in {
   from {
     opacity: 0;
@@ -456,10 +473,6 @@ button:not(:disabled) {
   color: #3182f6;
 }
 
-.salad-login__mark {
-  border-radius: 10px;
-  background: #e8f3ff;
-}
 .salad-login__bubble {
   background: #e8f3ff;
 }

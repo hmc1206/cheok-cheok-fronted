@@ -215,16 +215,19 @@ export function WeatherScreen() {
     sendText(text, latitude != null && longitude != null ? { latitude, longitude } : {})
   }
 
+  // QA 중 발견: 홈에서 push로만 들어오는 화면이라 아래 두 navigate('/home')가
+  // 그대로 push면 히스토리가 중복 쌓여 뒤로가기가 예상과 다르게 동작한다
+  // (MapRouteScreen.jsx 주석 참고, 다른 기능 화면들과 동일한 원인). replace로 수정.
   const handleBack = () => {
     if (mode === 'result' || mode === 'error') {
-      navigate('/home')
+      navigate('/home', { replace: true })
       return
     }
     if (regionInputMode) {
       setRegionInputMode(false)
       return
     }
-    navigate('/home')
+    navigate('/home', { replace: true })
   }
 
   const condition = voiceData ? (WEATHER_CONDITIONS[voiceData.conditionCode] ?? WEATHER_CONDITIONS.UNKNOWN) : null
