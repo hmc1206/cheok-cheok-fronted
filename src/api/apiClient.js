@@ -27,15 +27,22 @@ async function refreshAccessToken() {
   return response.data.token
 }
 
-// 가이드북 "공통 에러" 섹션: { errorCode, message, ttsText } 포맷을 공통으로 처리.
+// API 명세서 v2.0 2장 "공통 에러 응답"은 { success, error: { code, message }, ttsText }
+// 형태(코드가 error 객체 안에 중첩)인데, 날씨 API 명세서 v1.0 10장 오류 응답
+// 예시는 { success, errorCode, message, ttsText } 형태(코드가 최상위)로 서로
+// 다르다 — 실제 백엔드 응답이 둘 중 어느 쪽으로 오든 놓치지 않도록 둘 다 확인한다
+// (useVoiceAssistant.js의 processUtterance 에러 처리와 동일한 이유로 동일하게
+// 방어적으로 처리 — 예전엔 여기서 최상위 errorCode만 확인해서, 명세서상 진짜
+// 형태인 중첩 error.code로 오는 SESSION_EXPIRED를 못 잡는 버그가 있었다).
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const status = error.response?.status
     const payload = error.response?.data
     const originalRequest = error.config
+    const errorCode = payload?.errorCode ?? payload?.error?.code
 
-    if (status === 409 && payload?.errorCode === 'SESSION_EXPIRED') {
+    if (status === 409 && errorCode === 'SESSION_EXPIRED') {
       useVoiceSessionStore.getState().resetSession()
 
       // ASSUMPTION: 인터셉터는 React 트리 밖에서 실행되어 useTTS 훅을 쓸 수 없으므로,

@@ -98,6 +98,33 @@ a:focus-visible {
   transition: opacity 300ms ease-out;
 }
 
+/* 스플래시 리디자인(사용자 확인 — "흰 배경 + 은은한 파란 글로우"): "척척"
+   타이틀 뒤에 브랜드 파란색(--cb-tomato)을 아주 옅게 깐 원형 번짐을 살짝
+   페이드인시킨다. 배경은 여전히 흰색 그대로이고, 이 글로우는 완전히 장식용
+   (aria-hidden)이라 콘텐츠 순서/포커스에 영향이 없다. 마이크/음파 같은
+   구체적인 아이콘 장식은 사용자 확인으로 넣지 않기로 했다 — 이 글로우가
+   유일한 장식 요소다. */
+.splash-glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 320px;
+  height: 320px;
+  transform: translate(-50%, -50%);
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(49, 130, 246, 0.2) 0%, rgba(49, 130, 246, 0) 70%);
+  pointer-events: none;
+  animation: splash-glow-fade 900ms ease-out both;
+}
+@keyframes splash-glow-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 /* Reference home — keeps five visual zones inside a 375 × 812 phone canvas. */
 
 /* Quiet Utility home — a service directory, not a stack of generic glass cards. */
