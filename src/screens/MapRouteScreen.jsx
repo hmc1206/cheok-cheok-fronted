@@ -297,7 +297,7 @@ export function MapRouteScreen() {
           <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
             <section className="px-5 pb-4 pt-5">
               <h1 className="text-[30px] font-extrabold leading-[1.06] tracking-[-0.08em]">
-                어디에서 어디로
+                어디로
                 <br />
                 가시나요?
               </h1>
