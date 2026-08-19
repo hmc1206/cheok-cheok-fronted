@@ -140,7 +140,40 @@ export const KIOSK_SCREENS = {
       { id: 'back', label: '이전 화면', x: 0, y: 0, width: 15, height: 5.5, action: 'CANCEL_PAYMENT' },
       { id: 'modal-cancel', label: '카드 삽입 취소', x: 40, y: 57.5, width: 20, height: 3.2, action: 'CANCEL_PAYMENT' },
       { id: 'cancel', label: '결제 취소', x: 9, y: 80, width: 38, height: 7.4, action: 'CANCEL_PAYMENT' },
+      { id: 'complete-card-payment-button', label: '신용카드 결제 완료', x: 52.5, y: 80, width: 38.5, height: 7.4, action: 'COMPLETE_CARD_PAYMENT' },
       ...footerHotspots(92.7),
+    ],
+  },
+  11: {
+    width: 866,
+    height: 1817,
+    alt: '결제 완료 및 영수증 선택 화면',
+    guide: '결제가 완료되었습니다. 영수증 출력 여부를 선택해주세요.',
+    hotspots: [
+      { id: 'receipt-not-printed-button', label: '영수증 미출력', x: 9.1, y: 81.4, width: 38.8, height: 7.4, action: 'SELECT_RECEIPT_OPTION', value: 'notPrinted' },
+      { id: 'receipt-print-button', label: '영수증 출력', x: 51.4, y: 81.4, width: 39.4, height: 7.4, action: 'SELECT_RECEIPT_OPTION', value: 'printed' },
+      ...footerHotspots(92.9),
+    ],
+  },
+  12: {
+    width: 864,
+    height: 1821,
+    alt: '맘스터치 키오스크 주문 시뮬레이션 시작 화면',
+    guide: '시뮬레이션 시작 버튼을 눌러 주문 연습을 시작해주세요.',
+    hotspots: [
+      { id: 'simulation-start-button', label: '맘스터치 키오스크 시뮬레이션 시작', x: 8.8, y: 78.3, width: 81.2, height: 8.8, action: 'START_SIMULATION' },
+      ...footerHotspots(90.8),
+    ],
+  },
+  13: {
+    width: 866,
+    height: 1817,
+    alt: '맘스터치 키오스크 시뮬레이션 완료 화면',
+    guide: '시뮬레이션을 완료했습니다. 다시 시작하거나 종료할 수 있습니다.',
+    hotspots: [
+      { id: 'restart-simulation-button', label: '키오스크 시뮬레이션 처음부터 다시하기', x: 9.6, y: 74.6, width: 80.6, height: 6.9, action: 'RESTART_SIMULATION' },
+      { id: 'exit-simulation-button', label: '키오스크 시뮬레이션 종료', x: 9.6, y: 82.6, width: 80.6, height: 6.5, action: 'EXIT_SIMULATION' },
+      ...footerHotspots(90.8),
     ],
   },
 }

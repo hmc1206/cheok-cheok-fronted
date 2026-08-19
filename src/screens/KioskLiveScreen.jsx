@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { DRINK_HIGHLIGHTS, KIOSK_SCREENS, SAUCE_HIGHLIGHTS } from '../data/kioskData'
 import { canAddToCart, calculateTotalPrice, useKioskOrderStore } from '../store/kioskOrderStore'
 import '../styles/kiosk.css'
@@ -11,6 +12,7 @@ const rectStyle = ({ x, y, width, height }) => ({
 })
 
 export function KioskLiveScreen() {
+  const navigate = useNavigate()
   const order = useKioskOrderStore()
   const [toast, setToast] = useState('')
   const [accessibility, setAccessibility] = useState({ zoom: false, contrast: false, low: false })
@@ -18,6 +20,14 @@ export function KioskLiveScreen() {
   const screen = KIOSK_SCREENS[order.screen]
   const debugHotspots = import.meta.env.DEV &&
     new URLSearchParams(window.location.search).get('debugHotspots') === '1'
+
+  useEffect(() => {
+    Array.from({ length: 13 }, (_, index) => `/assets/momstouch/${index + 1}.png`)
+      .forEach((src) => {
+        const image = new Image()
+        image.src = src
+      })
+  }, [])
 
   useEffect(() => {
     if (!toast) return undefined
@@ -75,6 +85,10 @@ export function KioskLiveScreen() {
       case 'HOME':
         resetHome()
         return
+      case 'EXIT_SIMULATION':
+        resetHome()
+        navigate('/home')
+        return
       case 'ACCESS_ZOOM':
         setAccessibility((state) => ({ ...state, zoom: !state.zoom }))
         return
@@ -97,7 +111,7 @@ export function KioskLiveScreen() {
         setToast('이 결제수단은 시뮬레이션에서 지원하지 않습니다.')
         return
       case 'ADD_TO_CART':
-        if (!canAddToCart(order)) {
+        if (!canAddToCart(useKioskOrderStore.getState())) {
           setToast('아라비아따치즈버거, 요청-없음, 펩시콜라제로를 선택해주세요.')
           return
         }

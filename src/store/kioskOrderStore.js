@@ -23,7 +23,11 @@ const SAUCE_CALORIES = {
 }
 
 export const initialKioskOrder = {
-  screen: 1,
+  screen: 12,
+  simulationStatus: 'notStarted',
+  paymentStatus: 'pending',
+  paymentMethod: null,
+  receiptOption: null,
   orderType: null,
   product: null,
   quantity: 1,
@@ -65,10 +69,12 @@ export function applyKioskEvent(state, event) {
   switch (event.type) {
     case 'HOME':
       return { ...initialKioskOrder }
+    case 'START_SIMULATION':
+      return { ...initialKioskOrder, screen: 1, simulationStatus: 'inProgress' }
     case 'SELECT_DINE_IN':
-      return { ...initialKioskOrder, screen: 2, orderType: 'dineIn' }
+      return { ...state, screen: 2, orderType: 'dineIn' }
     case 'SELECT_TAKE_OUT':
-      return { ...initialKioskOrder, screen: 2, orderType: 'takeOut' }
+      return { ...state, screen: 2, orderType: 'takeOut' }
     case 'OPEN_SET_CATEGORY':
       return state.screen === 2 ? { ...state, screen: 3 } : state
     case 'SELECT_TTEOKGANGJEONG_SET':
@@ -129,6 +135,7 @@ export function applyKioskEvent(state, event) {
         ...initialKioskOrder,
         screen: 3,
         orderType: state.orderType,
+        simulationStatus: 'inProgress',
       } : state
     case 'OPEN_CHECKOUT':
       return state.screen === 8 && state.isInCart ? { ...state, screen: 9 } : state
@@ -138,6 +145,23 @@ export function applyKioskEvent(state, event) {
       return state.screen === 9 && state.isInCart ? { ...state, screen: 10 } : state
     case 'CANCEL_PAYMENT':
       return state.screen === 10 ? { ...state, screen: 9 } : state
+    case 'COMPLETE_CARD_PAYMENT':
+      return state.screen === 10 && state.isInCart ? {
+        ...state,
+        screen: 11,
+        paymentStatus: 'completed',
+        paymentMethod: 'creditCard',
+      } : state
+    case 'SELECT_RECEIPT_OPTION':
+      return state.screen === 11 ? {
+        ...state,
+        screen: 13,
+        simulationStatus: 'completed',
+        receiptOption: event.value,
+      } : state
+    case 'RESTART_SIMULATION':
+    case 'EXIT_SIMULATION':
+      return { ...initialKioskOrder }
     case 'BACK': {
       const previousScreen = { 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 7: 5, 8: 3, 9: 8, 10: 9 }[state.screen]
       return previousScreen === 1
