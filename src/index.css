@@ -3,10 +3,22 @@
  * a waveform-led voice card, a calm two-by-two help grid, and no low-contrast critical copy.
  */
 @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
-/* 스플래시 화면(SplashScreen.jsx) "척척" 타이틀 전용 폰트. 요청받은 대로 불러오지만,
-   앱 전체 font-family(위 Pretendard 스택)는 그대로 두고 스플래시 타이틀에만
-   .splash-title 클래스로 좁혀서 적용한다 — 로드 실패 시 Pretendard로 자동
-   fallback되도록 font-family 목록에 Pretendard를 그대로 남겨둔다. */
+/* 앱 전체 폰트를 G마켓 산스로 교체(요청사항). CDN 경로는 임의로 추측하지 않고
+   실제로 접속해 검증했다 — jsDelivr가 GitHub 저장소(fonts-archive/GmarketSans)의
+   CSS/폰트 파일을 그대로 서빙하는 방식으로, @font-face 3종(font-family:
+   'Gmarket Sans')이 각각 300(Light)/500(Medium)/700(Bold) 굵기를 정의한다.
+   실제 폰트 파일(woff2 등)까지 curl로 200 응답 확인 완료.
+   굵기 매핑 관련 확인사항(사용자 확인): 이 앱은 font-extrabold(800)/
+   font-semibold(600)도 널리 쓰는데 G마켓 산스엔 300/500/700만 있어 정확히
+   일치하는 굵기가 없다 — 브라우저의 표준 굵기 매칭 규칙에 따라 자동으로 가장
+   가까운 굵기(700)로 렌더링되도록 그대로 두기로 확인받았다(코드의 font-weight
+   값 자체는 전혀 건드리지 않음 — 요청사항: "굵기 값을 임의로 바꾸지 말 것"). */
+@import url('https://cdn.jsdelivr.net/gh/fonts-archive/GmarketSans/GmarketSans.css');
+/* 스플래시 화면(SplashScreen.jsx) "척척" 타이틀 전용 폰트. 이번 전역 폰트
+   교체와 무관하게 그대로 유지한다(사용자 확인) — 앱 전체 font-family(아래
+   G마켓 산스 스택)는 바뀌었지만 스플래시 타이틀에만 .splash-title 클래스로
+   좁혀서 별도 적용되는 폰트라 영향받지 않는다. 로드 실패 시 Pretendard로
+   자동 fallback되도록 font-family 목록에 Pretendard를 그대로 남겨둔다. */
 @import url('https://static.toss.im/tps/main.css');
 @import url('https://static.toss.im/tps/others.css');
 @import 'tailwindcss';
@@ -272,9 +284,19 @@ html, body, #root { font-family: "Toss Product Sans", "Pretendard Variable", Pre
 
 /* Reference composition adaptation — clear greeting, horizontal voice card, explanatory service cards. */
 
+/* 실제로 앱 전체(모든 화면)에 적용되는 폰트 규칙 — 아래에서 확인한 결과, 이
+   `*` 규칙이 요소마다 직접 매칭되어 실제 렌더링을 결정하는 유일한 규칙이다
+   (위쪽에 남아있는 `.salad-login`류 디자인 탐색 블록들의 `html, body, #root
+   { font-family: ... }` 규칙들은 id 선택자(#root) 특이도가 더 높아서 그
+   3개 컨테이너 요소 자체에는 적용되지만, 그 안의 실제 텍스트 요소들에는
+   이 * 규칙만 매칭된다 — 실제 화면에 보이는 글자에는 영향이 없는 죽은
+   레이어라 이번 작업에서 건드리지 않았다).
+   요청사항: 폰트 패밀리만 G마켓 산스로 교체, 다른 타이포그래피 속성은
+   그대로 유지. Pretendard는 로드 실패 시 fallback으로 그대로 남겨둔다
+   (요청사항 — "G마켓 산스 로드 실패 시 Pretendard로 자동 대체"). */
 * {
   box-sizing: border-box;
-  font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', system-ui, sans-serif;
+  font-family: 'Gmarket Sans', 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', system-ui, sans-serif;
 }
 
 html {
