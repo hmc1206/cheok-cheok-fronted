@@ -18,7 +18,7 @@ export const KIOSK_SCREENS = {
       { id: 'english', label: '영어 선택', x: 31.3, y: 70.9, width: 18.8, height: 4.7, action: 'SET_LANGUAGE' },
       { id: 'chinese', label: '중국어 선택', x: 53.5, y: 70.9, width: 18.8, height: 4.7, action: 'SET_LANGUAGE' },
       { id: 'japanese', label: '일본어 선택', x: 76.5, y: 70.9, width: 16.5, height: 4.7, action: 'SET_LANGUAGE' },
-      { id: 'dine-in', label: '매장 주문', x: 8.6, y: 83.6, width: 38.8, height: 6.4, action: 'SELECT_DINE_IN' },
+      { id: 'dine-in', guideId: 'start-dine-in', label: '매장 주문', x: 8.6, y: 83.6, width: 38.8, height: 6.4, action: 'SELECT_DINE_IN' },
       { id: 'take-out', label: '포장 주문', x: 52.6, y: 83.6, width: 38.8, height: 6.4, action: 'SELECT_TAKE_OUT' },
       ...footerHotspots(91.7),
     ],
@@ -29,7 +29,7 @@ export const KIOSK_SCREENS = {
     alt: '맘스터치 인기메뉴 화면',
     guide: '상단의 세트 메뉴를 눌러주세요.',
     hotspots: [
-      { id: 'set-category', label: '세트 카테고리', x: 30, y: 11, width: 22.5, height: 4.8, action: 'OPEN_SET_CATEGORY' },
+      { id: 'set-category', guideId: 'category-set', label: '세트 카테고리', x: 30, y: 11, width: 22.5, height: 4.8, action: 'OPEN_SET_CATEGORY' },
       ...footerHotspots(91.9),
     ],
   },
@@ -40,7 +40,7 @@ export const KIOSK_SCREENS = {
     guide: '떡강정세트를 눌러주세요.',
     hotspots: [
       { id: 'back', label: '이전 화면', x: 0, y: 7, width: 7.5, height: 7, action: 'BACK' },
-      { id: 'tteokgangjeong-set', label: '떡강정세트 선택', x: 6.5, y: 35.5, width: 27.5, height: 18.5, action: 'SELECT_TTEOKGANGJEONG_SET' },
+      { id: 'tteokgangjeong-set', guideId: 'product-tteokgangjeong-set', label: '떡강정세트 선택', x: 6.5, y: 35.5, width: 27.5, height: 18.5, action: 'SELECT_TTEOKGANGJEONG_SET' },
       ...footerHotspots(93.1),
     ],
   },
@@ -50,7 +50,7 @@ export const KIOSK_SCREENS = {
     alt: '싸이버거 요청사항 선택 화면',
     guide: '싸이버거 요청사항에서 요청 없음을 눌러주세요.',
     hotspots: [
-      { id: 'request-none', label: '싸이버거 요청 없음', x: 12.1, y: 40.8, width: 36.3, height: 14, action: 'SELECT_DEFAULT_BURGER_REQUEST', value: '요청-없음' },
+      { id: 'request-none', guideId: 'request-none', label: '싸이버거 요청 없음', x: 12.1, y: 40.8, width: 36.3, height: 14, action: 'SELECT_DEFAULT_BURGER_REQUEST', value: '요청-없음' },
       { id: 'request-no-onion', label: '싸이버거 양파 제외', x: 51.3, y: 40.8, width: 36.5, height: 14, action: 'SELECT_DEFAULT_BURGER_REQUEST', value: '요청-양파제외' },
       { id: 'request-no-pickle', label: '싸이버거 피클 제외', x: 12.1, y: 56.7, width: 36.3, height: 14, action: 'SELECT_DEFAULT_BURGER_REQUEST', value: '요청-피클제외' },
       { id: 'request-no-pickle-onion', label: '싸이버거 피클과 양파 제외', x: 51.3, y: 56.7, width: 36.5, height: 14, action: 'SELECT_DEFAULT_BURGER_REQUEST', value: '요청-피클,양파제외' },
@@ -64,7 +64,9 @@ export const KIOSK_SCREENS = {
     guide: '필수 버거에서 아라비아따치즈버거를 눌러주세요.',
     hotspots: [
       { id: 'back', label: '이전 화면', x: 0, y: 0, width: 15, height: 5.8, action: 'BACK' },
-      { id: 'arabbiatta-burger', label: '아라비아따치즈버거 선택', x: 76.2, y: 57.8, width: 17.7, height: 15, action: 'SELECT_ARABIATTA_BURGER' },
+      { id: 'cajun-chicken', guideId: 'option-cajun-tteokgangjeong', label: '케이준떡강정S 1개 선택', x: 3.4, y: 34.5, width: 21.5, height: 14.8, action: 'SELECT_CHICKEN', value: '케이준떡강정S' },
+      { id: 'arabbiatta-burger', guideId: 'option-arrabbiata-burger', label: '아라비아따치즈버거 선택', x: 76.2, y: 57.8, width: 17.7, height: 15, action: 'SELECT_ARABIATTA_BURGER' },
+      { id: 'option-scroll-guide', guideId: 'option-scroll-area', label: '음료 옵션으로 스크롤', x: 0, y: 28, width: 100, height: 58, guideOnly: true },
       ...footerHotspots(92.9),
     ],
   },
@@ -75,9 +77,8 @@ export const KIOSK_SCREENS = {
     guide: '요청 없음을 누른 뒤 아래로 스크롤해주세요.',
     hotspots: [
       { id: 'back', label: '이전 화면', x: 0, y: 0, width: 15, height: 6, action: 'BACK' },
-      { id: 'request-none', label: '아라비아따치즈버거 요청 없음', x: 12.2, y: 38.3, width: 36.5, height: 13.2, action: 'SELECT_ARABIATTA_REQUEST', value: '요청-없음' },
+      { id: 'request-none', guideId: 'request-none', label: '아라비아따치즈버거 요청 없음', x: 12.2, y: 38.3, width: 36.5, height: 13.2, action: 'SELECT_ARABIATTA_REQUEST', value: '요청-없음' },
       { id: 'request-no-onion', label: '아라비아따치즈버거 양파 제외', x: 51.5, y: 38.3, width: 36.5, height: 13.2, action: 'SELECT_ARABIATTA_REQUEST', value: '요청-양파제외' },
-      { id: 'scroll-down', label: '음료 옵션으로 이동', x: 89, y: 28, width: 11, height: 38, action: 'SCROLL_TO_DRINK_OPTIONS' },
       ...footerHotspots(92.7),
     ],
   },
@@ -89,14 +90,14 @@ export const KIOSK_SCREENS = {
     hotspots: [
       { id: 'back', label: '이전 화면', x: 0, y: 0, width: 15, height: 5.5, action: 'BACK' },
       { id: 'pepsi', label: '펩시콜라 선택', x: 3.4, y: 24.8, width: 27.8, height: 19.5, action: 'SELECT_DRINK', value: '펩시콜라' },
-      { id: 'pepsi-zero', label: '펩시콜라제로 선택', x: 35.9, y: 24.8, width: 27.4, height: 19.5, action: 'SELECT_DRINK', value: '펩시콜라제로' },
+      { id: 'pepsi-zero', guideId: 'option-pepsi-zero', label: '펩시콜라제로 선택', x: 35.9, y: 24.8, width: 27.4, height: 19.5, action: 'SELECT_DRINK', value: '펩시콜라제로' },
       { id: 'cider', label: '사이다 선택', x: 68.2, y: 24.8, width: 27.6, height: 19.5, action: 'SELECT_DRINK', value: '사이다' },
-      { id: 'no-sauce', label: '추가 소스 선택 없음', x: 3.4, y: 51.3, width: 21.2, height: 16, action: 'SELECT_SAUCE', value: '선택없음' },
+      { id: 'no-sauce', guideId: 'option-extra-none', label: '추가 소스 선택 없음', x: 3.4, y: 51.3, width: 21.2, height: 16, action: 'SELECT_SAUCE', value: '선택없음' },
       { id: 'moms-sauce', label: '맘스양념소스 선택', x: 26.3, y: 51.3, width: 22, height: 16, action: 'SELECT_SAUCE', value: '맘스양념소스' },
       { id: 'ranch-sauce', label: '랜치소스 선택', x: 51.3, y: 51.3, width: 21.4, height: 16, action: 'SELECT_SAUCE', value: '랜치소스' },
       { id: 'cheese-mayo-sauce', label: '매콤치즈마요소스 선택', x: 76.6, y: 51.3, width: 20, height: 17, action: 'SELECT_SAUCE', value: '매콤치즈마요소스' },
       { id: 'scroll-up', label: '버거 옵션으로 돌아가기', x: 57.2, y: 86.2, width: 12.5, height: 6.8, action: 'SCROLL_TO_BURGER_OPTIONS' },
-      { id: 'add-to-cart', label: '주문담기', x: 69.7, y: 86.2, width: 30.3, height: 6.8, action: 'ADD_TO_CART' },
+      { id: 'add-to-cart', guideId: 'add-to-cart', label: '주문담기', x: 69.7, y: 86.2, width: 30.3, height: 6.8, action: 'ADD_TO_CART' },
       ...footerHotspots(93),
     ],
   },
@@ -109,7 +110,7 @@ export const KIOSK_SCREENS = {
       { id: 'decrease', label: '수량 줄이기', x: 5.7, y: 83.8, width: 5.7, height: 3.7, action: 'CHANGE_QUANTITY', value: -1 },
       { id: 'increase', label: '수량 늘리기', x: 16.4, y: 83.8, width: 5.7, height: 3.7, action: 'CHANGE_QUANTITY', value: 1 },
       { id: 'delete', label: '장바구니 상품 삭제', x: 55, y: 87.2, width: 10.5, height: 6.3, action: 'DELETE_ITEM' },
-      { id: 'checkout', label: '결제하기', x: 65.5, y: 87.2, width: 34.5, height: 6.3, action: 'OPEN_CHECKOUT' },
+      { id: 'checkout', guideId: 'checkout', label: '결제하기', x: 65.5, y: 87.2, width: 34.5, height: 6.3, action: 'OPEN_CHECKOUT' },
       ...footerHotspots(93.5),
     ],
   },
@@ -120,8 +121,9 @@ export const KIOSK_SCREENS = {
     guide: '주문 내용을 확인하고 신용카드를 눌러주세요.',
     hotspots: [
       { id: 'back', label: '이전 화면', x: 0, y: 0, width: 15, height: 5.5, action: 'BACK' },
+      { id: 'order-summary-guide', guideId: 'order-summary', label: '주문 옵션 요약', x: 3, y: 8, width: 94, height: 58, guideOnly: true },
       { id: 'edit-options', label: '옵션수정', x: 76.5, y: 19.2, width: 18, height: 3.4, action: 'EDIT_OPTIONS' },
-      { id: 'credit-card', label: '신용카드 결제', x: 3.2, y: 71.3, width: 17.2, height: 10, action: 'SELECT_CREDIT_CARD' },
+      { id: 'credit-card', guideId: 'payment-credit-card', label: '신용카드 결제', x: 3.2, y: 71.3, width: 17.2, height: 10, action: 'SELECT_CREDIT_CARD' },
       { id: 'coupon', label: 'E쿠폰 또는 선불카드', x: 21.8, y: 71.3, width: 17.4, height: 10, action: 'PAYMENT_UNAVAILABLE' },
       { id: 'gift-card', label: '상품권', x: 40.6, y: 71.3, width: 17.4, height: 10, action: 'PAYMENT_UNAVAILABLE' },
       { id: 'payco', label: '페이코', x: 59.5, y: 71.3, width: 17.4, height: 10, action: 'PAYMENT_UNAVAILABLE' },
@@ -138,9 +140,9 @@ export const KIOSK_SCREENS = {
     guide: '신용카드를 투입구에 끝까지 넣어주세요.',
     hotspots: [
       { id: 'back', label: '이전 화면', x: 0, y: 0, width: 15, height: 5.5, action: 'CANCEL_PAYMENT' },
+      { id: 'card-insert-guide-target', guideId: 'card-insert-guide', label: '카드 삽입 안내', x: 25.8, y: 35, width: 48.4, height: 27, guideOnly: true },
       { id: 'modal-cancel', label: '카드 삽입 취소', x: 40, y: 57.5, width: 20, height: 3.2, action: 'CANCEL_PAYMENT' },
       { id: 'cancel', label: '결제 취소', x: 9, y: 80, width: 38, height: 7.4, action: 'CANCEL_PAYMENT' },
-      { id: 'complete-card-payment-button', label: '신용카드 결제 완료', x: 52.5, y: 80, width: 38.5, height: 7.4, action: 'COMPLETE_CARD_PAYMENT' },
       ...footerHotspots(92.7),
     ],
   },
@@ -152,28 +154,29 @@ export const KIOSK_SCREENS = {
     hotspots: [
       { id: 'receipt-not-printed-button', label: '영수증 미출력', x: 9.1, y: 81.4, width: 38.8, height: 7.4, action: 'SELECT_RECEIPT_OPTION', value: 'notPrinted' },
       { id: 'receipt-print-button', label: '영수증 출력', x: 51.4, y: 81.4, width: 39.4, height: 7.4, action: 'SELECT_RECEIPT_OPTION', value: 'printed' },
+      { id: 'receipt-choice-guide', guideId: 'receipt-choice', label: '영수증 출력 여부 선택', x: 9.1, y: 81.4, width: 81.7, height: 7.4, guideOnly: true },
       ...footerHotspots(92.9),
     ],
   },
-  12: {
-    width: 864,
-    height: 1821,
-    alt: '맘스터치 키오스크 주문 시뮬레이션 시작 화면',
+  14: {
+    width: 853,
+    height: 1844,
+    alt: '척척 키오스크 주문 시뮬레이션 시작 화면',
     guide: '시뮬레이션 시작 버튼을 눌러 주문 연습을 시작해주세요.',
     hotspots: [
-      { id: 'simulation-start-button', label: '맘스터치 키오스크 시뮬레이션 시작', x: 8.8, y: 78.3, width: 81.2, height: 8.8, action: 'START_SIMULATION' },
-      ...footerHotspots(90.8),
+      { id: 'simulation-start-button', guideId: 'simulation-start', label: '척척 키오스크 시뮬레이션 시작', x: 5.2, y: 86.9, width: 89.1, height: 7.2, action: 'START_SIMULATION' },
+      ...footerHotspots(94.3),
     ],
   },
-  13: {
+  15: {
     width: 866,
     height: 1817,
-    alt: '맘스터치 키오스크 시뮬레이션 완료 화면',
+    alt: '척척 키오스크 시뮬레이션 완료 화면',
     guide: '시뮬레이션을 완료했습니다. 다시 시작하거나 종료할 수 있습니다.',
     hotspots: [
-      { id: 'restart-simulation-button', label: '키오스크 시뮬레이션 처음부터 다시하기', x: 9.6, y: 74.6, width: 80.6, height: 6.9, action: 'RESTART_SIMULATION' },
-      { id: 'exit-simulation-button', label: '키오스크 시뮬레이션 종료', x: 9.6, y: 82.6, width: 80.6, height: 6.5, action: 'EXIT_SIMULATION' },
-      ...footerHotspots(90.8),
+      { id: 'restart-simulation-button', label: '키오스크 시뮬레이션 처음부터 다시하기', x: 9.4, y: 77.2, width: 81, height: 6.8, action: 'RESTART_SIMULATION' },
+      { id: 'exit-simulation-button', label: '키오스크 시뮬레이션 종료', x: 9.4, y: 85.6, width: 81, height: 5.6, action: 'EXIT_SIMULATION' },
+      ...footerHotspots(91.5),
     ],
   },
 }
@@ -182,6 +185,11 @@ export const DRINK_HIGHLIGHTS = {
   펩시콜라: { x: 3.4, y: 24.8, width: 27.8, height: 19.5 },
   펩시콜라제로: { x: 35.9, y: 24.8, width: 27.4, height: 19.5 },
   사이다: { x: 68.2, y: 24.8, width: 27.6, height: 19.5 },
+}
+
+export const BURGER_HIGHLIGHTS = {
+  싸이버거: { x: 4.5, y: 58.3, width: 15.8, height: 10.2 },
+  아라비아따치즈버거: { x: 76.2, y: 58.3, width: 17.7, height: 10.2 },
 }
 
 export const SAUCE_HIGHLIGHTS = {
