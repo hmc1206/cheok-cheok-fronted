@@ -303,65 +303,81 @@ export function WeatherScreen() {
             ) : null}
           </div>
         ) : (
-          // mode === 'result'. 길찾기/병원·약국 찾기와 같은 "실행" 단계 화면이지만
-          // 그 둘은 결과가 곧장 외부 앱(네이버 지도)으로 넘어가는 반면 날씨는 이
-          // 화면 자체가 결과를 보여줘야 해서, 구독 신청 화면(SubscriptionScreen.jsx)
-          // 의 SectionCard 카드 패턴을 참고해 항목별로 나눴다(사용자 확인 — 날씨
-          // 상태/기온·습도/옷차림 안내 3장). 강수확률·풍속은 이번 요청에 명시된
-          // 4항목(상태/기온/습도/옷차림)에는 없지만, 삭제하기보다 기온·습도 카드
-          // 안에 작은 보조 정보로 남겨두기로 확인받았다.
+          // mode === 'result'. 요청사항: 예전엔 ttsText 문장을 화면 맨 위에 그대로
+          // 큰 글씨로 띄웠는데("오늘 현재 위치 날씨는 구름 조금이에요. 현재 28도,
+          // 최고 29도, 최저 23도예요...") 정보가 길게 풀어써져 있어 한눈에 읽기
+          // 어려웠다 — 그 문장 자체(voiceTtsText/ttsCaption)는 화면에 더 이상
+          // 노출하지 않고(음성 안내 용도로는 useVoiceAssistant가 계속 자동
+          // 재생하므로 TTS 자체는 그대로 유지된다) 항목별 카드/박스로 재구성했다.
+          //
+          // 옷차림 안내(advice) 삭제: 이전엔 명세서 7장의 advice 필드를 그대로
+          // 보여주는 카드가 있었는데, 이번 요청으로 완전히 제거했다 — 관련 카드
+          // UI뿐 아니라 옷차림 전용 아이콘(UmbrellaIcon)도 더 이상 쓰는 곳이
+          // 없어져 함께 지웠다. voiceData.advice 필드 자체는 여전히 서버가 줄 수
+          // 있지만(명세는 그대로) 이 화면이 더는 참조하지 않는다.
+          //
+          // 카드 배치(시안 A, 사용자 확인): 날씨 상태 카드(아이콘+문구)를 상단에
+          // 크게 두고, 그 아래 기온/습도를 2열 그리드의 동일한 비중 박스로 나란히
+          // 배치했다 — 어르신도 한눈에 비교하며 읽을 수 있도록 두 숫자를 같은
+          // 크기로 강조한다(요청사항: "숫자는 크고 명확한 글씨 크기로 강조").
+          // 일교차/강수확률/풍속은 그리드 아래 작은 보조 텍스트 한 줄로 유지한다
+          // (사용자 확인 — 강수확률·풍속은 기존처럼 보조 텍스트로).
           <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 py-6">
-            {/* 명세서 11-2: ttsText는 즉시 읽어주고(useVoiceAssistant가 이미 자동
-                재생함) 같은 문구를 화면에도 큰 글자로 함께 보여준다. */}
-            <p className="text-[22px] font-extrabold leading-[1.4] tracking-[-0.04em]">{voiceTtsText ?? ttsCaption}</p>
-
-            <SectionCard title="오늘 날씨" className="mt-5">
+            <SectionCard title="오늘 날씨">
               <div className="flex items-center gap-3">
                 <span className="text-[var(--cb-teal)]">{ConditionIcon ? <ConditionIcon size={40} /> : null}</span>
                 <p className="text-[22px] font-extrabold tracking-[-0.03em]">{voiceData?.conditionText ?? condition?.label}</p>
               </div>
             </SectionCard>
 
-            <SectionCard title="기온·습도" className="mt-4">
-              <div className="flex items-end justify-between">
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              {/* 기온 박스 — 현재 기온을 크게, 최고/최저를 작게 병기한다(요청사항
+                  예시 그대로). currentTemperature가 없는 응답(예보만 온 경우
+                  등)이면 기존과 동일하게 최고~최저 범위를 대신 크게 보여준다 —
+                  이 경우 최고/최저를 또 작게 반복 표시할 필요는 없다. */}
+              <SectionCard title="기온">
+                <span className="text-[var(--cb-teal)]"><ThermometerIcon /></span>
                 {voiceData?.currentTemperature != null ? (
-                  <p className="text-[44px] font-extrabold leading-none tracking-[-0.04em]">
-                    {Math.round(voiceData.currentTemperature)}°
-                  </p>
+                  <>
+                    <p className="mt-2 text-[36px] font-extrabold leading-none tracking-[-0.03em]">
+                      {Math.round(voiceData.currentTemperature)}°
+                    </p>
+                    <p className="mt-1 text-[13px] font-bold text-[var(--cb-slate)]">
+                      최고 {voiceData?.maximumTemperature != null ? `${Math.round(voiceData.maximumTemperature)}°` : '-'}
+                      {' · '}
+                      최저 {voiceData?.minimumTemperature != null ? `${Math.round(voiceData.minimumTemperature)}°` : '-'}
+                    </p>
+                  </>
                 ) : (
-                  <p className="text-[36px] font-extrabold leading-none tracking-[-0.04em]">
+                  <p className="mt-2 text-[28px] font-extrabold leading-none tracking-[-0.03em]">
                     {voiceData?.minimumTemperature != null ? Math.round(voiceData.minimumTemperature) : '-'}° ~{' '}
                     {voiceData?.maximumTemperature != null ? Math.round(voiceData.maximumTemperature) : '-'}°
                   </p>
                 )}
-                <p className="text-[20px] font-bold text-[var(--cb-slate)]">
-                  습도 {voiceData?.humidity != null ? `${voiceData.humidity}%` : '-'}
-                </p>
-              </div>
-              {/* 일교차 — 어르신도 한눈에 읽도록 온도 범위 바로 아래, 문장 형태로
-                  크게 강조한다(요청사항: "오늘 일교차는 5도예요" 형태). */}
-              {diurnalRange != null ? (
-                <p className="mt-2 text-[16px] font-bold text-[var(--cb-navy)]">오늘 일교차는 {diurnalRange}도예요.</p>
-              ) : null}
-              {/* 강수확률/풍속 — 이번 요청 4항목엔 없지만 작은 보조 정보로 유지(사용자 확인). */}
-              <p className="mt-2 text-[13px] font-medium text-[var(--cb-slate)]">
-                강수 확률 {voiceData?.precipitationProbability != null ? `${voiceData.precipitationProbability}%` : '-'}
-                {' · '}
-                풍속 {voiceData?.windSpeed != null ? `${voiceData.windSpeed}m/s` : '-'}
-              </p>
-            </SectionCard>
-
-            {/* 옷차림 안내 — 명세서 7장 data 필드 표에 advice가 "복장 및 외출 안내"로
-                이미 정의돼 있어(사용자에게 확인/보고 완료), 기온 구간별 옷차림을
-                프론트에서 새로 판단하는 로직 없이 이 필드를 그대로 쓴다. 옷차림은
-                실행 여부를 좌우하는 핵심 정보라 accent 카드로 강조한다. */}
-            {voiceData?.advice ? (
-              <SectionCard title="옷차림 안내" className="mt-4" accent>
-                <div className="flex items-center gap-3">
-                  <UmbrellaIcon />
-                  <p className="text-[17px] font-extrabold leading-6">{voiceData.advice}</p>
-                </div>
               </SectionCard>
+
+              {/* 습도 박스 — 기온 박스와 같은 구조(아이콘 -> 큰 숫자)로 맞춰
+                  위계를 동등하게 둔다(요청사항: "습도 박스는 별도 박스로 구분"). */}
+              <SectionCard title="습도">
+                <span className="text-[var(--cb-teal)]"><DropletIcon /></span>
+                <p className="mt-2 text-[36px] font-extrabold leading-none tracking-[-0.03em]">
+                  {voiceData?.humidity != null ? `${voiceData.humidity}%` : '-'}
+                </p>
+              </SectionCard>
+            </div>
+
+            {/* 보조 정보 한 줄 — 일교차(프론트 계산, 명세서엔 필드가 없어 최고·
+                최저 차이로 직접 계산 — 위 diurnalRange 참고)/강수확률/풍속을
+                문장이 아니라 짧은 값 나열로 압축했다(요청사항의 취지 — "문장형
+                에서 카드/박스형으로"를 이 보조 정보에도 동일하게 적용). */}
+            {diurnalRange != null || voiceData?.precipitationProbability != null || voiceData?.windSpeed != null ? (
+              <p className="mt-3 text-[13px] font-medium text-[var(--cb-slate)]">
+                {diurnalRange != null ? `일교차 ${diurnalRange}°` : null}
+                {diurnalRange != null && (voiceData?.precipitationProbability != null || voiceData?.windSpeed != null) ? ' · ' : null}
+                {voiceData?.precipitationProbability != null ? `강수 확률 ${voiceData.precipitationProbability}%` : null}
+                {voiceData?.precipitationProbability != null && voiceData?.windSpeed != null ? ' · ' : null}
+                {voiceData?.windSpeed != null ? `풍속 ${voiceData.windSpeed}m/s` : null}
+              </p>
             ) : null}
 
             {voiceData?.location?.name ? (
@@ -488,11 +504,21 @@ function UnknownIcon({ size = 28 }) {
     </svg>
   )
 }
-function UmbrellaIcon({ size = 24 }) {
+// 기온/습도 박스 전용 아이콘 — 요청사항: "숫자와 함께 아이콘을 사용해 직관적으로
+// 이해할 수 있도록" 구성. 기존 날씨상태 아이콘들과 같은 스타일(24px 기준,
+// stroke=currentColor, strokeWidth 1.8, 둥근 선)로 새로 그렸다.
+function ThermometerIcon({ size = 22 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="shrink-0 text-[var(--cb-navy)]">
-      <path d="M3 11a9 9 0 0 1 18 0Z" />
-      <path d="M12 2v1M12 11v8a2 2 0 0 1-3.5 1.3" />
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 14.5V5a2 2 0 0 0-4 0v9.5a4 4 0 1 0 4 0Z" />
+      <path d="M12 15V8" />
+    </svg>
+  )
+}
+function DropletIcon({ size = 22 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 3.5s6 6.7 6 11a6 6 0 1 1-12 0c0-4.3 6-11 6-11Z" />
     </svg>
   )
 }
