@@ -11,9 +11,12 @@ import { AppFrame } from '../components/common/AppFrame'
 // 연출이라 API와 무관) 이전 스플래시 라운드들과 동일한 방식 — 우선 합리적인
 // 값으로 구현하고, 이후 "더 빠르게/느리게" 같은 피드백을 받으면 바로 조정한다.
 
-// 1단계: "척척" 텍스트가 흐린 상태에서 왼쪽 -> 오른쪽으로 채워지는 데 걸리는
+// 1단계: "척척" 텍스트가 흐린 상태에서 아래 -> 위로(요청사항: 방향을
+// 왼쪽->오른쪽에서 아래->위로 변경) 물결 경계선과 함께 채워지는 데 걸리는
 // 시간. 이 구간 동안은 텍스트 위치/크기가 전혀 바뀌지 않는다(요청사항: "이
-// 단계에서는... 위치나 크기 이동은 일어나지 않는다").
+// 단계에서는... 위치나 크기 이동은 일어나지 않는다"). 실제 채우기/물결
+// 애니메이션은 index.css의 .splash-title-fill::after가 담당하며, 그 CSS
+// 애니메이션 duration도 이 상수와 반드시 같은 값(1100ms)으로 맞춰뒀다.
 const FILL_DURATION_MS = 1100
 // 채우기가 "완료된 뒤에만"(요청사항) 서브 문구가 페이드인되기 시작한다 — 이
 // 값은 그 페이드인 트랜지션 자체의 길이. FILL_DURATION_MS가 다 끝난 시점에
@@ -128,34 +131,34 @@ export function SplashScreen() {
           }}
         />
 
-        {/* "척척" — 1단계에선 화면 중앙에 큰 글씨로 흐린 상태에서 채워지고,
-            2단계에선 채워진 그대로 로그인 헤더 자리(작은 크기/좌측 상단)로
-            이동한다. 같은 h1 인스턴스를 그대로 두고 className/style만
-            바꾸는 이유: framer-motion의 layout 애니메이션이 "같은 엘리먼트가
-            렌더링 사이에 크기/위치가 바뀌면" 그 변화를 자동으로 부드러운
+        {/* "척척" — 1단계에선 화면 중앙에 큰 글씨로 흐린 상태에서 물결
+            경계선과 함께 아래->위로 채워지고, 2단계에선 채워진 그대로
+            로그인 헤더 자리(작은 크기/좌측 상단)로 이동한다. 같은 h1
+            인스턴스를 그대로 두고 className/style만 바꾸는 이유:
+            framer-motion의 layout 애니메이션이 "같은 엘리먼트가 렌더링
+            사이에 크기/위치가 바뀌면" 그 변화를 자동으로 부드러운
             transform으로 보간해주기 때문 — 별도의 좌표 계산 없이 진짜
-            "모핑"처럼 보인다. */}
+            "모핑"처럼 보인다.
+            data-text: index.css의 .splash-title-fill::after가
+            content: attr(data-text)로 이 값을 그대로 복제해 물결 마스크를
+            씌운 "채워진" 레이어를 만든다(h1 자신은 흐린 밑바탕 역할) —
+            모핑 단계에선 이 클래스 자체를 안 쓰므로 무시된다.
+            채우기/물결 애니메이션 자체는 전부 index.css의 CSS 애니메이션이
+            담당해서 여기선 별도 인라인 style이 필요 없다 — prefers-
+            reduced-motion 환경은 index.css 상단의 전역 규칙
+            (animation-duration: 0.01ms !important)이 ::after의 애니메이션
+            에도 그대로 적용돼 자동으로 순식간에 "채워진 뒤" 상태로
+            건너뛴다(별도 처리 불필요). */}
         <motion.h1
           layout={!reducedMotion}
           transition={reducedMotion ? { duration: 0 } : { duration: MORPH_DURATION_MS / 1000, ease: 'easeInOut' }}
+          data-text="척척"
           className={
             isMorphing
               ? `splash-title absolute font-bold ${HEADER_LOGO_CLASSNAME}`
               : 'splash-title splash-title-fill relative text-[44px] font-black tracking-[-0.04em]'
           }
-          style={
-            isMorphing
-              ? { top: HEADER_LOGO_TOP_PX, left: HEADER_LOGO_LEFT_PX, animation: 'none' }
-              : {
-                  animation: reducedMotion
-                    ? 'none'
-                    : `splash-title-fill-wipe ${FILL_DURATION_MS}ms ease-out forwards`,
-                  // reduced-motion에서는 채우기 애니메이션을 아예 안 돌리는 대신,
-                  // "채워진 뒤"와 같은 최종 배경 위치를 바로 적용해 텍스트가
-                  // 안 보이는 상태로 멈춰있지 않게 한다.
-                  backgroundPosition: reducedMotion ? '0% 0' : undefined,
-                }
-          }
+          style={isMorphing ? { top: HEADER_LOGO_TOP_PX, left: HEADER_LOGO_LEFT_PX } : undefined}
         >
           척척
         </motion.h1>
