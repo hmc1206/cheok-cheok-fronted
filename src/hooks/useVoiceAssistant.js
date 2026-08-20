@@ -15,21 +15,29 @@ const INTENT_ROUTES = {
   // 구분한다(YoutubePlayerScreen.jsx의 mode 계산 참고).
   YOUTUBE_SEARCH: '/youtube',
   MAP_ROUTE: '/map',
-  // TODO(backend): "내 주변 병원·약국 찾기"용 intent — API 명세서에 아직 정의돼
-  // 있지 않다(코드베이스 전체 확인 완료, 백엔드 확인 필요). 명세서 본문에서 예로
-  // 든 이름을 그대로 가정해뒀다 — 실제 intent 이름이 확정되면 이 키만 바꾸면 된다.
-  // 백엔드가 이 intent를 아직 보내지 않아도 이 매핑 자체는 무해하다(안 쓰이면
-  // 그냥 죽어있는 항목일 뿐).
-  NEARBY_PLACE: '/nearby-place',
+  // 근처 병원·약국 찾기(명세서 v2.0 5장) — intent 이름은 SEARCH_MEDICAL이 맞다고
+  // 실제 명세서로 확인됨(이전에 NEARBY_PLACE로 가정해뒀던 걸 정정).
+  SEARCH_MEDICAL: '/nearby-place',
   WEATHER_INFO: '/weather',
 }
 
 // intent별 실패 시 강제 이동 대상. 다른 intent는 실패해도 화면 이동 없이 지금
-// 화면에서 안내(ttsText 캡션+음성)만 띄우는 게 공통 동작이지만, 길찾기/날씨처럼
-// "자동화 실패 시 관련 입력 화면으로 이동시켜 사용자가 직접 이어갈 수 있게"
-// 하라고 명세서에 명시된 intent만 여기 등록한다(길찾기 GEOCODE_NOT_FOUND는 이미
-// 사용자 확인을 거쳐 구현돼 있던 것이고, 날씨 3개 코드는 이번에 같은 패턴으로
-// 확장하기로 확인받았다). 값은 에러 응답의 errorCode -> 이동할 경로.
+// 화면에서 안내(ttsText 캡션+음성)만 띄우는 게 공통 동작이지만, 길찾기/날씨/
+// 병원·약국처럼 "자동화 실패 시 관련 입력 화면으로 이동시켜 사용자가 직접
+// 이어갈 수 있게" 하라고 명세서에 명시된 intent만 여기 등록한다. 값은 에러
+// 응답의 errorCode -> 이동할 경로.
+//
+// 주의: GEOCODE_NOT_FOUND는 명세서 9장 공통 에러코드표에 있어 여러 intent
+// (MAP_ROUTE뿐 아니라 SEARCH_MEDICAL도 좌표 확인에 실패하면 같은 코드를 쓸 수
+// 있음)가 공유할 수 있는데, 에러 응답 자체엔 어떤 intent였는지 알려주는 필드가
+// 없다(명세서 2장 공통 에러 응답 형태 참고) — 그래서 기본값은 지금까지처럼
+// '/map'으로 두되, 병원·약국 찾기처럼 다른 화면으로 보내야 하는 호출부는
+// processUtterance에 fallbackRoute를 직접 넘겨서 이 기본 테이블보다 우선하도록
+// 했다(아래 processUtterance 참고). 다만 홈 화면의 범용 음성 입력("병원
+// 찾아줘"라고 마이크로만 말한 경우)처럼 fallbackRoute를 넘길 수 없는 경로는
+// 여전히 이 기본값('/map')을 따른다 — SEARCH_MEDICAL은 좌표 기반 조회라
+// GEOCODE_NOT_FOUND보다는 EXTERNAL_API_FAIL 등이 더 흔할 것으로 예상되지만,
+// 실제로 발생 빈도가 높다면 백엔드와 다시 확인이 필요하다.
 const ERROR_FORCE_NAVIGATE_ROUTES = {
   GEOCODE_NOT_FOUND: '/map',
   WEATHER_LOCATION_NOT_FOUND: '/weather',
@@ -62,7 +70,7 @@ export function useVoiceAssistant({ onResult } = {}) {
   const [errorCode, setErrorCode] = useState(null)
 
   const applyResponse = useCallback(
-    (response, transcript = '') => {
+    (response, transcript = '', { suppressNavigation } = {}) => {
       // API 명세서 v2.0 2장 공통 응답 필드: intent/step/slots/ttsText/screen/quickReplies/data.
       const { intent, step, screen, slots, data, ttsText, quickReplies } = response
 
@@ -72,10 +80,21 @@ export function useVoiceAssistant({ onResult } = {}) {
 
       setSession({ intent, step, screen, slots, data, transcript, quickReplies: quickReplies ?? null, ttsText: ttsText ?? null })
 
-      // "진행 중이면 같은 화면에서 이어감" — 이미 목적지 화면이면 다시 navigate하지 않는다.
-      const targetPath = INTENT_ROUTES[intent]
-      if (targetPath && location.pathname !== targetPath) {
-        navigate(targetPath, { state: { data, slots, transcript } })
+      // suppressNavigation: 이 요청을 보낸 화면이 이미 응답을 직접 처리할 준비가
+      // 되어 있어서(예: 병원·약국 찾기 화면이 SEARCH_MEDICAL 응답을 기다리는 중)
+      // intent 기반 자동 이동이 필요 없는 경우 호출부가 명시적으로 끈다. 실사용
+      // 중 실제로 필요했던 이유: 병원·약국 찾기에서 보낸 요청인데 백엔드가 intent를
+      // SEARCH_MEDICAL이 아니라 MAP_ROUTE로 잘못 분류해 응답하는 사례가 있었다 —
+      // 이 자동 이동 로직이 그 intent 값을 그대로 믿고 사용자를 길찾기 화면(/map)
+      // 으로 보내버려서, 병원·약국 찾기 화면에 그대로 남아 딥링크만 실행돼야 할
+      // 상황에서 엉뚱한 화면으로 튕기는 문제가 있었다. 화면이 자기 응답인 걸 이미
+      // 아는 경우엔 서버가 intent를 뭐라고 주든 이 화면 판단을 우선하게 한다.
+      if (!suppressNavigation) {
+        // "진행 중이면 같은 화면에서 이어감" — 이미 목적지 화면이면 다시 navigate하지 않는다.
+        const targetPath = INTENT_ROUTES[intent]
+        if (targetPath && location.pathname !== targetPath) {
+          navigate(targetPath, { state: { data, slots, transcript } })
+        }
       }
 
       onResult?.(response)
@@ -84,14 +103,14 @@ export function useVoiceAssistant({ onResult } = {}) {
   )
 
   const processUtterance = useCallback(
-    async (payload) => {
+    async (payload, { fallbackRoute, suppressNavigation } = {}) => {
       setStatus('processing')
       setOutcome('idle')
       setErrorCode(null)
       try {
         const response = await voiceApi.process({ userId, ...payload })
         if (cancelledRef.current) return
-        applyResponse(response, payload.text ?? '')
+        applyResponse(response, payload.text ?? '', { suppressNavigation })
       } catch (error) {
         // 공통 에러 응답({ errorCode, message, ttsText })도 정상 응답과 동일하게 캡션+TTS로
         // 안내한다 (청각+시각 이중 안내 원칙). apiClient 인터셉터가 SESSION_EXPIRED/401은
@@ -112,13 +131,16 @@ export function useVoiceAssistant({ onResult } = {}) {
         setErrorCode(errorCode ?? null)
 
         // intent별 강제 이동(사용자 확인 — 다른 intent는 실패 시 화면 이동 없이
-        // 현재 화면에서 안내만 띄우는 게 공통 동작이지만, 길찾기/날씨는 "자동화
-        // 실패 시 관련 입력 화면으로 이동시켜 사용자가 직접 이어갈 수 있게"가
-        // 명세서에 명시돼 있어 예외로 둔다 — ERROR_FORCE_NAVIGATE_ROUTES 참고).
-        // 예: 홈 화면에서 곧바로 "서울역에서 OO까지"라고 말했는데 위치를 못 찾은
-        // 경우에도, 사용자가 길찾기 화면에 들어가 있지 않았다면 강제로 이동시켜
-        // 직접 입력할 수 있게 한다 — 날씨도 동일한 원칙.
-        const targetPath = ERROR_FORCE_NAVIGATE_ROUTES[errorCode]
+        // 현재 화면에서 안내만 띄우는 게 공통 동작이지만, 길찾기/날씨/병원·약국은
+        // "자동화 실패 시 관련 입력 화면으로 이동시켜 사용자가 직접 이어갈 수
+        // 있게"가 명세서에 명시돼 있어 예외로 둔다). 예: 홈 화면에서 곧바로
+        // "서울역에서 OO까지"라고 말했는데 위치를 못 찾은 경우에도, 사용자가
+        // 길찾기 화면에 들어가 있지 않았다면 강제로 이동시켜 직접 입력할 수
+        // 있게 한다. 호출부가 명시적으로 fallbackRoute를 넘겼으면 그걸 공통
+        // 코드 테이블(ERROR_FORCE_NAVIGATE_ROUTES)보다 우선한다(위 그 상수의
+        // 주석 참고 — GEOCODE_NOT_FOUND처럼 여러 intent가 같은 코드를 공유할 때
+        // 필요).
+        const targetPath = fallbackRoute ?? ERROR_FORCE_NAVIGATE_ROUTES[errorCode]
         if (targetPath && location.pathname !== targetPath) {
           navigate(targetPath, {
             state: {
@@ -173,12 +195,19 @@ export function useVoiceAssistant({ onResult } = {}) {
   }, [stopListening])
 
   // 음성 없이 텍스트로 입력하는 경우(화면 내 텍스트 입력창)에도 같은 파이프라인을 태운다.
+  // requestOptions.fallbackRoute: 이 요청이 실패했을 때 강제 이동할 경로를 호출부가
+  // 직접 지정하고 싶을 때 쓴다(예: 병원·약국 찾기 화면에서 보낸 요청은 실패해도
+  // 항상 이 화면으로 돌아와야 하므로 '/nearby-place'를 넘김) — 안 넘기면 기존처럼
+  // ERROR_FORCE_NAVIGATE_ROUTES 공통 테이블을 따른다.
+  // requestOptions.suppressNavigation: true면 응답이 성공해도 intent 기반 자동
+  // 이동을 하지 않는다 — 호출한 화면이 이미 이 응답을 기다리고 있어서 서버가
+  // 어떤 intent를 주든 그 화면이 알아서 처리하겠다는 뜻(applyResponse 주석 참고).
   const sendText = useCallback(
-    (text, extra = {}) => {
+    (text, extra = {}, requestOptions = {}) => {
       setSttCaption(text)
       setTtsCaption('')
       setOutcome('idle')
-      return processUtterance({ text, ...extra })
+      return processUtterance({ text, ...extra }, requestOptions)
     },
     [processUtterance],
   )

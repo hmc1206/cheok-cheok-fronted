@@ -265,7 +265,12 @@ export function MapRouteScreen() {
       resetSession()
       return
     }
-    navigate('/home')
+    // QA 중 발견: 이 화면은 항상 홈에서 push로 진입하는데(1홉), 여기서
+    // navigate('/home')를 또 push하면 히스토리가 [홈, 길찾기, 홈]처럼 쌓여
+    // 이후 하드웨어/브라우저 뒤로가기를 누르면 엉뚱하게 길찾기로 되돌아간다
+    // (보호자 모니터링에서 고쳤던 것과 같은 종류의 문제). 목적지(홈)는
+    // 그대로 두고 replace로 바꿔 중복 히스토리만 없앤다.
+    navigate('/home', { replace: true })
   }
 
   const displayMode = stage === 'executing' ? 'executing' : isAskOrigin ? 'ask-origin' : 'input'
@@ -292,7 +297,7 @@ export function MapRouteScreen() {
           <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
             <section className="px-5 pb-4 pt-5">
               <h1 className="text-[30px] font-extrabold leading-[1.06] tracking-[-0.08em]">
-                어디에서 어디로
+                어디로
                 <br />
                 가시나요?
               </h1>

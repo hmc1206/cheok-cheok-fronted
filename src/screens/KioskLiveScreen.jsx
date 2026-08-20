@@ -87,7 +87,11 @@ export function KioskLiveScreen() {
         return
       case 'EXIT_SIMULATION':
         resetHome()
-        navigate('/home')
+        // 병합 중 발견: 다른 기능 화면들(길찾기/병원약국찾기/영상도움/날씨)과
+        // 같은 이유로 홈에서 push로만 들어오는 화면인데 여기서 navigate('/home')를
+        // 또 push하면 히스토리가 중복 쌓인다 — replace로 통일한다(QA 브랜치에서
+        // 이미 확정된 패턴, MapRouteScreen.jsx 주석 참고).
+        navigate('/home', { replace: true })
         return
       case 'ACCESS_ZOOM':
         setAccessibility((state) => ({ ...state, zoom: !state.zoom }))

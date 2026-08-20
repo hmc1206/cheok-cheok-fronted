@@ -15,7 +15,15 @@ import { useVoiceSessionStore } from '../store/voiceSessionStore'
 // 날씨 알려줘" 등을 말했을 때 공통으로 도착하는 화면. 길찾기/병원·약국 찾기와
 // 같은 톤(헤더+상단 탭+ExecutingPanel)을 유지하되, 이 화면만의 흐름(ASK_LOCATION
 // 되묻기, 결과 카드)은 날씨 API 명세서 v1.0을 그대로 따른다.
-const STEP_LABELS = ['입력', '실행']
+//
+// STEP_LABELS: 길찾기/병원·약국 찾기는 사용자가 값을 "입력"한 뒤에야 "실행"
+// 단계로 넘어가는 진짜 2단계 흐름이라 탭이 둘 다 의미가 있다. 날씨는 이 화면에
+// 들어오자마자 자동으로 조회가 시작돼(위 자동 진입 이펙트 참고) 사용자가 직접
+// 입력하는 단계 자체가 없다 — "입력" 탭이 실제로는 한 번도 활성화되지 않는
+// 죽은 탭이었다(요청사항: "입력 탭을 없애고 실행 탭만 남겨줘"). ProgressStrip은
+// labels 배열 길이에 맞춰 칸을 그리므로 여기서 '실행' 하나만 넘기면 자동으로
+// 탭 하나짜리 UI가 된다(components/common/ProgressStrip.jsx의 grid-cols-1 추가 참고).
+const STEP_LABELS = ['실행']
 
 // 날씨 상태 코드 -> 아이콘/기본 문구(명세서 8장). 이 프로젝트는 아이콘 라이브러리를
 // 안 쓰고 전부 직접 그린 stroke=currentColor 선 아이콘이라(components/common/
@@ -52,6 +60,14 @@ export function WeatherScreen() {
 
   const [regionInputMode, setRegionInputMode] = useState(false)
   const [regionText, setRegionText] = useState('')
+  // GPS를 기다리는 동안(최대 8초, lib/geolocation.js 타임아웃)엔 아직 sendText를
+  // 안 불러서 status가 'processing'으로 안 바뀐다 — 그 사이 화면이 아무 반응
+  // 없어 보이지 않도록 별도로 표시한다(NearbyPlaceScreen.jsx와 동일한 이유로
+  // 동일하게 처리).
+  const [isLocating, setIsLocating] = useState(false)
+  // 서버 응답을 15초 넘게 기다려도 안 오면 "데이터 로드 중"을 계속 보여주는
+  // 대신 에러 문구로 전환한다(사용자 확인 — 15초). 아래 타임아웃 useEffect에서 채운다.
+  const [requestTimedOut, setRequestTimedOut] = useState(false)
 
   const isMountedRef = useRef(true)
   useEffect(() => {
@@ -61,11 +77,68 @@ export function WeatherScreen() {
     }
   }, [])
 
-  // "다시 시도"(WEATHER_API_FAIL) 버튼이 재전송할 요청을 기억해둔다. 화면에
-  // 처음 들어올 때는 useVoiceAssistant 훅의 강제 이동 state(retryPayload,
+  // "다시 시도"(WEATHER_API_FAIL/타임아웃) 버튼이 재전송할 요청을 기억해둔다.
+  // 화면에 처음 들어올 때는 useVoiceAssistant 훅의 강제 이동 state(retryPayload,
   // hooks/useVoiceAssistant.js 참고)로 시작하고, 이 화면 안에서 새로 보낸
-  // 요청이 있으면 그걸로 갱신한다 — ref라 리렌더에 영향받지 않는다.
+  // 요청이 있으면(자동 진입 요청 포함) 그걸로 갱신한다 — ref라 리렌더에
+  // 영향받지 않는다.
   const lastRetryPayloadRef = useRef(location.state?.retryPayload ?? null)
+
+  // 이 화면 진입 즉시 자동으로 날씨를 조회한다(요청사항 — "영상 도움" 버튼처럼
+  // 클릭하면 곧바로 전용 페이지로 이동하고, 그 페이지 안에서 필요한 동작을
+  // 스스로 시작해야 한다). 예전엔 홈 화면이 GPS+요청을 먼저 끝내고 성공해야만
+  // 이 화면으로 이동시켰는데, 그러면 GPS를 기다리는 동안 화면 전환이 전혀
+  // 없어서(홈 화면에 그대로 머묾) "버튼을 눌러도 반응이 없다"처럼 보일 수
+  // 있었다 — 이제 HomeScreen.jsx는 버튼을 누르면 곧장 이 경로로 navigate만
+  // 하고, GPS/요청은 이 화면이 마운트되자마자 스스로 시작한다.
+  //
+  // 단, 아래 두 경우엔 자동으로 다시 요청하지 않는다:
+  //  1) 이미 결과/재질문이 와 있는 경우 — 음성으로 "오늘 서울 날씨 알려줘"라고
+  //     말해서 이 화면으로 라우팅된 경우, 그 결과를 그대로 보여주면 된다.
+  //  2) 실패로 강제 이동된 경우(hooks/useVoiceAssistant.js의 requestFailed) —
+  //     실패 안내 + 재시도/재입력 UI를 그대로 보여준다.
+  // hasAutoTriggeredRef는 StrictMode의 마운트 이중 실행에도 딱 한 번만
+  // 실행되게 막는다 — "방금 자동 실행했는지" 여부라서(다른 화면들의
+  // isMountedRef와 달리) 이펙트가 다시 돌 때마다 리셋하면 안 되고, 한 번
+  // 세팅되면 이 컴포넌트 인스턴스가 사는 동안 계속 true여야 한다.
+  const hasAutoTriggeredRef = useRef(false)
+  useEffect(() => {
+    if (hasAutoTriggeredRef.current) return
+    hasAutoTriggeredRef.current = true
+
+    if (isWeatherSession && (voiceStep === 'DONE' || voiceStep === 'ASK_LOCATION')) return
+    if (location.state?.requestFailed) return
+
+    ;(async () => {
+      setIsLocating(true)
+      const coords = await getCurrentPositionOrNull()
+      if (!isMountedRef.current) return
+      setIsLocating(false)
+      const text = '오늘 날씨 알려줘'
+      // coords가 이미 { latitude, longitude } 형태라(lib/geolocation.js) 별도
+      // 필드명 변환 없이 그대로 넘긴다.
+      lastRetryPayloadRef.current = { text, ...(coords ?? {}) }
+      sendText(text, coords ?? {})
+    })()
+    // 마운트 시 딱 한 번만 — 아래 참조하는 값들은 "이 화면에 막 도착했을 때"의
+    // 스냅샷만 필요하다(이후 값이 바뀌어도 이 이펙트를 다시 돌릴 필요 없음).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // 서버 응답을 기다리는 동안(status === 'processing') 15초 타이머를 건다 —
+  // 그 안에 응답이 오면(status가 'processing'을 벗어나면) 이 이펙트의 cleanup이
+  // 타이머를 지운다. 응답이 실제로 늦게 도착해서 새로 성공/실패 처리가 되면
+  // status가 바뀌면서 이 이펙트가 다시 실행돼 requestTimedOut을 자동으로
+  // false로 되돌린다(예: 타임아웃 문구를 보고 있다가 뒤늦게 실제 결과가 와도
+  // 결과 화면으로 자연스럽게 넘어감).
+  useEffect(() => {
+    if (status !== 'processing') {
+      setRequestTimedOut(false)
+      return
+    }
+    const timer = setTimeout(() => setRequestTimedOut(true), 15000)
+    return () => clearTimeout(timer)
+  }, [status])
 
   // 실패 정보(errorCode/ttsText)는 두 군데서 올 수 있다:
   //  1) 이 화면 안에서 방금 실패(outcome === 'error') — 이 훅 인스턴스가 직접 겪음.
@@ -78,19 +151,26 @@ export function WeatherScreen() {
   const displayedErrorCode = outcome === 'error' ? errorCode : outcome === 'idle' && location.state?.requestFailed ? location.state.errorCode : null
   const displayedErrorText = outcome === 'error' ? ttsCaption : outcome === 'idle' && location.state?.requestFailed ? location.state.ttsText : ''
 
+  // result/ask-location(실제 데이터가 있는 상태)을 가장 먼저 확인해서, 뒤늦게
+  // 도착한 진짜 응답이 항상 locating/timeout/loading 같은 과도기 상태보다
+  // 우선하도록 한다.
   let mode
-  if (status === 'processing') {
-    mode = 'loading'
-  } else if (isWeatherSession && voiceStep === 'DONE' && voiceData) {
+  if (isWeatherSession && voiceStep === 'DONE' && voiceData) {
     mode = 'result'
   } else if (isWeatherSession && voiceStep === 'ASK_LOCATION') {
     mode = 'ask-location'
+  } else if (isLocating) {
+    mode = 'locating'
+  } else if (requestTimedOut) {
+    mode = 'timeout'
+  } else if (status === 'processing') {
+    mode = 'loading'
   } else if (displayedErrorCode) {
     mode = 'error'
   } else {
-    // 이 화면은 항상 이미 진행 중이거나 완료된 요청과 함께 진입하므로(홈 화면
-    // 버튼/음성이 먼저 요청을 보낸 뒤에만 라우팅됨) 실제로는 거의 보이지 않는
-    // 과도기 상태 — 그래도 빈 화면보다는 로딩 표시가 안전하다.
+    // 이 화면이 마운트되면 위 자동 진입 이펙트가 곧바로 GPS부터 시작하므로
+    // 실제로는 거의 보이지 않는 과도기 상태 — 그래도 빈 화면보다는 로딩
+    // 표시가 안전하다.
     mode = 'loading'
   }
 
@@ -135,32 +215,58 @@ export function WeatherScreen() {
     sendText(text, latitude != null && longitude != null ? { latitude, longitude } : {})
   }
 
+  // QA 중 발견: 홈에서 push로만 들어오는 화면이라 아래 두 navigate('/home')가
+  // 그대로 push면 히스토리가 중복 쌓여 뒤로가기가 예상과 다르게 동작한다
+  // (MapRouteScreen.jsx 주석 참고, 다른 기능 화면들과 동일한 원인). replace로 수정.
   const handleBack = () => {
     if (mode === 'result' || mode === 'error') {
-      navigate('/home')
+      navigate('/home', { replace: true })
       return
     }
     if (regionInputMode) {
       setRegionInputMode(false)
       return
     }
-    navigate('/home')
+    navigate('/home', { replace: true })
   }
 
   const condition = voiceData ? (WEATHER_CONDITIONS[voiceData.conditionCode] ?? WEATHER_CONDITIONS.UNKNOWN) : null
   const ConditionIcon = condition?.Icon
+  // 일교차 — 명세서엔 별도 필드가 없어(요청사항: "이 계산은... 프론트에서 직접
+  // 계산할 것") 최고·최저 기온 두 값의 차이로 계산한다. 반올림은 온도 표시
+  // 규칙(명세서 11-4 "반올림한 정수로 표시")과 통일했다. 둘 중 하나라도 없으면
+  // (예보가 아니라 실시간 관측만 있는 응답 등) 계산할 수 없으니 표시하지 않는다.
+  const diurnalRange =
+    voiceData?.minimumTemperature != null && voiceData?.maximumTemperature != null
+      ? Math.round(voiceData.maximumTemperature - voiceData.minimumTemperature)
+      : null
 
   return (
     <AppFrame>
       <main className="control-form-screen flex h-full min-h-0 flex-col overflow-hidden bg-[var(--cb-cream)]">
         <MobileHeader title="오늘의 날씨" onBack={handleBack} />
-        <ProgressStrip
-          labels={STEP_LABELS}
-          current={mode === 'ask-location' || (mode === 'error' && displayedErrorCode === 'WEATHER_LOCATION_NOT_FOUND') ? 1 : 2}
-        />
+        {/* 탭이 "실행" 하나뿐이라 항상 current=1(활성)로 고정 — 예전엔 "입력" 탭과
+            번갈아가며 몇 번인지 계산했지만 이제 그럴 필요가 없다. showNumbers=false:
+            탭이 하나뿐이면 "01"이 몇 단계 중 몇 번째인지 알려주는 의미가 없어져서
+            숫자 없이 "실행"만 보여준다(요청사항). */}
+        <ProgressStrip labels={STEP_LABELS} current={1} showNumbers={false} />
 
-        {mode === 'loading' ? (
-          <ExecutingPanel label="날씨를 확인하는 중" description="잠시만 기다려 주세요." />
+        {mode === 'locating' ? (
+          <ExecutingPanel label="위치를 확인하는 중" description="현재 위치 확인을 위해 위치 접근을 허용해 주세요." />
+        ) : mode === 'timeout' ? (
+          // 사용자 확인: 15초 안에 응답이 없으면 "데이터 로드 중" 대신 에러
+          // 문구로 전환한다. 재시도는 마지막으로 보낸 요청(자동 진입 요청 포함)
+          // 을 그대로 다시 보낸다 — WEATHER_API_FAIL의 "다시 시도"와 같은 로직.
+          <div className="flex min-h-0 flex-1 flex-col px-5 py-6">
+            <p role="alert" className="control-notice">
+              지금은 날씨 정보를 가져오지 못했어요. 잠시 후 다시 해 주세요.
+            </p>
+            <SeniorButton type="button" onClick={handleRetry} className="mt-6">
+              다시 시도
+            </SeniorButton>
+          </div>
+        ) : mode === 'loading' ? (
+          <ExecutingPanel label="데이터 로드 중" description="잠시만 기다려 주세요." />
         ) : mode === 'ask-location' ? (
           regionInputMode ? (
             <RegionInputForm value={regionText} onChange={setRegionText} onSubmit={handleRegionSubmit} />
@@ -232,6 +338,11 @@ export function WeatherScreen() {
                   습도 {voiceData?.humidity != null ? `${voiceData.humidity}%` : '-'}
                 </p>
               </div>
+              {/* 일교차 — 어르신도 한눈에 읽도록 온도 범위 바로 아래, 문장 형태로
+                  크게 강조한다(요청사항: "오늘 일교차는 5도예요" 형태). */}
+              {diurnalRange != null ? (
+                <p className="mt-2 text-[16px] font-bold text-[var(--cb-navy)]">오늘 일교차는 {diurnalRange}도예요.</p>
+              ) : null}
               {/* 강수확률/풍속 — 이번 요청 4항목엔 없지만 작은 보조 정보로 유지(사용자 확인). */}
               <p className="mt-2 text-[13px] font-medium text-[var(--cb-slate)]">
                 강수 확률 {voiceData?.precipitationProbability != null ? `${voiceData.precipitationProbability}%` : '-'}

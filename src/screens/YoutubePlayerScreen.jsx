@@ -203,7 +203,10 @@ export function YoutubePlayerScreen() {
       return
     }
     // search-input / play-input: 더 되돌아갈 단계가 없으므로 홈으로.
-    navigate('/home')
+    // QA 중 발견: 홈에서 push로만 들어오는 화면이라 여기서 navigate('/home')를
+    // 또 push하면 히스토리가 중복 쌓여 뒤로가기가 예상과 다르게 동작한다
+    // (MapRouteScreen.jsx 주석 참고, 다른 기능 화면들과 동일한 원인). replace로 수정.
+    navigate('/home', { replace: true })
   }
 
   return (
