@@ -303,12 +303,16 @@ export function WeatherScreen() {
             ) : null}
           </div>
         ) : (
-          // mode === 'result'. 요청사항: 예전엔 ttsText 문장을 화면 맨 위에 그대로
-          // 큰 글씨로 띄웠는데("오늘 현재 위치 날씨는 구름 조금이에요. 현재 28도,
-          // 최고 29도, 최저 23도예요...") 정보가 길게 풀어써져 있어 한눈에 읽기
-          // 어려웠다 — 그 문장 자체(voiceTtsText/ttsCaption)는 화면에 더 이상
-          // 노출하지 않고(음성 안내 용도로는 useVoiceAssistant가 계속 자동
-          // 재생하므로 TTS 자체는 그대로 유지된다) 항목별 카드/박스로 재구성했다.
+          // mode === 'result'. 요청사항: 예전엔 ttsText 문장을 화면 맨 위에 그냥
+          // 제목처럼(카드 없이) 큰 글씨로 띄웠는데("오늘 현재 위치 날씨는 구름
+          // 조금이에요. 현재 28도, 최고 29도, 최저 23도예요...") 정보가 길게
+          // 풀어써져 있어 한눈에 읽기 어려웠다 — 처음엔 아예 화면에서 빼는
+          // 방향으로 갔었지만(음성 안내는 useVoiceAssistant가 자동 재생하니
+          // 화면 노출은 없어도 된다고 판단), 사용자가 "삭제가 아니라 다른
+          // 정보들과 동일하게 별도 박스로 만들어 달라"고 정정해서 아래 첫
+          // 번째 박스(음성 안내 라벨 + 좌측 파란 보더)로 되살렸다. 문장 자체는
+          // 그대로 두고(요약 문장이라 줄이면 의미가 달라짐) "박스로 감싸
+          // 다른 정보와 구분되게" 만드는 것이 이번 정정의 핵심이었다.
           //
           // 옷차림 안내(advice) 삭제: 이전엔 명세서 7장의 advice 필드를 그대로
           // 보여주는 카드가 있었는데, 이번 요청으로 완전히 제거했다 — 관련 카드
@@ -322,8 +326,29 @@ export function WeatherScreen() {
           // 크기로 강조한다(요청사항: "숫자는 크고 명확한 글씨 크기로 강조").
           // 일교차/강수확률/풍속은 그리드 아래 작은 보조 텍스트 한 줄로 유지한다
           // (사용자 확인 — 강수확률·풍속은 기존처럼 보조 텍스트로).
+          //
+          // ttsText 정정(요청사항): 삭제가 아니라 "다른 정보 박스들과 동일하게
+          // 별도 박스로" 표시하는 것으로 정정받았다. 흰 배경 + 좌측 파란 굵은
+          // 보더(control-notice의 "인용구" 톤을 카드 형태로 확장 — 사용자 확인)
+          // + 스피커 아이콘 + "음성 안내" 라벨로 다른 데이터 박스(날씨상태/기온/
+          // 습도)와 시각적으로 구분한다. 배치는 맨 위(사용자 확인) — 음성으로
+          // 들려준 요약 문장을 먼저 보여주고, 그 아래 세부 카드로 이어지는
+          // 흐름이 예전 "큰 문장 -> 카드" 순서와도 자연스럽게 이어진다.
           <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 py-6">
-            <SectionCard title="오늘 날씨">
+            {(voiceTtsText ?? ttsCaption) ? (
+              <div
+                className="rounded-2xl bg-white p-4"
+                style={{ border: '1px solid var(--cb-line)', borderLeft: '4px solid var(--cb-teal)' }}
+              >
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[var(--cb-teal)]"><SpeakerIcon /></span>
+                  <span className="text-[13px] font-extrabold tracking-[-0.02em] text-[var(--cb-slate)]">음성 안내</span>
+                </div>
+                <p className="mt-2 text-[16px] font-bold leading-6">{voiceTtsText ?? ttsCaption}</p>
+              </div>
+            ) : null}
+
+            <SectionCard title="오늘 날씨" className="mt-4">
               <div className="flex items-center gap-3">
                 <span className="text-[var(--cb-teal)]">{ConditionIcon ? <ConditionIcon size={40} /> : null}</span>
                 <p className="text-[22px] font-extrabold tracking-[-0.03em]">{voiceData?.conditionText ?? condition?.label}</p>
@@ -380,8 +405,20 @@ export function WeatherScreen() {
               </p>
             ) : null}
 
+            {/* 위도/경도 병기(요청사항): 위치 기준 문구 옆에 소수점 4자리로
+                괄호 병기한다(사용자 확인 — 약 11m 정밀도, 읽기 편한 자릿수).
+                다른 메인 정보(날씨상태/기온/습도)보다 위계가 낮은 보조
+                정보라 같은 작은 글씨 크기(13px)로 이어 붙이고 별도 강조는
+                하지 않는다(요청사항: "기술적인 수치는 보조 정보로서 크지
+                않게"). 위도/경도 둘 다 있을 때만 괄호를 붙인다 — 하나만
+                오는 경우는 명세상 없다고 보고 굳이 처리하지 않는다. */}
             {voiceData?.location?.name ? (
-              <p className="mt-6 text-[13px] font-medium text-[var(--cb-slate)]">{voiceData.location.name} 기준</p>
+              <p className="mt-6 text-[13px] font-medium text-[var(--cb-slate)]">
+                {voiceData.location.name} 기준
+                {voiceData.location.latitude != null && voiceData.location.longitude != null
+                  ? ` (${voiceData.location.latitude.toFixed(4)}, ${voiceData.location.longitude.toFixed(4)})`
+                  : null}
+              </p>
             ) : null}
           </div>
         )}
@@ -519,6 +556,16 @@ function DropletIcon({ size = 22 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M12 3.5s6 6.7 6 11a6 6 0 1 1-12 0c0-4.3 6-11 6-11Z" />
+    </svg>
+  )
+}
+// ttsText 박스 라벨 옆 스피커 아이콘 — "음성으로 들려준 안내"라는 걸 시각적으로도
+// 바로 알 수 있게(요청사항: 라벨/아이콘으로 다른 박스와 구분).
+function SpeakerIcon({ size = 16 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 9v6h4l5 4V5L8 9H4Z" />
+      <path d="M16.5 9a4.5 4.5 0 0 1 0 6M19 6.5a8 8 0 0 1 0 11" />
     </svg>
   )
 }
