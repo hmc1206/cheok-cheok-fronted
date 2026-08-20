@@ -233,7 +233,7 @@ export function WeatherScreen() {
   const condition = voiceData ? (WEATHER_CONDITIONS[voiceData.conditionCode] ?? WEATHER_CONDITIONS.UNKNOWN) : null
   const ConditionIcon = condition?.Icon
   // 일교차 — 명세서엔 별도 필드가 없어(요청사항: "이 계산은... 프론트에서 직접
-  // 계산할 것") 최고·최저 기온 두 값의 차이로 계산한다. 반올림은 온도 표시
+  // 계산할 것") 최고·최저 온도 두 값의 차이로 계산한다. 반올림은 온도 표시
   // 규칙(명세서 11-4 "반올림한 정수로 표시")과 통일했다. 둘 중 하나라도 없으면
   // (예보가 아니라 실시간 관측만 있는 응답 등) 계산할 수 없으니 표시하지 않는다.
   const diurnalRange =
@@ -321,30 +321,38 @@ export function WeatherScreen() {
           // 있지만(명세는 그대로) 이 화면이 더는 참조하지 않는다.
           //
           // 카드 배치(시안 A, 사용자 확인): 날씨 상태 카드(아이콘+문구)를 상단에
-          // 크게 두고, 그 아래 기온/습도를 2열 그리드의 동일한 비중 박스로 나란히
+          // 크게 두고, 그 아래 온도/습도를 2열 그리드의 동일한 비중 박스로 나란히
           // 배치했다 — 어르신도 한눈에 비교하며 읽을 수 있도록 두 숫자를 같은
           // 크기로 강조한다(요청사항: "숫자는 크고 명확한 글씨 크기로 강조").
           // 일교차/강수확률/풍속은 그리드 아래 작은 보조 텍스트 한 줄로 유지한다
           // (사용자 확인 — 강수확률·풍속은 기존처럼 보조 텍스트로).
           //
           // ttsText 정정(요청사항): 삭제가 아니라 "다른 정보 박스들과 동일하게
-          // 별도 박스로" 표시하는 것으로 정정받았다. 흰 배경 + 좌측 파란 굵은
-          // 보더(control-notice의 "인용구" 톤을 카드 형태로 확장 — 사용자 확인)
-          // + 스피커 아이콘 + "음성 안내" 라벨로 다른 데이터 박스(날씨상태/기온/
-          // 습도)와 시각적으로 구분한다. 배치는 맨 위(사용자 확인) — 음성으로
-          // 들려준 요약 문장을 먼저 보여주고, 그 아래 세부 카드로 이어지는
-          // 흐름이 예전 "큰 문장 -> 카드" 순서와도 자연스럽게 이어진다.
+          // 별도 박스로" 표시하는 것으로 정정받았다. 스피커 아이콘 + "음성
+          // 안내" 라벨로 다른 데이터 박스(날씨상태/온도/습도)와 구분한다.
+          // 배치는 맨 위(사용자 확인) — 음성으로 들려준 요약 문장을 먼저
+          // 보여주고, 그 아래 세부 카드로 이어지는 흐름이 예전 "큰 문장 ->
+          // 카드" 순서와도 자연스럽게 이어진다.
+          //
+          // 스타일 재조정(요청사항, 사용자 확인): 처음엔 control-notice의
+          // "인용구" 톤을 그대로 가져와 좌측에 굵은 파란 세로선을 뒀는데,
+          // 이번 요청으로 그 강조선을 뺐다 — 다른 박스들(날씨상태/온도/습도)
+          // 도 전부 테두리만 있고 세로 강조선은 없어서, 빼는 쪽이 오히려 더
+          // 통일감 있다고 판단. 대신 라벨 글자 크기를 13px -> 15px로 살짝
+          // 키우고("살짝 키운다"는 요청 취지), 본문 굵기는 font-bold(700)
+          // -> font-semibold(600)로 한 단계 낮췄다(요청사항: "한 단계 낮춘다"
+          // — 이 화면에서 실제 적용돼 있던 값 기준으로 정확히 한 단계).
+          // 정렬은 좌측 정렬 -> justify(양쪽 정렬)로 변경(요청사항) — 문장이
+          // 2줄 이상일 때 우측 여백이 들쭉날쭉하지 않고 카드 폭에 맞춰 깔끔하게
+          // 정렬된다.
           <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 py-6">
             {(voiceTtsText ?? ttsCaption) ? (
-              <div
-                className="rounded-2xl bg-white p-4"
-                style={{ border: '1px solid var(--cb-line)', borderLeft: '4px solid var(--cb-teal)' }}
-              >
+              <div className="rounded-2xl border bg-white p-4" style={{ borderColor: 'var(--cb-line)' }}>
                 <div className="flex items-center gap-1.5">
                   <span className="text-[var(--cb-teal)]"><SpeakerIcon /></span>
-                  <span className="text-[13px] font-extrabold tracking-[-0.02em] text-[var(--cb-slate)]">음성 안내</span>
+                  <span className="text-[15px] font-extrabold tracking-[-0.02em] text-[var(--cb-slate)]">음성 안내</span>
                 </div>
-                <p className="mt-2 text-[16px] font-bold leading-6">{voiceTtsText ?? ttsCaption}</p>
+                <p className="mt-2 text-justify text-[16px] font-semibold leading-6">{voiceTtsText ?? ttsCaption}</p>
               </div>
             ) : null}
 
@@ -356,11 +364,17 @@ export function WeatherScreen() {
             </SectionCard>
 
             <div className="mt-4 grid grid-cols-2 gap-3">
-              {/* 기온 박스 — 현재 기온을 크게, 최고/최저를 작게 병기한다(요청사항
-                  예시 그대로). currentTemperature가 없는 응답(예보만 온 경우
-                  등)이면 기존과 동일하게 최고~최저 범위를 대신 크게 보여준다 —
-                  이 경우 최고/최저를 또 작게 반복 표시할 필요는 없다. */}
-              <SectionCard title="기온">
+              {/* 온도 박스(요청사항: "기온" -> "온도"로 라벨 통일, 이 화면 안의
+                  모든 "기온" 표기를 전부 바꿨다 — 카드 제목뿐 아니라 주석
+                  텍스트도 함께 수정). 현재 온도를 크게, 최고/최저를 작게
+                  병기한다. currentTemperature가 없는 응답(예보만 온 경우 등)
+                  이면 기존과 동일하게 최고~최저 범위를 대신 크게 보여준다 —
+                  이 경우 최고/최저를 또 작게 반복 표시할 필요는 없다.
+                  배경색(사용자 확인 — #fdecec, 은은한 빨강): 습도 박스가
+                  이미 앱에 있는 파란 강조 토큰(--cb-gold)을 재사용하는 것과
+                  같은 명도/채도 수준으로 새로 맞춘 붉은 계열이라, 전체 배경색
+                  변경 작업(밝은 회색)과도 톤이 어울린다. */}
+              <SectionCard title="온도" background="#fdecec">
                 <span className="text-[var(--cb-teal)]"><ThermometerIcon /></span>
                 {voiceData?.currentTemperature != null ? (
                   <>
@@ -381,9 +395,13 @@ export function WeatherScreen() {
                 )}
               </SectionCard>
 
-              {/* 습도 박스 — 기온 박스와 같은 구조(아이콘 -> 큰 숫자)로 맞춰
-                  위계를 동등하게 둔다(요청사항: "습도 박스는 별도 박스로 구분"). */}
-              <SectionCard title="습도">
+              {/* 습도 박스 — 온도 박스와 같은 구조(아이콘 -> 큰 숫자)로 맞춰
+                  위계를 동등하게 둔다(요청사항: "습도 박스는 별도 박스로 구분").
+                  배경색(사용자 확인): 새 색을 만들지 않고 이미 앱에 정의된
+                  파란 강조 토큰 --cb-gold(#e8f3ff)를 그대로 재사용 — 온도
+                  박스의 새 빨간색과 명도/채도가 맞춰져 있어 나란히 둬도
+                  balance가 맞는다. */}
+              <SectionCard title="습도" background="var(--cb-gold)">
                 <span className="text-[var(--cb-teal)]"><DropletIcon /></span>
                 <p className="mt-2 text-[36px] font-extrabold leading-none tracking-[-0.03em]">
                   {voiceData?.humidity != null ? `${voiceData.humidity}%` : '-'}
@@ -407,7 +425,7 @@ export function WeatherScreen() {
 
             {/* 위도/경도 병기(요청사항): 위치 기준 문구 옆에 소수점 4자리로
                 괄호 병기한다(사용자 확인 — 약 11m 정밀도, 읽기 편한 자릿수).
-                다른 메인 정보(날씨상태/기온/습도)보다 위계가 낮은 보조
+                다른 메인 정보(날씨상태/온도/습도)보다 위계가 낮은 보조
                 정보라 같은 작은 글씨 크기(13px)로 이어 붙이고 별도 강조는
                 하지 않는다(요청사항: "기술적인 수치는 보조 정보로서 크지
                 않게"). 위도/경도 둘 다 있을 때만 괄호를 붙인다 — 하나만
@@ -455,11 +473,15 @@ function RegionInputForm({ value, onChange, onSubmit }) {
 // 의도적으로 그대로 맞췄다. accent=true면 "옷차림 안내"처럼 실행에 중요한
 // 카드를 --cb-gold 배경으로 살짝 강조한다(SubscriptionScreen의 "현재 이용
 // 상태" 카드와 동일한 용도).
-function SectionCard({ title, children, className = '', accent = false }) {
+// background prop 추가(요청사항): 온도/습도 박스에 각각 은은한 빨강/파랑
+// 배경을 주기 위해 accent(불리언, --cb-gold 고정) 대신 임의의 CSS 배경값을
+// 직접 넘길 수 있게 했다 — accent는 기존 호출부(옷차림 안내 등에서 쓰던
+// 방식) 호환을 위해 그대로 남겨두고, background가 주어지면 그게 우선한다.
+function SectionCard({ title, children, className = '', accent = false, background }) {
   return (
     <section
       className={`rounded-2xl border p-4 ${className}`}
-      style={{ borderColor: 'var(--cb-line)', background: accent ? 'var(--cb-gold)' : '#fff' }}
+      style={{ borderColor: 'var(--cb-line)', background: background ?? (accent ? 'var(--cb-gold)' : '#fff') }}
     >
       <h2 className="mb-2 text-[13px] font-extrabold tracking-[-0.02em] text-[var(--cb-slate)]">{title}</h2>
       {children}
@@ -541,7 +563,7 @@ function UnknownIcon({ size = 28 }) {
     </svg>
   )
 }
-// 기온/습도 박스 전용 아이콘 — 요청사항: "숫자와 함께 아이콘을 사용해 직관적으로
+// 온도/습도 박스 전용 아이콘 — 요청사항: "숫자와 함께 아이콘을 사용해 직관적으로
 // 이해할 수 있도록" 구성. 기존 날씨상태 아이콘들과 같은 스타일(24px 기준,
 // stroke=currentColor, strokeWidth 1.8, 둥근 선)로 새로 그렸다.
 function ThermometerIcon({ size = 22 }) {

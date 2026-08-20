@@ -203,10 +203,10 @@ export function NearbyPlaceScreen() {
 function CategoryCard({ label, description, icon, onClick }) {
   return (
     // 버그 수정: 이 화면(.control-form-screen)의 실제 배경은 index.css의
-    // `.control-form-screen { background: #f2f4f6 !important; }` 규칙이
-    // Tailwind의 bg-[var(--cb-cream)] 유틸리티보다 우선 적용되어(이 저장소의
-    // 일관된 캐스케이드 규칙 — 일반 CSS가 Tailwind 유틸리티를 이긴다) 옅은
-    // 회색(#f2f4f6)인데, 이 버튼은 배경을 따로 지정하지 않아 같은 회색이
+    // `.control-form-screen { background: var(--cb-cream-2) !important; }`
+    // 규칙이 Tailwind의 bg-[var(--cb-cream)] 유틸리티보다 우선 적용되어(이
+    // 저장소의 일관된 캐스케이드 규칙 — 일반 CSS가 Tailwind 유틸리티를
+    // 이긴다) 옅은 회색인데, 이 버튼은 배경을 따로 지정하지 않아 같은 회색이
     // 그대로 비쳐 보여 버튼과 배경이 구분되지 않았다. 홈 화면 기능 카드
     // (.salad-home__service--reference: background:#fff, border:1px solid
     // #e5e8eb)와 동일한 조합을 재사용해 흰 배경 + 기존 테두리 색(var(--cb-line)
