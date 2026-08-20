@@ -22,9 +22,9 @@ const STEP_LABELS = ['입력', '실행']
 
 const CATEGORY_LABEL = { hospital: '병원', pharmacy: '약국' }
 
-// 음성 slots.category가 어떤 형태로 올지 아직 명세서에 없어(백엔드 확인 필요,
-// nearbyPlaceApi.js 참고) 'PHARMACY'/'약국'/'pharmacy' 등 흔히 나올 법한 표기를
-// 최대한 관대하게 인식한다 — 못 알아들으면 null을 돌려주고, 화면은 그래도
+// 백엔드는 slots.type에 'HOSPITAL'/'PHARMACY'를 담아 보내지만, 표기가 흔들려도
+// ('약국'/'pharmacy' 등) 다 받아들이도록 관대하게 인식한다 — 못 알아들으면 null을
+// 돌려주고, 화면은 그래도
 // data.naverMapAppUrl만 있으면 정상 실행된다(카테고리는 화면 문구 표시용일 뿐
 // 실행 자체에 필수는 아니다).
 function normalizeCategory(rawCategory) {
@@ -46,7 +46,7 @@ export function NearbyPlaceScreen() {
   const voiceStep = useVoiceSessionStore((state) => state.step)
   const voiceSlots = useVoiceSessionStore((state) => state.slots)
   const voiceData = useVoiceSessionStore((state) => state.data)
-  const isVoiceNearbySession = intent === 'NEARBY_PLACE'
+  const isVoiceNearbySession = intent === 'MEDICAL_ROUTE'
 
   // stage: 'choose'(병원/약국 선택) -> 'locating'(GPS 확보 중) -> 'executing'
   // (딥링크 실행, 화면 유지). 음성으로 들어온 경우 서버가 위치/카테고리를 이미
@@ -71,7 +71,8 @@ export function NearbyPlaceScreen() {
     appUrl: voiceData?.naverMapAppUrl,
     webUrl: voiceData?.naverMapWebUrl,
     onLaunch: () => {
-      const normalized = normalizeCategory(voiceSlots?.category)
+      // 백엔드가 슬롯에 담아 보내는 키는 category가 아니라 type("HOSPITAL"/"PHARMACY")다.
+      const normalized = normalizeCategory(voiceSlots?.type)
       if (normalized) setCategory(normalized)
       setStage('executing')
     },

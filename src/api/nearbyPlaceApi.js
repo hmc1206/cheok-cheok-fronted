@@ -1,38 +1,26 @@
-// TODO(backend): "내 주변 병원·약국 찾기" 기능은 API 명세서에 intent/엔드포인트가
-// 전혀 정의돼 있지 않다(코드베이스 전체 확인 완료 — MAP_ROUTE/TRAIN_BOOKING 문서
-// 어디에도 주변 카테고리 검색 관련 내용이 없음). 아래 4가지가 백엔드와 확인이
-// 필요하다(사용자에게 보고 완료):
-//   1) 음성 발화("약국 찾아줘")를 처리할 intent 이름 — 우선 NEARBY_PLACE로 가정
-//      해뒀다(useVoiceAssistant.js의 INTENT_ROUTES 참고).
-//   2) "가장 가까운 1곳"을 특정해서 응답하는지, 여러 후보 리스트로 응답하는지.
-//   3) 네이버 지도 "주변 카테고리 검색" 딥링크/웹 URL이 MAP_ROUTE의
-//      naverMapAppUrl/naverMapWebUrl과 같은 패턴인지, 별도 스킴이 필요한지.
-//   4) 버튼 클릭(음성 없이) 경로의 실제 요청 엔드포인트/파라미터 형식.
+import apiClient from './apiClient'
+
+// "내 주변 병원·약국 찾기"의 버튼 클릭(음성 없이) 경로. 예전에는 백엔드 계약이 확정되지
+// 않아 mock으로 `nmap://search?query=내 주변 병원`을 만들어 열었는데, 이 URL에는 좌표가
+// 전혀 없어서 네이버 지도가 늘 기본 위치(서울)를 보여줬다 — 현재 위치와 상관없이 서울
+// 병원이 나오던 원인 중 하나다. 백엔드 `POST /api/map/hospital`(BACKEND_REQUIREMENTS.md
+// 14장)이 좌표를 받아 현재 위치 기준으로 가장 가까운 곳을 골라주므로 그대로 호출한다.
 //
-// 위 사항이 확정되기 전까지는 실제 네트워크 요청을 보내지 않고, 화면 흐름(GPS
-// 획득 -> "실행하는 중" -> 딥링크 시도)만 검증할 수 있도록 로컬에서 지연 후 가짜
-// 응답을 만들어 돌려준다(사용자 확인 — "mock으로 UI/흐름만 먼저 구현"). 실제
-// 엔드포인트가 정해지면 이 함수 내부만 apiClient.post(...) 호출로 바꾸면 되고,
-// 호출부(NearbyPlaceScreen.jsx)는 { naverMapAppUrl, naverMapWebUrl } 형태만
-// 그대로 받으므로 손댈 필요가 없다.
-const CATEGORY_LABEL = {
-  hospital: '병원',
-  pharmacy: '약국',
+// 응답은 음성 경로(/voice/process)와 동일한 봉투
+// { intent, step, ttsText, screen, data: { naverMapAppUrl, naverMapWebUrl } }라서
+// 호출부(NearbyPlaceScreen.jsx)가 쓰는 data만 풀어서 돌려준다 — routesApi와 같은 방식.
+const CATEGORY_TYPE = {
+  hospital: 'HOSPITAL',
+  pharmacy: 'PHARMACY',
 }
 
 export const nearbyPlaceApi = {
-  getNearbyPlaceLink: ({ latitude: _latitude, longitude: _longitude, category }) =>
-    new Promise((resolve) => {
-      const label = CATEGORY_LABEL[category] ?? category
-      // 실제 좌표(latitude/longitude — lib/geolocation.js, 날씨 API 요청 필드명과
-      // 통일)는 진짜 백엔드가 생기면 요청 바디에 실려야 하지만, mock에는 검색
-      // 결과에 영향을 줄 서버가 없어 URL에 반영하지 않는다 — 그래도 인자로는
-      // 받아둬서(위) 실제 연동 시 호출부를 안 바꿔도 되게 한다.
-      setTimeout(() => {
-        resolve({
-          naverMapAppUrl: `nmap://search?query=${encodeURIComponent(`내 주변 ${label}`)}&appname=com.chuckchuck.app`,
-          naverMapWebUrl: `https://map.naver.com/p/search/${encodeURIComponent(`내 주변 ${label}`)}`,
-        })
-      }, 600)
-    }),
+  getNearbyPlaceLink: ({ latitude, longitude, category }) =>
+    apiClient
+      .post('/api/map/hospital', {
+        type: CATEGORY_TYPE[category] ?? 'HOSPITAL',
+        latitude,
+        longitude,
+      })
+      .then((res) => res.data.data),
 }

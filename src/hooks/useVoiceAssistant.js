@@ -15,12 +15,10 @@ const INTENT_ROUTES = {
   // 구분한다(YoutubePlayerScreen.jsx의 mode 계산 참고).
   YOUTUBE_SEARCH: '/youtube',
   MAP_ROUTE: '/map',
-  // TODO(backend): "내 주변 병원·약국 찾기"용 intent — API 명세서에 아직 정의돼
-  // 있지 않다(코드베이스 전체 확인 완료, 백엔드 확인 필요). 명세서 본문에서 예로
-  // 든 이름을 그대로 가정해뒀다 — 실제 intent 이름이 확정되면 이 키만 바꾸면 된다.
-  // 백엔드가 이 intent를 아직 보내지 않아도 이 매핑 자체는 무해하다(안 쓰이면
-  // 그냥 죽어있는 항목일 뿐).
-  NEARBY_PLACE: '/nearby-place',
+  // "내 주변 병원·약국 찾기". 예전엔 intent 이름을 NEARBY_PLACE로 가정해뒀었지만,
+  // 백엔드가 실제로 보내는 값은 MEDICAL_ROUTE다(Intent.java, BACKEND_REQUIREMENTS.md
+  // 14장) — 이름이 어긋나 있어서 음성으로 병원을 찾으면 이 화면으로 오지 못했다.
+  MEDICAL_ROUTE: '/nearby-place',
   WEATHER_INFO: '/weather',
 }
 
