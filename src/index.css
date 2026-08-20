@@ -90,29 +90,38 @@ a:focus-visible {
   font-family: 'Toss Product Sans', 'Pretendard', sans-serif;
 }
 
-/* "척척" 타이틀이 아래에서 위로 슬라이드업되며 나타나는 애니메이션. 위
-   senior-rise-in(8px, 다른 화면들의 은은한 등장 모션용)보다 이동 거리를
-   키워서(24px) 스플래시 순간의 "슬라이드업" 느낌이 분명하게 보이도록 했다. */
-@keyframes splash-title-rise {
-  from {
-    opacity: 0;
-    transform: translateY(24px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+/* 1단계(채우기) 동안의 텍스트 색 표현 — 최종 색은 #111로, 2단계 종료 후
+   보이는 로그인 헤더 로고 색(LoginPage.jsx의 BrandWordmark text-[#111])과
+   정확히 동일하게 맞췄다(예전엔 --cb-navy #191f28를 썼지만, 이번엔 이동
+   목표 색과 완전히 이어지도록 통일). 안 채워진 쪽은 같은 색의 18% 옅은
+   버전으로 "흐린 상태"를 표현한다. background-position/size는 아래
+   @keyframes splash-title-fill-wipe가 애니메이션한다. */
+.splash-title-fill {
+  background-image: linear-gradient(to right, #111 50%, rgba(17, 17, 17, 0.18) 50%);
+  background-size: 200% 100%;
+  background-position: 100% 0;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
 }
 
-/* 스플래시 -> 로그인 전환 시 부드럽게 사라지는 페이드아웃. SplashScreen.jsx가
-   타이머로 이 클래스를 붙이면 opacity가 0으로 전환되고, 그 transition이 끝나는
-   시점에 맞춰 라우팅한다(setTimeout 300ms와 이 transition-duration을 반드시
-   같은 값으로 맞춰야 한다 — SplashScreen.jsx 주석 참고). prefers-reduced-motion
-   환경에서는 위 전역 규칙이 transition-duration을 0.01ms로 강제해 사실상 즉시
-   전환된다.  */
-.splash-fade-out {
-  opacity: 0;
-  transition: opacity 300ms ease-out;
+/* 요청사항: "척척" 텍스트가 아래에서 위로 슬라이드업되던 예전 모션 대신,
+   흐린 상태에서 왼쪽 -> 오른쪽으로 색이 채워지는(fill) 모션으로 교체했다
+   (전체 흐름 1단계 — SplashScreen.jsx 참고). background-clip: text로 글자
+   모양대로 그라데이션을 잘라 보여주고, 왼쪽 50%는 최종 색(완전히 채워진
+   상태), 오른쪽 50%는 옅은 색(흐린/미완성 상태)인 하드 엣지 그라데이션을
+   준비해둔 뒤 background-position을 오른쪽 끝(100% — 옅은 색만 보이는 상태)
+   에서 왼쪽 끝(0% — 최종 색만 보이는 상태)까지 이동시킨다.
+   background-size: 200%로 두는 이유: 그라데이션 폭을 요소 너비의 2배로
+   잡아야, position이 100%->0%로 움직이는 동안 "채워지는 경계선"이 실제로
+   텍스트 위를 왼쪽에서 오른쪽으로 가로질러 지나가는 것처럼 보인다(100% 폭
+   그라데이션이면 그냥 색이 바뀌기만 하고 지나가는 경계선 느낌이 안 남).
+   duration은 SplashScreen.jsx에서 인라인으로 지정(다른 스플래시 모션들과
+   동일한 관례). */
+@keyframes splash-title-fill-wipe {
+  to {
+    background-position: 0% 0;
+  }
 }
 
 /* 스플래시 리디자인(사용자 확인 — "흰 배경 + 은은한 파란 글로우"): "척척"
