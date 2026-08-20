@@ -1,53 +1,105 @@
-import { useCallback, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+/** Design reminder — route search is a two-stage board: input, launch. */
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { routesApi } from '../api/routesApi'
 import { AppFrame } from '../components/common/AppFrame'
-import { IconChipButton, PrimaryButton } from '../components/common/Button'
-import { MicIcon } from '../components/common/icons'
+import { ExecutingPanel } from '../components/common/ExecutingPanel'
+import { MobileHeader } from '../components/common/MobileHeader'
+import { ProgressStrip } from '../components/common/ProgressStrip'
+import { SeniorButton } from '../components/ui/SeniorButton'
+import { SeniorInput } from '../components/ui/SeniorInput'
+import { useVoiceAssistant } from '../hooks/useVoiceAssistant'
+import { useVoiceAutoLaunch } from '../hooks/useVoiceAutoLaunch'
 import { useTTS } from '../hooks/useTTS'
 import { openDeepLinkWithWebFallback } from '../lib/deepLink'
+import { resolveMapAutofill } from '../lib/voiceAutofill'
+import { useVoiceSessionStore } from '../store/voiceSessionStore'
 
-// 길찾기 화면. 경로 계산은 서버가 담당한다 — 출발지/목적지 "이름"만 보내면
-// 백엔드가 좌표 변환(Geocoding) + 네이버 지도 대중교통 딥링크 조립까지 전부 처리해서
-// 완성된 앱/웹 URL을 돌려주고, 프론트는 그 URL을 실행만 한다(API 명세서 v2.0 8-2장).
-//
-// feature/fe-redesign 병합: 유리질감(glassmorphism) 버튼 시스템(Glass.jsx,
-// glassTokens.js)이 통째로 삭제되고 새 디자인 시스템(Button.jsx의
-// PrimaryButton/IconChipButton, tokens.css의 --text-*/--color-* 토큰)으로
-// 교체됐다 — 이 화면도 같이 옮겼다. 배경은 새 브리프의 "flat, 흰 배경 기본"
-// 원칙에 맞춰 브랜드 톤 그라디언트를 걷어내고 var(--color-bg) 흰 배경으로 통일.
-//
-// 참고: 이 저장소는 순수 웹(Vite/React) 프로젝트라 iOS Info.plist의
-// LSApplicationQueriesSchemes / Android AndroidManifest.xml의 <queries>에
-// nmap 스킴을 등록하는 작업은 여기서 할 수 없다 — 해당 설정은 네이티브 앱 래퍼
-// 프로젝트(별도 저장소) 쪽 작업이라, 필요하면 그쪽 담당자에게 별도로 요청해야 한다.
+// 후속 요청으로 영상 도움 화면(YoutubePlayerScreen.jsx)도 같은 "입력/실행" 2단계
+// 탭 구조를 쓰게 되면서, 이 화면이 처음 만들었던 상단 탭 인디케이터(ProgressStrip)
+// 와 점(.) 반복 로딩 애니메이션(ExecutingPanel)을 공용 컴포넌트로 옮겼다(요청사항:
+// "새로 만들지 말고 공통 컴포넌트로 분리해서 재사용") — 로직/타이밍은 전혀
+// 바뀌지 않았고, components/common/으로 옮겨서 두 화면이 같은 구현을 공유한다.
+
+// 예전엔 "입력 -> 확인 -> 실행" 3단계였는데, API 명세서를 다시 확인해보니 "출발지/
+// 목적지가 실제 존재하는 장소인지 확인"하는 절차가 geocoding 전용 별도 엔드포인트가
+// 아니라 POST /api/v1/routes/naver-link 응답(성공 시 링크, 실패 시 GEOCODE_NOT_FOUND)
+// 그 자체였다 — 즉 "확인"과 "실행"이 API 상 같은 호출이라 분리된 화면으로 나눌
+// 근거가 없었다(사용자 확인 후 "입력 -> 실행" 2단계로 정리). "확인"에 해당하던
+// 검증은 여전히 일어나지만, 입력 단계에서 제출한 그 즉시 실행 단계로 넘어가면서
+// 시작되는 하나의 호출 안에 자연스럽게 포함된다.
+const STEP_LABELS = ['입력', '실행']
+
+// 후속 요청: "말로 도움 요청하기"(음성)로 "서울역에서 부산역까지" 같은 발화가 들어와도
+// 이 화면이 자동으로 반응하게 한다(명세서 MAP_ROUTE intent). 음성 응답도 결국
+// 이 화면의 "입력(출발지/목적지 채우기)"과 "실행(딥링크 열기)"이라는 같은 두 단계를
+// 거치므로, 기존 수동 입력 흐름(로컬 stage state, executeSearch, ProgressStrip 등)을
+// 새로 만들지 않고 그대로 재사용한다 — 다만 음성 쪽은 서버가 이미 만들어준 딥링크를
+// 그대로 쓰므로(아래 참고) routesApi 호출 없이 곧장 stage를 'executing'으로 옮긴다.
 export function MapRouteScreen() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { speak } = useTTS()
 
-  // 사용자가 입력창에 타이핑한 원문. 요청 필드명(startName/goalName)과 그대로 맞춰
-  // 명세서에 나온 이름 그대로 API에 보낼 수 있게 한다.
+  // 음성 대화(멀티턴)를 이 화면에서 이어가기 위한 훅. HomeScreen 등 다른 화면에서
+  // 시작된 대화든, 이 화면에서 ASK_ORIGIN에 답하며 이어가는 대화든 전부 같은
+  // POST /voice/process 파이프라인을 탄다 — 새 API를 만들지 않는다.
+  const { sendText, ttsCaption, outcome } = useVoiceAssistant()
+  const intent = useVoiceSessionStore((state) => state.intent)
+  const voiceStep = useVoiceSessionStore((state) => state.step)
+  const voiceSlots = useVoiceSessionStore((state) => state.slots)
+  const voiceData = useVoiceSessionStore((state) => state.data)
+  const voiceTranscript = useVoiceSessionStore((state) => state.transcript)
+  const voiceQuickReplies = useVoiceSessionStore((state) => state.quickReplies)
+  // 홈 화면 등 다른 화면에서 보낸 요청으로 이 화면에 막 도착한 경우, 이 훅
+  // 인스턴스는 그 응답을 직접 받은 적이 없어 로컬 ttsCaption이 비어있다(날씨
+  // 화면 구현 중 발견한 버그, WeatherScreen.jsx와 동일한 원인/수정 — 스토어의
+  // ttsText를 우선 신뢰한다).
+  const voiceTtsText = useVoiceSessionStore((state) => state.ttsText)
+  const resetSession = useVoiceSessionStore((state) => state.resetSession)
+
+  // voiceSessionStore는 앱 전역 스토어라 다른 화면(영상 도움/기차예매)이 마지막에
+  // 남긴 값이 남아있을 수 있다 — intent가 MAP_ROUTE일 때만 그 세션 데이터를 이
+  // 화면 것으로 인정한다(영상 도움 화면의 isSearchSession/isPlaySession과 동일한
+  // 원칙).
+  const isVoiceMapSession = intent === 'MAP_ROUTE'
+  // 목적지만 말한 경우(예: "아들 집 가는 길 알려줘") 서버가 출발지를 되묻는 단계.
+  const isAskOrigin = isVoiceMapSession && voiceStep === 'ASK_ORIGIN'
+
   const [startName, setStartName] = useState('')
   const [goalName, setGoalName] = useState('')
-
-  // 필드별 에러 메시지. GEOCODE_NOT_FOUND 응답의 error.field가 'startName'인지
-  // 'goalName'인지에 따라 이 중 하나에만 메시지를 채워, 해당 입력창 테두리만
-  // 빨갛게 표시하고 "어디를 다시 입력해야 하는지" 바로 알 수 있게 한다.
   const [startError, setStartError] = useState('')
   const [goalError, setGoalError] = useState('')
-
-  // 필드에 딱 매핑되지 않는 에러(입력 누락, 서버/Geocoding 실패 등)를 보여줄 공용 메시지.
   const [generalError, setGeneralError] = useState('')
-
-  // 502(GEOCODE_API_FAIL/EXTERNAL_API_FAIL) 같은 "일시적 실패"일 때만 true로 켜서
-  // 재시도 버튼을 보여준다. 400/404처럼 사용자가 입력을 고쳐야 하는 에러는 재시도
-  // 버튼 없이 입력창 에러 표시로만 유도한다(같은 값으로 재시도해봐야 똑같이 실패하므로).
   const [canRetry, setCanRetry] = useState(false)
+  const [voicePrefillNotice, setVoicePrefillNotice] = useState('')
 
-  // idle: 대기/평상시, loading: API 응답을 기다리는 중(버튼 비활성화 + 로딩 표시).
-  const [status, setStatus] = useState('idle')
+  // 화면 흐름 자체를 나타내는 상태. 'input'일 땐 입력 폼(또는 ASK_ORIGIN 확인
+  // 카드)이, 'executing'일 땐 로딩 문구 화면이 보인다. 음성 스토어의 step(ASK_
+  // ORIGIN/DONE 등)과 이름이 겹치지 않도록 이 로컬 상태는 stage로 부른다.
+  const [stage, setStage] = useState('input')
 
-  // 제출 전 모든 에러 상태를 비운다. 매 시도마다 이전 실패 흔적이 남아있지 않게 한다.
+  // 실행 중(비동기 API 호출 진행 중) 화면을 벗어나면(뒤로가기 등) 컴포넌트가
+  // 언마운트된 뒤에도 API 응답이 늦게 도착해 setState를 시도할 수 있다 —
+  // 이 ref로 언마운트 여부를 확인해 그런 경우엔 상태 갱신을 건너뛴다.
+  //
+  // 버그 수정(StrictMode): 이펙트 본문에서 isMountedRef.current = true를 다시
+  // 세팅하지 않고 cleanup에서 false로만 바꾸면, 개발 모드 React.StrictMode의
+  // 마운트 이중 실행(마운트 → 클린업 → 재마운트) 때문에 "클린업이 한 번 돌고
+  // 끝"인 상태로 영원히 false에 머문다 — 실제로는 화면이 정상적으로 계속
+  // 마운트돼 있는데도(재마운트까지 끝난 상태) executeSearch의 성공/실패
+  // 분기가 전부 "언마운트됨"으로 오판해 조용히 아무 것도 안 하고 끝나버려서,
+  // 실행 화면(점 애니메이션)에서 절대 못 빠져나오는 문제가 있었다. 이펙트가
+  // 다시 실행될 때마다(=진짜 마운트든 StrictMode 재마운트든) true로 되돌려
+  // 놓아야 재마운트 이후에도 정상 동작한다.
+  const isMountedRef = useRef(true)
+  useEffect(() => {
+    isMountedRef.current = true
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
+
   const clearErrors = useCallback(() => {
     setStartError('')
     setGoalError('')
@@ -55,250 +107,288 @@ export function MapRouteScreen() {
     setCanRetry(false)
   }, [])
 
-  // 실제 API 호출 + 딥링크 실행을 담당하는 핵심 함수. "길 찾기" 버튼(최초 시도)과
-  // "다시 시도" 버튼(재시도) 둘 다 이 함수를 그대로 재사용한다 — 재시도는 같은
-  // startName/goalName으로 다시 부르기만 하면 되기 때문에 별도 로직이 필요 없다.
-  const runSearch = useCallback(async () => {
-    const trimmedStart = startName.trim()
-    const trimmedGoal = goalName.trim()
+  // 음성 인식 결과를 이 화면의 입력값으로 채운다. 두 가지 경로로 들어온다:
+  //  1) HomeScreen 등에서 처음 "서울역에서 부산역까지" 라고 말해 이 화면으로
+  //     막 이동해온 경우 — navigate(state)로 최신 slots/data/transcript가 온다.
+  //  2) 이미 이 화면에 있는 상태로 대화가 이어지는 경우(ASK_ORIGIN에 답하는 등)
+  //     — location.state는 그대로지만 voiceSessionStore 값이 바뀐다.
+  // 그래서 location.state와 스토어 값을 모두 의존성에 넣고, location.state가
+  // 있으면 그걸 우선한다(방금 도착한 새 응답이 스토어보다 더 최신일 수 있어서).
+  //
+  // requestFailed: useVoiceAssistant 훅이 GEOCODE_NOT_FOUND 등으로 이 화면에
+  // "강제 이동"시킨 경우(사용자 확인 — 명세서 2-2장) 표시하는 별도 안내. 이땐
+  // 자동 실행 대신 수동 입력을 유도해야 하므로 프리필 안내 문구도 다르게 보여준다.
+  // (requestFailed는 날씨 화면과 공유하는 공통 플래그 이름 — hooks/useVoiceAssistant.js
+  // 의 ERROR_FORCE_NAVIGATE_ROUTES 참고.)
+  useEffect(() => {
+    const voiceState = location.state ?? {}
 
-    // 명세서 에러 표: "출발지/목적지 미입력 -> 400 INVALID_REQUEST, 버튼 비활성화".
-    // 버튼 자체도 비활성화 상태이긴 하지만(disabled 조건 참고), 방어적으로 한 번 더 막는다.
-    if (!trimmedStart || !trimmedGoal) {
-      setGeneralError('출발지/목적지를 입력해주세요.')
+    if (voiceState.requestFailed) {
+      const { startName: spokenStart, goalName: spokenGoal } = resolveMapAutofill({
+        slots: voiceState.slots,
+        data: null,
+        transcript: voiceState.transcript,
+      })
+      if (spokenStart) setStartName((current) => current || spokenStart)
+      if (spokenGoal) setGoalName((current) => current || spokenGoal)
+      // 사용자 확인(2026-08): 일부만 인식된 경우 그 값은 살려두고, "위치를 찾지
+      // 못했다"는 안내를 기존 음성 프리필 배너와 같은 스타일로 보여준다.
+      setVoicePrefillNotice('위치를 찾지 못했어요. 직접 입력해 주세요.')
       return
     }
 
+    const { startName: spokenStart, goalName: spokenGoal } = resolveMapAutofill({
+      slots: voiceState.slots ?? voiceSlots,
+      data: voiceState.data ?? voiceData,
+      transcript: voiceState.transcript ?? voiceTranscript,
+    })
+    if (spokenStart) setStartName((current) => current || spokenStart)
+    if (spokenGoal) setGoalName((current) => current || spokenGoal)
+    if (spokenStart || spokenGoal) {
+      setVoicePrefillNotice('음성으로 말씀하신 장소를 입력했어요. 내용을 확인해 주세요.')
+    }
+  }, [location.state, voiceData, voiceSlots, voiceTranscript])
+
+  // 음성으로 출발지·목적지가 이미 확정된 경우(step: DONE) 자동 실행.
+  // 서버가 DONE 응답에 naverMapAppUrl/naverMapWebUrl을 이미 조립해서 내려주므로
+  // (명세서 1-1장), 수동 입력 흐름과 달리 routesApi.getNaverMapLink를 다시 부를
+  // 필요가 없다 — 이 앱은 그 값을 그대로 딥링크 실행에만 쓴다. 실제 딥링크 실행 +
+  // 중복 실행 방지는 useVoiceAutoLaunch로 뺐다(내 주변 병원·약국 찾기 화면과
+  // 공유 — hooks/useVoiceAutoLaunch.js 참고).
+  useVoiceAutoLaunch({
+    isActive: isVoiceMapSession && voiceStep === 'DONE',
+    appUrl: voiceData?.naverMapAppUrl,
+    webUrl: voiceData?.naverMapWebUrl,
+    onLaunch: () => {
+      // 입력창도 함께 채워둔다 — 화면 흐름상 "실행" 단계로 곧장 넘어가지만, 사용자가
+      // 뒤로가기로 "입력" 단계에 돌아왔을 때 값이 비어있지 않게 하기 위함이다.
+      const { startName: autoStart, goalName: autoGoal } = resolveMapAutofill({
+        slots: voiceSlots,
+        data: voiceData,
+        transcript: voiceTranscript,
+      })
+      if (autoStart) setStartName((current) => current || autoStart)
+      if (autoGoal) setGoalName((current) => current || autoGoal)
+
+      clearErrors()
+      setStage('executing')
+      // ttsText 음성 안내는 useVoiceAssistant().applyResponse가 모든 응답에 대해
+      // 이미 자동으로 재생한다 — 여기서 또 speak를 부르면 같은 문구가 중복 재생된다
+      // (수동 제출 흐름은 voice/process를 안 타서 자체적으로 speak를 부르는 것과의
+      // 차이점).
+    },
+  })
+
+  // 실제 검증+실행을 담당하는 핵심 함수(수동 입력 전용). "네이버 지도 열기"(최초
+  // 제출)와 "다시 시도"(재시도) 둘 다 이 함수를 그대로 재사용한다.
+  const executeSearch = useCallback(async () => {
+    const trimmedStart = startName.trim()
+    const trimmedGoal = goalName.trim()
+
     clearErrors()
-    setStatus('loading')
+    setStage('executing')
 
     try {
-      // POST /api/v1/routes/naver-link — 요청/응답 필드명은 명세서 그대로 사용.
+      // 이 호출 하나가 "장소가 실제 존재하는지 확인"과 "딥링크 생성"을 동시에
+      // 한다(API 명세서 8-2장) — 별도의 "확인 전용" 엔드포인트가 없어서, 실행
+      // 단계 진입 직후 곧바로 이 호출을 시작하는 것 자체가 검증 절차다.
       const { naverMapAppUrl, naverMapWebUrl } = await routesApi.getNaverMapLink({
         startName: trimmedStart,
         goalName: trimmedGoal,
       })
+      if (!isMountedRef.current) return
 
-      // 어르신 UX: 앱으로 넘어가기 직전, 무슨 일이 일어나는지 음성으로도 안내한다
-      // (다른 화면들과 동일한 "청각+시각 이중 안내" 원칙).
       speak(`${trimmedStart}에서 ${trimmedGoal}까지 경로를 네이버 지도에서 열어드릴게요.`)
-
-      // 딥링크 실행 + Fallback 흐름(명세서 10-2장과 동일한 순서):
-      // 1) naverMapAppUrl로 네이버 지도 앱 실행 시도
-      // 2) 일정 시간(기본 1.5초) 안에 앱으로 화면 전환이 없으면 미설치로 간주
-      // 3) naverMapWebUrl로 대신 이동(Fallback)
       openDeepLinkWithWebFallback(naverMapAppUrl, naverMapWebUrl)
 
-      setStatus('idle')
+      // 딥링크를 연 뒤에도 화면은 실행 화면에 그대로 남아있는다(사용자 확인).
+      // 화면에서 벗어나고 싶으면 사용자가 상단 뒤로가기를 직접 눌러야 한다.
     } catch (error) {
-      // 명세서 9장 에러코드 마스터 표 + 8-2장 실패 응답 형태:
-      // { success: false, error: { code, message, field? } }
-      const errorCode = error.response?.data?.error?.code
-      const errorField = error.response?.data?.error?.field
-      const errorMessage = error.response?.data?.error?.message
+      if (!isMountedRef.current) return
 
-      if (errorCode === 'GEOCODE_NOT_FOUND') {
-        // field로 어느 입력창이 문제인지 구분해서 그 입력창에만 에러를 표시한다.
-        const message = errorMessage ?? '해당 장소를 찾을 수 없어요. 다시 입력해주세요.'
-        if (errorField === 'startName') {
-          setStartError(message)
-        } else if (errorField === 'goalName') {
-          setGoalError(message)
-        } else {
-          setGeneralError(message)
-        }
-        speak(message)
-      } else if (errorCode === 'GEOCODE_API_FAIL' || errorCode === 'EXTERNAL_API_FAIL') {
-        // 일시적인 외부 API 실패 — 같은 입력값으로 재시도해볼 가치가 있어 재시도 버튼을 켠다.
-        const message = errorMessage ?? '경로를 찾는 중 문제가 생겼어요. 다시 시도해주세요.'
-        setGeneralError(message)
+      // 검증 실패(또는 그 외 실패) 시 사용자 확인: 실행 화면에 머무르지 않고
+      // 입력 단계로 자동 복귀해서, 문제가 된 입력창 바로 아래에 에러를 보여준다
+      // (예전과 동일한 표시 위치 — 화면만 다시 입력 단계로 돌아왔을 뿐).
+      setStage('input')
+
+      const code = error.response?.data?.error?.code
+      const field = error.response?.data?.error?.field
+      const message = error.response?.data?.error?.message
+
+      if (code === 'GEOCODE_NOT_FOUND') {
+        const text = message ?? '해당 장소를 찾을 수 없어요. 다시 입력해주세요.'
+        if (field === 'startName') setStartError(text)
+        else if (field === 'goalName') setGoalError(text)
+        else setGeneralError(text)
+        speak(text)
+      } else if (code === 'GEOCODE_API_FAIL' || code === 'EXTERNAL_API_FAIL') {
+        // 일시적인 외부 API 실패 — 입력값 자체는 문제 없을 수 있어 같은 값으로
+        // 재시도해볼 가치가 있으므로 재시도 버튼을 켠다.
+        const text = message ?? '경로를 찾는 중 문제가 생겼어요. 다시 시도해주세요.'
+        setGeneralError(text)
         setCanRetry(true)
-        speak(message)
-      } else if (errorCode === 'INVALID_REQUEST') {
-        const message = errorMessage ?? '출발지/목적지를 입력해주세요.'
-        setGeneralError(message)
-        speak(message)
+        speak(text)
       } else {
-        // INTERNAL_ERROR(500) 및 그 외 알 수 없는 실패(네트워크 끊김 등) 공통 처리.
-        const message = errorMessage ?? '경로를 찾는 데 실패했어요. 다시 시도해주세요.'
-        setGeneralError(message)
+        const text = message ?? '경로를 찾는 데 실패했어요. 다시 시도해주세요.'
+        setGeneralError(text)
         setCanRetry(true)
-        speak(message)
+        speak(text)
       }
-
-      setStatus('idle')
     }
   }, [startName, goalName, speak, clearErrors])
 
   const handleSubmit = (event) => {
     event.preventDefault()
-    runSearch()
+    const trimmedStart = startName.trim()
+    const trimmedGoal = goalName.trim()
+    if (!trimmedStart || !trimmedGoal) {
+      setGeneralError('출발지와 목적지를 모두 입력해주세요.')
+      return
+    }
+    executeSearch()
   }
 
-  // TODO(음성 인식 연동): 지금은 클릭 핸들러 구조만 잡아둔다. 실제로는 홈 화면의
-  // useVoiceAssistant().startListening처럼 STT를 시작해서 인식된 문장에서
-  // 출발지/목적지를 추출해 startName/goalName에 채워주는 로직이 들어갈 자리다.
-  // 아직 연결하지 않은 이유: 이번 스코프는 입력창 기반 UI 확정까지만 요청받았고,
-  // 음성 인식으로 "출발지"/"목적지"를 어떻게 구분해 받을지는 별도 설계가 필요하다.
-  const handleMicClick = () => {
-    // TODO: 음성 인식 시작 -> 인식된 텍스트에서 출발지/목적지 파싱 -> setStartName/setGoalName
+  const disabled = !startName.trim() || !goalName.trim()
+
+  // 상단 뒤로가기 목적지는 현재 단계에 따라 달라진다(사용자 확인). 실행
+  // 화면(네이버 지도를 이미 열었을 수도, 아직 응답을 기다리는 중일 수도 있는
+  // 상태)에서는 홈으로 바로 나가지 않고 입력 단계로 돌아와 다시 검색할 수
+  // 있게 한다. ASK_ORIGIN 확인 카드에서는 그 대화 자체를 접고(resetSession)
+  // 평소의 수동 입력 폼으로 돌아간다 — 입력 단계에서는 기존과 동일하게 홈으로
+  // 나간다.
+  const handleBack = () => {
+    if (stage === 'executing') {
+      setStage('input')
+      return
+    }
+    if (isAskOrigin) {
+      resetSession()
+      return
+    }
+    // QA 중 발견: 이 화면은 항상 홈에서 push로 진입하는데(1홉), 여기서
+    // navigate('/home')를 또 push하면 히스토리가 [홈, 길찾기, 홈]처럼 쌓여
+    // 이후 하드웨어/브라우저 뒤로가기를 누르면 엉뚱하게 길찾기로 되돌아간다
+    // (보호자 모니터링에서 고쳤던 것과 같은 종류의 문제). 목적지(홈)는
+    // 그대로 두고 replace로 바꿔 중복 히스토리만 없앤다.
+    navigate('/home', { replace: true })
   }
 
-  // 출발지/목적지 중 하나라도 비어있거나 요청이 진행 중이면 버튼을 눌러도 아무 일도
-  // 일어나지 않게 막는다(명세서: "미입력 시 버튼 비활성화").
-  const isSubmitDisabled = status === 'loading' || !startName.trim() || !goalName.trim()
+  const displayMode = stage === 'executing' ? 'executing' : isAskOrigin ? 'ask-origin' : 'input'
 
   return (
     <AppFrame>
-      <main className="relative flex h-full flex-col items-center p-6" style={{ background: 'var(--color-bg)' }}>
-        {/* 뒤로가기 버튼. 홈 화면 햄버거 버튼과 같은 좌측 상단 자리/44px 터치 영역
-            규칙을 그대로 따른다(요청사항: "< 표시의 버튼으로 홈화면으로 돌아가기"). */}
-        <button
-          type="button"
-          onClick={() => navigate('/home')}
-          aria-label="홈으로 돌아가기"
-          className="absolute left-4 top-4 z-20 flex items-center justify-center"
-          style={{
-            width: 44,
-            height: 44,
-            background: 'transparent',
-            border: 'none',
-            boxShadow: 'none',
-            color: 'var(--color-text)',
-          }}
-        >
-          <ChevronLeftIcon />
-        </button>
+      <main className="control-form-screen flex h-full min-h-0 flex-col overflow-hidden bg-[var(--cb-cream)]">
+        <MobileHeader title="길 찾기" onBack={handleBack} />
+        <ProgressStrip labels={STEP_LABELS} current={displayMode === 'executing' ? 2 : 1} />
 
-        {/* 세로 배치: 제목+입력창+버튼 그룹을 화면 맨 위에 붙이지 않고, 위쪽 빈 스페이서
-            (flex-1)로 한 번 밀어내려 화면 세로 중앙 부근(원래 비어있던 중간 영역)에
-            오도록 한다. 그 아래 또 다른 스페이서(flex-1)가 마이크 버튼을 화면 하단으로
-            밀어내면서 동시에 그룹과 마이크 사이에 적당한 여백을 만든다. 위/아래 스페이서가
-            동일한 flex-1이라 남는 공간을 절반씩 나눠 가져 균형 잡힌 배치가 된다. */}
-        <form onSubmit={handleSubmit} className="flex h-full w-full flex-col items-center py-4">
-          {/* 그룹을 화면 상단에서 아래로 밀어내는 스페이서. */}
-          <div className="flex-1" />
+        {displayMode === 'executing' ? (
+          <ExecutingPanel label="실행하는 중" description="네이버 지도에서 경로를 확인하고 있어요." />
+        ) : displayMode === 'ask-origin' ? (
+          // 목적지만 말한 경우 서버가 출발지를 되묻는 확인 카드. "네"/"아니요"를
+          // 이 화면에서 직접 분기하지 않고, 버튼의 value를 그대로 /voice/process에
+          // 다시 보내 다음 응답(추가 질문이든 DONE이든)에 맡긴다 — 영상 도움
+          // 화면의 quickReplies 처리와 동일한 원칙.
+          <AskOriginPanel
+            headline={voiceTtsText ?? ttsCaption ?? '지금 계신 곳에서 출발할까요?'}
+            quickReplies={voiceQuickReplies}
+            onReply={(value) => sendText(value)}
+          />
+        ) : (
+          <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+            <section className="px-5 pb-4 pt-5">
+              <h1 className="text-[30px] font-extrabold leading-[1.06] tracking-[-0.08em]">
+                어디로
+                <br />
+                가시나요?
+              </h1>
+            </section>
 
-          {/* 입력창/버튼 그룹 자체를 화면 폭보다 좁게(w-72) 잡아서, 이 그룹이 화면
-              가로 중앙에 오도록 한다(요청사항: "칸을 화면 중앙에 오게"). 안의 글자는
-              MapTextInput이 기본값(왼쪽 정렬)을 쓰므로 입력 텍스트는 그대로 왼쪽 정렬이다. */}
-          <div className="flex w-72 flex-col items-center gap-3">
-            <h1 style={{ fontSize: 'var(--text-title)', fontWeight: 800, color: 'var(--color-primary)' }}>
-              길 찾기
-            </h1>
-
-            <div className="flex w-full flex-col gap-1">
-              <MapTextInput
-                value={startName}
-                onChange={(event) => setStartName(event.target.value)}
-                placeholder="출발지 (예: 서울역)"
-                hasError={Boolean(startError)}
-                aria-label="출발지"
-              />
-              {/* 필드별 에러: GEOCODE_NOT_FOUND의 field가 startName일 때만 여기 표시된다. */}
-              {startError && (
-                <p style={{ fontSize: 'var(--text-body)', color: 'var(--color-danger)' }}>{startError}</p>
-              )}
-            </div>
-
-            <div className="flex w-full flex-col gap-1">
-              <MapTextInput
-                value={goalName}
-                onChange={(event) => setGoalName(event.target.value)}
-                placeholder="목적지 (예: 부산역)"
-                hasError={Boolean(goalError)}
-                aria-label="목적지"
-              />
-              {goalError && (
-                <p style={{ fontSize: 'var(--text-body)', color: 'var(--color-danger)' }}>{goalError}</p>
-              )}
-            </div>
-
-            <PrimaryButton type="submit" disabled={isSubmitDisabled} className="w-full">
-              {status === 'loading' ? (
-                // 로딩 인디케이터: 별도 라이브러리 없이 Tailwind animate-spin으로 최소한의
-                // 원형 스피너만 그린다. 버튼 자체도 disabled라 중복 클릭은 막혀 있다.
-                <span className="inline-flex items-center justify-center gap-2">
-                  <span
-                    className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"
-                    aria-hidden="true"
-                  />
-                  찾는 중...
-                </span>
-              ) : (
-                '길 찾기'
-              )}
-            </PrimaryButton>
-
-            {/* 필드에 매핑되지 않는 에러(입력 누락, 서버 오류 등) 공용 메시지 + 재시도 버튼.
-                canRetry는 502(GEOCODE_API_FAIL/EXTERNAL_API_FAIL) 같은 일시적 실패에서만 켜진다. */}
-            {generalError && (
-              <div className="flex w-full flex-col items-center gap-2">
-                <p style={{ fontSize: 'var(--text-body)', color: 'var(--color-danger)' }}>{generalError}</p>
-                {canRetry && (
-                  <button
-                    type="button"
-                    onClick={runSearch}
-                    disabled={status === 'loading'}
-                    className="quick-action-button"
-                  >
-                    다시 시도
-                  </button>
-                )}
+            <section className="control-form-screen__body flex-1 px-5 py-4">
+              {/* 이미 /map 화면에 있는 상태로 음성 대화가 실패한 경우(예: ASK_ORIGIN에
+                  답한 뒤 위치를 못 찾음) — useVoiceAssistant의 outcome/ttsCaption을
+                  그대로 보여준다. 다른 화면으로 강제 이동해야 하는 경우는 훅에서
+                  이미 처리되므로(위 주석 참고) 이 화면에 남아있는 경우만 여기서 다룬다. */}
+              {outcome === 'error' && ttsCaption ? (
+                <p role="alert" className="control-notice mb-4">
+                  {ttsCaption}
+                </p>
+              ) : null}
+              {voicePrefillNotice ? <p className="control-notice mb-4">{voicePrefillNotice}</p> : null}
+              <div className="control-number-field">
+                <span>01</span>
+                <SeniorInput
+                  id="start-name"
+                  label="출발지"
+                  value={startName}
+                  onChange={(event) => setStartName(event.target.value)}
+                  placeholder="예: 서울역"
+                  error={startError}
+                />
               </div>
-            )}
-          </div>
+              <div className="control-number-field mt-5">
+                <span>02</span>
+                <SeniorInput
+                  id="goal-name"
+                  label="목적지"
+                  value={goalName}
+                  onChange={(event) => setGoalName(event.target.value)}
+                  placeholder="예: 부산역"
+                  error={goalError}
+                />
+              </div>
+            </section>
 
-          {/* 그룹과 마이크 버튼 사이 여백 + 마이크를 화면 하단 쪽으로 밀어내는 스페이서. */}
-          <div className="flex-1" />
-
-          {/* 화면 하단 보조 마이크 버튼. 홈 화면 마이크와 같은 새 디자인 시스템
-              (IconChipButton + MicIcon)을 재사용해 톤을 통일했다. 음성 인식은 아직
-              연결하지 않았고(handleMicClick TODO 참고), disabled 처리는 하지 않아
-              버튼 자체는 눌리지만 지금은 아무 동작도 하지 않는다. */}
-          <IconChipButton onClick={handleMicClick} size={72} ariaLabel="음성으로 길 찾기 (준비 중)">
-            <MicIcon size={28} />
-          </IconChipButton>
-        </form>
+            <footer className="control-form-screen__action shrink-0 px-5 py-4">
+              {generalError ? (
+                <p role="alert" className="mb-3 text-[14px] font-bold leading-5 text-[var(--cb-error)]">
+                  {generalError}
+                </p>
+              ) : null}
+              <button
+                type="submit"
+                disabled={disabled}
+                className="control-button control-button--primary flex min-h-14 w-full items-center justify-center gap-3 text-[18px] font-extrabold text-white disabled:opacity-45"
+              >
+                네이버 지도 열기
+              </button>
+              {canRetry ? (
+                <button
+                  type="button"
+                  onClick={executeSearch}
+                  className="control-button control-button--secondary mt-3 min-h-12 w-full text-[16px] font-extrabold"
+                >
+                  다시 시도
+                </button>
+              ) : null}
+            </footer>
+          </form>
+        )}
       </main>
     </AppFrame>
   )
 }
 
-// 홈 화면의 MenuIcon과 같은 방식(새 의존성 없이 stroke=currentColor 선 아이콘 직접 작성)으로
-// 그린 "<" 뒤로가기 화살표.
-function ChevronLeftIcon() {
+// ASK_ORIGIN 확인 카드. 영상 도움 화면의 VideoConfirmPanel과 달리 썸네일 미리보기가
+// 없어 훨씬 단순하다 — 안내 문구 + quickReplies 버튼만 있으면 된다. quickReplies의
+// 정확한 value 문자열이 아직 명세서에 리터럴로 나와있지 않아(프로즈 설명만 있음)
+// 특정 값("네"처럼)을 가정해 분기하지 않고, 첫 번째 항목을 주 버튼(primary)으로,
+// 나머지를 보조 버튼으로 그린다 — 서버가 준 순서를 그대로 신뢰한다.
+function AskOriginPanel({ headline, quickReplies, onReply }) {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M15 18l-6-6 6-6" />
-    </svg>
-  )
-}
-
-// 출발지/목적지 입력창. 다른 카드형 버튼들과는 다르게, 입력창은 흰 배경 + 옅은
-// 테두리/그림자로 깔끔하게 둔다(요청사항: "입력창 배경은 하얀색으로 처리").
-// hasError면 테두리를 경고색으로 바꿔 GEOCODE_NOT_FOUND 필드별 재입력을 유도한다.
-//
-// 포커스 시 나타나는 강조 테두리: index.css의 전역 접근성 규칙(`input:focus-visible {
-// outline: var(--focus-ring) }`)이 앱 전체 input/button에 --color-primary 색
-// outline을 준다. 이 화면은 원래 그 전역 규칙과 다른 색을 쓰려고 `.map-input` 전용
-// 규칙(index.css)을 별도로 뒀었는데, feature/fe-redesign 병합 이후 전역
-// --color-primary 자체가 이 화면이 쓰던 브랜드 그린과 같은 계열로 바뀌면서 사실상
-// 같은 색이 됐다 — 그래도 화면 전용 오버라이드가 있다고 문제될 건 없어 그대로 둔다.
-function MapTextInput({ value, onChange, placeholder, hasError, ...rest }) {
-  return (
-    <input
-      value={value}
-      onChange={onChange}
-      placeholder={placeholder}
-      className={
-        'map-input w-full rounded-2xl border bg-white px-4 py-3 shadow-sm outline-none transition-colors duration-200 ' +
-        (hasError
-          ? 'border-red-400 focus:border-red-400'
-          : 'border-white/60 focus:border-[var(--color-primary)]/60')
-      }
-      style={{ color: 'var(--color-text)' }}
-      {...rest}
-    />
+    <div className="flex min-h-0 flex-1 flex-col justify-end px-5 py-6">
+      <p className="text-[22px] font-extrabold leading-[1.35] tracking-[-0.04em]">{headline}</p>
+      <div className="mt-6 flex flex-col gap-2">
+        {(quickReplies ?? []).map((reply, index) => (
+          <SeniorButton
+            key={reply.value}
+            type="button"
+            variant={index === 0 ? 'primary' : 'secondary'}
+            onClick={() => onReply(reply.value)}
+          >
+            {reply.label}
+          </SeniorButton>
+        ))}
+      </div>
+    </div>
   )
 }

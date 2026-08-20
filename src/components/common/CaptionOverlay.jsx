@@ -6,13 +6,15 @@ export function CaptionOverlay({ sttCaption, ttsCaption }) {
   return (
     <div
       className="fixed inset-x-0 bottom-0 flex flex-col gap-2 p-4"
-      style={{ background: 'var(--color-bg-alt)', borderTop: '1px solid var(--color-gray-light)' }}
+      style={{ background: 'var(--color-surface)', borderTop: '1px solid var(--color-border)' }}
     >
       {sttCaption && (
-        <p style={{ fontSize: 'var(--text-body)', color: 'var(--color-gray)' }}>나: {sttCaption}</p>
+        <p style={{ fontSize: 'var(--font-size-base)', color: 'var(--color-text-muted)' }}>
+          나: {sttCaption}
+        </p>
       )}
       {ttsCaption && (
-        <p style={{ fontSize: 'var(--text-body)', color: 'var(--color-text)' }}>
+        <p style={{ fontSize: 'var(--font-size-base)', color: 'var(--color-text)' }}>
           척척이: {ttsCaption}
         </p>
       )}

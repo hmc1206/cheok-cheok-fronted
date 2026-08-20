@@ -211,7 +211,7 @@ export function KioskLiveScreen() {
         return
       case 'EXIT_SIMULATION':
         resetGuide('EXIT_SIMULATION')
-        navigate('/home')
+        navigate('/home', { replace: true })
         return
       case 'START_SIMULATION':
         lastSpokenGuideRef.current = null

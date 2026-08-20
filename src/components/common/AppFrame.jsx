@@ -1,51 +1,48 @@
 import { useEffect, useRef, useState } from 'react'
 
-// iPhone 16 Pro의 CSS px 기준 크기. 웹이 아니라 "앱"처럼 보이게 하기 위해 화면
-// 크기와 무관하게 이 비율의 컨테이너를 화면 중앙에 고정한다.
-const APP_WIDTH = 393
-const APP_HEIGHT = 852
-// 실제 기기 베젤 느낌을 내기 위한 모서리 둥글기 (사용자 확인: 48px).
-const APP_BORDER_RADIUS = 48
-// 컨테이너가 화면에 너무 꽉 차 보인다는 피드백으로 92%까지만 키우도록 상한을 낮췄다
-// (사용자 확인: 92% = 363x784). 내부 화면들은 여전히 393x852 논리 좌표계로 짜여
-// 있고, 이 컨테이너 전체를 transform: scale로 축소하는 방식이라 폰트/버튼 등 내부
-// 요소도 이 배율만큼 함께 작아진다 — 화면별로 크기를 따로 조정할 필요가 없다.
-const DISPLAY_SCALE = 0.92
+/** Design reminder — one fixed 375 × 812 device canvas. Desktop never widens the app. */
+
+// 앱 프레임의 논리적(디자인 기준) 크기. 화면 안 모든 요소(텍스트, 버튼, 카드 등)는
+// 이 375x812 좌표계를 기준으로 고정 px로 짜여 있다 — 뷰포트가 이보다 작아지면
+// 이 값 자체를 바꾸는 게 아니라, 박스 전체를 축소(scale)해서 담는다.
+const APP_WIDTH = 375
+const APP_HEIGHT = 812
 
 /**
- * 모든 화면 공통: 393x852 크기의 컨테이너를 화면 중앙에 고정 배치하고, 모서리를
- * 둥글게 처리해 실제 기기 느낌을 낸다. 남는 바깥 영역은 검정으로 채운다.
- * 내부 콘텐츠는 이 컨테이너 크기에 맞춰 고정 px 레이아웃으로 짤 수 있다
- * (반응형으로 늘어나지 않음). flex 중앙 정렬 덕분에 뷰포트가 852px보다 크면
- * 위아래로도 자연스럽게 검정 여백이 생겨 화면에 꽉 차 붙지 않는다.
+ * 원인 점검(이번 수정 전 상태): 기존 AppFrame은 바깥 컨테이너를 flexbox로 가운데
+ * 정렬하고, 안쪽 박스는 `w-[375px] h-[812px] max-w-full max-h-dvh`로만 잡혀
+ * 있었다 — 즉 "뷰포트가 작아지면 폭/높이 각각 뷰포트 크기까지만 줄어든다"는
+ * 뜻이라, **가로세로 비율을 유지하는 축소 로직이 아예 없었다**. 그 결과 두 가지
+ * 문제가 실제로 재현됐다:
+ *  1) 가로/세로가 서로 다른 비율로 줄어들면서 내용물이 찌그러져 보임(예: 500x500
+ *     뷰포트에서는 폭 375 x 높이 500으로 눌린 박스가 됨 — 원래 375x812 비율이
+ *     아님).
+ *  2) `max-w-full`은 부모(.control-stage)의 100%까지 허용하는데, 부모 자체가
+ *     뷰포트 폭과 정확히 같지 않게 계산되는 경우(예: 300x600 뷰포트에서 실제
+ *     렌더된 박스 폭이 320px로 뷰포트보다 커짐) 실제로 뷰포트 밖으로 잘려
+ *     보이는 현상까지 있었다.
  *
- * 브라우저 창(또는 실제 모바일 화면)이 DISPLAY_SCALE 기준 크기보다 작으면, 레이아웃이
- * 잘리거나 스크롤이 생기는 대신 비율을 유지한 채 더 작게 scale transform한다 — 항상
- * 디자인 그대로의 비율을 유지하는 게 실기기 대응에 더 자연스럽기 때문이다
- * (사용자 확인: 작은 화면에서는 "비율 유지 축소" 방식으로 결정).
+ * 수정 방식: 바깥 wrapper의 실제 렌더 크기를 ResizeObserver로 관찰해서, 그
+ * 크기 안에 375x812 비율을 그대로 유지한 채 들어갈 수 있는 최대 배율(scale)을
+ * JS로 계산하고, `transform: scale()`로 박스 전체를 축소한다 — 내부 요소는
+ * 전부 이 하나의 transform에 함께 축소되므로 별도 조정이 필요 없다(요청사항:
+ * "내부 요소 비율/정렬이 깨지지 않아야 함"이 transform: scale()의 기본 특성으로
+ * 자동 충족됨). `position: absolute + top/left: 50% + translate(-50%,-50%)`로
+ * 중앙 고정 후 같은 transform 안에서 scale하는 이유: flexbox로 가운데 정렬하면서
+ * 동시에 scale하면, 축소되기 "전" 크기 기준으로 가운데 정렬이 계산돼 버려 뷰포트가
+ * 아주 작을 때 위쪽이 잘리는 별도 버그가 생긴다(과거 실제로 겪었던 문제) —
+ * translate(-50%,-50%)는 축소 전 크기의 절반만큼 되돌려 먼저 정확히 중앙에
+ * 위치시키고, 그다음 같은 transform 안에서 scale이 그 중앙 지점을 기준으로
+ * 적용되기 때문에 뷰포트 크기와 무관하게 항상 정확히 중앙 유지된다.
  *
- * 버그 수정 1: window.innerWidth/innerHeight + window 'resize' 이벤트 대신
- * ResizeObserver로 바깥 wrapper 엘리먼트 자체의 실제 렌더링 크기를 직접 관찰한다 —
- * 모바일 브라우저는 주소창이 접히고 펼쳐질 때 실제 뷰포트 높이가 바뀌어도 window
- * 'resize'가 안정적으로 안 뜨는 경우가 있어서다.
- *
- * 버그 수정 2(더 근본적인 원인): 안쪽 프레임을 flexbox(align-items/justify-content:
- * center)로 가운데 정렬하면서 동시에 transform: scale()로 축소하면, 뷰포트 높이가
- * 852px(APP_HEIGHT)보다 많이 작아서 heightScale이 widthScale/DISPLAY_SCALE보다
- * 작아지는 경우(좁고 짧은 모바일 화면 등) 위쪽이 통째로 잘려 보이는 문제가 있었다.
- * 원인은 CSS transform이 화면에 그려지는 모습만 바꿀 뿐 flexbox가 계산하는 레이아웃
- * 크기에는 영향을 주지 않는다는 점 — flexbox는 축소되기 전 852px 기준으로 "가운데"를
- * 계산해버려서, 뷰포트보다 훨씬 큰 박스를 억지로 가운데 두려다 위쪽으로 크게
- * 밀려나고, 그 상태에서 scale이 적용되니 실제로 보이는 프레임은 화면 위로 잘려
- * 나간다. 그래서 flexbox 중앙정렬을 쓰지 않고, position: absolute + top/left: 50% +
- * transform: translate(-50%, -50%) scale(...) 조합으로 바꿨다 — translate(-50%,-50%)가
- * "축소되기 전 크기의 절반"만큼 되돌려서 먼저 정확히 중앙에 위치시키고, 그 다음
- * scale이 같은 transform 안에서 그 중앙 지점을 기준으로 축소되기 때문에 뷰포트
- * 크기와 무관하게 항상 정확히 가운데 유지된다.
+ * 최소 배율 하한: 사용자 확인 — 하한 없이 항상 뷰포트에 꽉 맞춰 축소한다("절대
+ * 잘리지 않게"가 우선 요구사항이라, 너무 작아지면 글씨가 작아지는 쪽을 택함).
+ * 반대로 뷰포트가 375x812보다 커지는 경우엔 1배(원본 크기)를 넘겨 확대하지
+ * 않는다 — "Desktop never widens the app" 원칙 그대로 유지.
  */
 export function AppFrame({ children }) {
   const outerRef = useRef(null)
-  const [scale, setScale] = useState(DISPLAY_SCALE)
+  const [scale, setScale] = useState(1)
 
   useEffect(() => {
     const outerEl = outerRef.current
@@ -55,32 +52,38 @@ export function AppFrame({ children }) {
       const { width, height } = outerEl.getBoundingClientRect()
       const widthScale = width / APP_WIDTH
       const heightScale = height / APP_HEIGHT
-      // 가로/세로 중 더 빡빡한 쪽(더 작은 비율)에 맞춰야 어느 쪽으로도 화면을
-      // 벗어나지 않는다. 화면이 아무리 커도 DISPLAY_SCALE(92%)을 넘겨 확대하지는
-      // 않는다 — "꽉 차 보이지 않게 여유를 준다"는 요구사항 그대로.
-      setScale(Math.min(widthScale, heightScale, DISPLAY_SCALE))
+      // 가로/세로 중 더 빡빡한(작은) 비율에 맞춰야 어느 쪽으로도 뷰포트를
+      // 벗어나지 않는다. 1을 넘기지 않게 캡을 걸어 원본 크기 이상으로는
+      // 확대되지 않게 한다.
+      setScale(Math.min(widthScale, heightScale, 1))
     }
 
     updateScale()
+    // window.innerWidth/resize 대신 ResizeObserver를 쓰는 이유: 모바일
+    // 브라우저는 주소창이 접히고 펼쳐질 때 실제 뷰포트 높이가 바뀌어도 window
+    // 'resize' 이벤트가 안정적으로 안 뜨는 경우가 있다 — wrapper 엘리먼트
+    // 자체의 렌더링 크기를 직접 관찰하면 그런 경우도 놓치지 않는다.
     const observer = new ResizeObserver(updateScale)
     observer.observe(outerEl)
     return () => observer.disconnect()
   }, [])
 
   return (
+    // 배경색은 예전과 마찬가지로 className(.control-stage/.control-shell, index.css)에
+    // 맡긴다 — 이 프로젝트는 Tailwind 유틸리티보다 일반 CSS 클래스 규칙이 캐스케이드
+    // 우선순위가 높아서(레이어 없이 쌓인 plain CSS), 배경은 그대로 CSS 클래스가
+    // 정하게 두고 여기서는 위치/크기 관련 인라인 스타일만 새로 추가한다 — 인라인
+    // style로 배경까지 같이 지정하면 클래스 규칙을 덮어써서 색이 바뀌어버린다.
     <div
       ref={outerRef}
-      style={{
-        width: '100vw',
-        height: '100dvh',
-        background: '#000000',
-        position: 'relative',
-        overflow: 'hidden',
-      }}
+      className="control-stage"
+      style={{ width: '100vw', height: '100dvh', position: 'relative', overflow: 'hidden' }}
     >
-      {/* flexbox 중앙정렬 대신 absolute + top/left:50% + translate(-50%,-50%)로
-          바꾼 이유는 위 주석의 "버그 수정 2" 참고. */}
+      {/* text-[var(--cb-navy)]는 원래 이 엘리먼트에 있던 유일한 텍스트 색 지정이라
+          (.control-shell CSS 클래스는 배경/그림자만 정하고 color는 안 건드림)
+          그대로 남겨뒀다 — 안 그러면 화면 전체 기본 글자색이 빠진다. */}
       <div
+        className="control-shell text-[var(--cb-navy)]"
         style={{
           position: 'absolute',
           top: '50%',
@@ -88,8 +91,6 @@ export function AppFrame({ children }) {
           width: APP_WIDTH,
           height: APP_HEIGHT,
           transform: `translate(-50%, -50%) scale(${scale})`,
-          background: 'var(--color-bg)',
-          borderRadius: APP_BORDER_RADIUS,
           overflow: 'hidden',
         }}
       >
