@@ -1,14 +1,18 @@
 .kiosk-image-page {
   position: fixed;
   z-index: 100;
-  inset: 0;
   display: grid;
+  width: 100vw;
+  height: 100dvh;
   overflow: hidden;
+  background: #fff;
+  inset: 0;
   place-items: center;
-  background: #151515;
-  overscroll-behavior: none;
-  touch-action: none;
   user-select: none;
+}
+
+.kiosk-stage-content.is-option-scrollable {
+  touch-action: pan-y;
 }
 
 .kiosk-stage-content {
@@ -17,6 +21,7 @@
 
   position: relative;
   width: min(100vw, calc(100dvh * var(--screen-ratio)));
+  height: min(100dvh, calc(100vw / var(--screen-ratio)));
   aspect-ratio: var(--screen-ratio);
   overflow: hidden;
   line-height: 0;
@@ -55,6 +60,11 @@
 
 .kiosk-hotspot-layer {
   z-index: 3;
+}
+
+.kiosk-guide-anchor {
+  position: absolute;
+  pointer-events: none;
 }
 
 .kiosk-hotspot {
@@ -113,6 +123,222 @@
   box-shadow: 0 0 0 3px #fff, inset 0 0 0 1px #fff;
 }
 
+.kiosk-request-title {
+  position: absolute;
+  z-index: 2;
+  left: 8%;
+  display: grid;
+  width: 84%;
+  height: 6.5%;
+  color: #222;
+  background: #fff;
+  font-size: clamp(25px, 4vw, 48px);
+  font-weight: 800;
+  line-height: 1.1;
+  text-align: center;
+  place-items: center;
+  pointer-events: none;
+}
+
+.kiosk-request-title.is-screen-4 {
+  top: 34%;
+}
+
+.kiosk-request-title.is-screen-6 {
+  top: 31.4%;
+}
+
+.kiosk-screen-patch {
+  position: absolute;
+  z-index: 2;
+  overflow: hidden;
+  background: #fff;
+  line-height: 0;
+  pointer-events: none;
+}
+
+.kiosk-screen-patch img {
+  position: absolute;
+  max-width: none;
+}
+
+.kiosk-target-guide-layer {
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  pointer-events: none;
+}
+
+.kiosk-guide-highlight {
+  position: absolute;
+  border: 7px solid #ffbf00;
+  border-radius: 14px;
+  box-shadow:
+    0 0 0 3px #171717,
+    0 0 24px 8px rgb(255 191 0 / 80%);
+  animation: kiosk-guide-pulse 1.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.kiosk-guide-arrow {
+  position: absolute;
+  color: #ffcf21;
+  filter: drop-shadow(0 3px 0 #111) drop-shadow(0 0 6px #fff);
+  font-size: clamp(42px, 7vw, 70px);
+  font-weight: 1000;
+  line-height: 1;
+  transform: translateX(-50%);
+  animation: kiosk-guide-arrow 1.4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.kiosk-guide-dock {
+  position: absolute;
+  z-index: 6;
+  right: 0;
+  left: 0;
+  display: grid;
+  min-height: 0;
+  padding: 4px 6px;
+  overflow: hidden;
+  color: #fff;
+  background: rgb(7 7 7 / 98%);
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  font-family: inherit;
+  line-height: 1.15;
+}
+
+.kiosk-guide-copy {
+  display: grid;
+  min-width: 0;
+  align-items: center;
+  gap: 1px;
+}
+
+.kiosk-guide-step {
+  overflow: hidden;
+  color: #ffbf00;
+  font-size: clamp(8px, 1.1dvh, 12px);
+  font-weight: 1000;
+  letter-spacing: .02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kiosk-guide-message {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  font-size: clamp(10px, 1.45dvh, 16px);
+  font-weight: 900;
+  line-height: 1.15;
+  word-break: keep-all;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.kiosk-guide-actions {
+  display: flex;
+  min-width: 0;
+  gap: 3px;
+}
+
+.kiosk-guide-actions button {
+  min-width: 40px;
+  min-height: 34px;
+  padding: 3px 5px;
+  color: #171717;
+  border: 1px solid #777;
+  border-radius: 7px;
+  background: #f7f7f7;
+  font: inherit;
+  font-size: clamp(9px, 1.15dvh, 12px);
+  font-weight: 900;
+  line-height: 1.1;
+  white-space: nowrap;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.kiosk-guide-actions button span {
+  display: block;
+  font-size: 1.2em;
+}
+
+.kiosk-guide-actions .kiosk-guide-confirm {
+  border-color: #d87b00;
+  background: #ffbf00;
+}
+
+.kiosk-guide-actions button[aria-pressed='true'] {
+  color: #fff;
+  border-color: #ffbf00;
+  background: #3a2d00;
+}
+
+.kiosk-guide-actions button:disabled {
+  color: #767676;
+  border-color: #b8b8b8;
+  background: #e4e4e4;
+  cursor: not-allowed;
+}
+
+.kiosk-guide-actions button:focus-visible {
+  outline: 2px solid #00e5ff;
+  outline-offset: -2px;
+}
+
+@media (max-width: 560px) {
+  .kiosk-guide-dock {
+    padding: 2px 4px;
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: 2px;
+  }
+
+  .kiosk-guide-copy {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 5px;
+  }
+
+  .kiosk-guide-step {
+    font-size: clamp(7px, 1dvh, 10px);
+  }
+
+  .kiosk-guide-message {
+    font-size: clamp(9px, 1.28dvh, 13px);
+  }
+
+  .kiosk-guide-actions {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+  }
+
+  .kiosk-guide-actions button {
+    min-width: 0;
+    min-height: 24px;
+    padding: 1px 2px;
+    font-size: clamp(8px, 1dvh, 10px);
+  }
+
+  .kiosk-guide-actions button span {
+    display: inline;
+  }
+}
+
+@keyframes kiosk-guide-pulse {
+  0%, 100% { opacity: .82; }
+  50% { opacity: 1; }
+}
+
+@keyframes kiosk-guide-arrow {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(8px); }
+}
+
 .kiosk-image-toast {
   position: fixed;
   z-index: 110;
@@ -144,7 +370,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .kiosk-stage-content {
+  .kiosk-stage-content,
+  .kiosk-guide-highlight,
+  .kiosk-guide-arrow {
+    animation: none;
     transition: none;
   }
 }

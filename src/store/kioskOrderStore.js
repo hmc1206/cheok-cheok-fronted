@@ -23,7 +23,7 @@ const SAUCE_CALORIES = {
 }
 
 export const initialKioskOrder = {
-  screen: 12,
+  screen: 14,
   simulationStatus: 'notStarted',
   paymentStatus: 'pending',
   paymentMethod: null,
@@ -33,6 +33,7 @@ export const initialKioskOrder = {
   quantity: 1,
   selectedChicken: null,
   selectedBurger: null,
+  pendingBurger: null,
   burgerRequest: null,
   selectedDrink: '펩시콜라',
   selectedSauce: '선택없음',
@@ -85,6 +86,7 @@ export function applyKioskEvent(state, event) {
         quantity: 1,
         selectedChicken: '케이준떡강정S',
         selectedBurger: '싸이버거',
+        pendingBurger: null,
         burgerRequest: null,
         selectedDrink: '펩시콜라',
         selectedSauce: '선택없음',
@@ -94,20 +96,28 @@ export function applyKioskEvent(state, event) {
       } : state
     case 'SELECT_DEFAULT_BURGER_REQUEST':
       return state.screen === 4 ? { ...state, screen: 5, burgerRequest: event.value } : state
+    case 'SELECT_CHICKEN':
+      return state.screen === 5 ? { ...state, selectedChicken: event.value } : state
     case 'SELECT_ARABIATTA_BURGER':
-      return state.screen === 5 ? { ...state, screen: 6 } : state
+      return state.screen === 5 ? {
+        ...state,
+        screen: 6,
+        pendingBurger: '아라비아따치즈버거',
+      } : state
     case 'SELECT_ARABIATTA_REQUEST': {
       if (state.screen !== 6) return state
       const next = {
         ...state,
+        screen: 5,
         selectedBurger: '아라비아따치즈버거',
+        pendingBurger: null,
         burgerRequest: event.value,
         burgerUpgradePrice: 2500,
       }
       return { ...next, calories: calculateCalories(next) }
     }
     case 'SCROLL_TO_DRINK_OPTIONS':
-      return state.screen === 6 && state.selectedBurger === '아라비아따치즈버거' && state.burgerRequest
+      return state.screen === 5 && state.selectedBurger === '아라비아따치즈버거' && state.burgerRequest
         ? { ...state, screen: 7 }
         : state
     case 'SCROLL_TO_BURGER_OPTIONS':
@@ -155,7 +165,7 @@ export function applyKioskEvent(state, event) {
     case 'SELECT_RECEIPT_OPTION':
       return state.screen === 11 ? {
         ...state,
-        screen: 13,
+        screen: 15,
         simulationStatus: 'completed',
         receiptOption: event.value,
       } : state
@@ -164,6 +174,7 @@ export function applyKioskEvent(state, event) {
       return { ...initialKioskOrder }
     case 'BACK': {
       const previousScreen = { 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 7: 5, 8: 3, 9: 8, 10: 9 }[state.screen]
+      if (state.screen === 6) return { ...state, screen: 5, pendingBurger: null }
       return previousScreen === 1
         ? { ...initialKioskOrder }
         : { ...state, screen: previousScreen ?? 1 }
