@@ -1,0 +1,66 @@
+/* Living Control Board — fixed 375 × 812 phone product system. */
+:root {
+  --cb-navy: #191f28;
+  --cb-navy-2: #191f28;
+  --cb-cream: #ffffff;
+  /* 요청사항: 앱 전체 페이지 배경(회색 화면들만 — 로그인/인증콜백은 흰색
+     그대로 유지하기로 확인받음)을 한 단계 더 밝게. 이 토큰은 원래도
+     정의돼 있었지만 index.css의 실제 페이지 배경 규칙들(.control-stage,
+     .salad-home, .control-form-screen 등)이 이 토큰을 참조하지 않고
+     #f2f4f6를 직접 하드코딩하고 있었다 — 이번에 그 규칙들을 전부 이
+     토큰을 참조하도록 고쳐서, 앞으로는 이 값 하나만 바꾸면 전체에 반영된다
+     (사용자 확인 — "토큰으로 관리되고 있다면 토큰 값만 수정, 아니면 이
+     기회에 공통 토큰으로 통합"). 이후 사용자 요청으로 한 단계 더 밝은
+     #f9fafb로 재조정 — 흰 카드와의 경계는 border(var(--cb-line))가 별도로
+     잡아주고 있어 이 정도로 밝혀도 카드 구분에는 문제없다고 판단. */
+  --cb-cream-2: #f9fafb;
+  --cb-tomato: #3182f6;
+  --cb-teal: #3182f6;
+  --cb-gold: #e8f3ff;
+  --cb-slate: #4e5968;
+  --cb-line: #e5e8eb;
+  --cb-error: #e42939;
+  --cb-radius-sm: 6px;
+  --cb-radius-md: 16px;
+  --cb-space-1: 4px;
+  --cb-space-2: 8px;
+  --cb-space-3: 12px;
+  --cb-space-4: 16px;
+  --cb-space-5: 24px;
+  --cb-space-6: 32px;
+  --cb-space-7: 48px;
+  --cb-space-8: 64px;
+
+  /* Compatibility aliases for functional code outside the redesigned surfaces. */
+  --color-bg: var(--cb-cream);
+  --color-surface: var(--cb-cream);
+  --color-text: var(--cb-navy);
+  --color-text-muted: var(--cb-slate);
+  --color-primary: var(--cb-navy);
+  --color-primary-contrast: #ffffff;
+  --color-border: var(--cb-navy);
+  --color-danger: var(--cb-error);
+  --font-size-base: 18px;
+  --font-size-lg: 28px;
+  --font-size-xl: 36px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 16px;
+  --space-4: 24px;
+  --space-5: 32px;
+  --radius-base: var(--cb-radius-sm);
+  --voice-button-size: 132px;
+  --focus-ring: 3px solid var(--cb-tomato);
+}
+
+:root[data-theme='high-contrast'] {
+  --cb-navy: #000000;
+  --cb-navy-2: #111111;
+  --cb-cream: #ffffff;
+  --cb-cream-2: #f1f1f1;
+  --cb-tomato: #b21d00;
+  --cb-teal: #005a57;
+  --cb-gold: #805500;
+  --cb-slate: #202020;
+  --cb-line: #000000;
+}
